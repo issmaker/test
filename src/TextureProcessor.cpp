@@ -5,6 +5,7 @@
 #include <QImageReader>
 #include <QElapsedTimer>
 #include <array>
+#include <climits>
 #include <cmath>
 #include <limits>
 #include <stdexcept>
@@ -60,21 +61,15 @@ QImage TextureProcessor::edgeAwareCandidate(const QImage &input, int smooth, int
     return out;
 }
 
-QImage TextureProcessor::blockTextureCandidate(const QImage &input,int block,int residualStep,int chromaSmooth,int chromaStep){
-    const QImage src=input.convertToFormat(QImage::Format_RGB888);QImage out(src.size(),QImage::Format_RGB888);
-    for(int by=0;by<src.height();by+=block)for(int bx=0;bx<src.width();bx+=block){
-        const int ex=qMin(src.width(),bx+block),ey=qMin(src.height(),by+block),n=(ex-bx)*(ey-by);
-        int sumY=0,sumCb=0,sumCr=0,minY=255,maxY=0;
-        for(int y=by;y<ey;++y){const uchar*s=src.constScanLine(y);for(int x=bx;x<ex;++x){const int r=s[x*3],g=s[x*3+1],b=s[x*3+2];const int yy=(77*r+150*g+29*b+128)>>8,cb=(-43*r-85*g+128*b+128)>>8,cr=(128*r-107*g-21*b+128)>>8;sumY+=yy;sumCb+=cb;sumCr+=cr;minY=qMin(minY,yy);maxY=qMax(maxY,yy);}}
-        const int meanY=(sumY+n/2)/n,meanCb=(sumCb+(sumCb>=0?n/2:-n/2))/n,meanCr=(sumCr+(sumCr>=0?n/2:-n/2))/n;const bool edge=maxY-minY>54;
-        for(int y=by;y<ey;++y){const uchar*s=src.constScanLine(y);uchar*d=out.scanLine(y);for(int x=bx;x<ex;++x){const int r=s[x*3],g=s[x*3+1],b=s[x*3+2];const int yy=(77*r+150*g+29*b+128)>>8,pcb=(-43*r-85*g+128*b+128)>>8,pcr=(128*r-107*g-21*b+128)>>8;
-            const int qy=edge?yy:qBound(0,meanY+quantizeSigned(yy-meanY,residualStep),255);const int amount=edge?0:chromaSmooth;
-            int cb=(pcb*(100-amount)+meanCb*amount+(pcb*(100-amount)+meanCb*amount>=0?50:-50))/100;
-            int cr=(pcr*(100-amount)+meanCr*amount+(pcr*(100-amount)+meanCr*amount>=0?50:-50))/100;
-            cb=quantizeSigned(cb,chromaStep);cr=quantizeSigned(cr,chromaStep);
-            d[x*3]=uchar(qBound(0,qy+((359*cr)>>8),255));d[x*3+1]=uchar(qBound(0,qy-((88*cb+183*cr)>>8),255));d[x*3+2]=uchar(qBound(0,qy+((454*cb)>>8),255));
-        }}
-    }return out;
+QImage TextureProcessor::paletteCandidate(const QImage &input,int colors,int preserveThreshold){
+    const QImage src=input.convertToFormat(QImage::Format_RGB888);
+    const QImage indexed=src.convertToFormat(QImage::Format_Indexed8,Qt::AvoidDither);
+    const auto table=indexed.colorTable();std::vector<quint64> counts(table.size());
+    for(int y=0;y<indexed.height();++y){const uchar*p=indexed.constScanLine(y);for(int x=0;x<indexed.width();++x)if(p[x]<counts.size())++counts[p[x]];}
+    std::vector<int> order(table.size());for(int i=0;i<int(order.size());++i)order[i]=i;
+    std::sort(order.begin(),order.end(),[&](int a,int b){return counts[a]>counts[b];});if(int(order.size())>colors)order.resize(colors);
+    std::vector<int> remap(table.size());for(int i=0;i<int(table.size());++i){int best=order.front(),bestD=INT_MAX;const QRgb a=table[i];for(const int j:order){const QRgb b=table[j];const int dr=qRed(a)-qRed(b),dg=qGreen(a)-qGreen(b),db=qBlue(a)-qBlue(b),dist=2*dr*dr+4*dg*dg+db*db;if(dist<bestD){bestD=dist;best=j;}}remap[i]=best;}
+    QImage out(src.size(),QImage::Format_RGB888);for(int y=0;y<src.height();++y){const uchar*s=src.constScanLine(y),*ix=indexed.constScanLine(y);uchar*d=out.scanLine(y);for(int x=0;x<src.width();++x){const QRgb q=table[remap[ix[x]]];const int r=qRed(q),g=qGreen(q),b=qBlue(q),worst=std::max({qAbs(r-int(s[x*3])),qAbs(g-int(s[x*3+1])),qAbs(b-int(s[x*3+2]))});if(worst>preserveThreshold){d[x*3]=s[x*3];d[x*3+1]=s[x*3+1];d[x*3+2]=s[x*3+2];}else{d[x*3]=uchar(r);d[x*3+1]=uchar(g);d[x*3+2]=uchar(b);}}}return out;
 }
 
 QImage TextureProcessor::lumaChromaCandidate(const QImage &input,int yStep,int cStep) {
@@ -153,18 +148,6 @@ QImage TextureProcessor::areaDownsample(const QImage &input,const QSize &target)
     for(int y=0;y<target.height();++y){uchar*d=out.scanLine(y);for(int x=0;x<target.width();++x){quint64 r=0,g=0,b=0;for(int yy=0;yy<sy;++yy){const uchar*p=src.constScanLine(y*sy+yy)+(x*sx)*3;for(int xx=0;xx<sx;++xx){r+=p[xx*3];g+=p[xx*3+1];b+=p[xx*3+2];}}const int n=sx*sy;d[x*3]=uchar((r+n/2)/n);d[x*3+1]=uchar((g+n/2)/n);d[x*3+2]=uchar((b+n/2)/n);}}return out;
 }
 
-QImage TextureProcessor::analyzeMaterials(const QImage &input,QString &summary){
-    const QImage src=input.convertToFormat(QImage::Format_RGB888);QImage map(src.size(),QImage::Format_RGB888);
-    struct Kind{const char*name;QRgb color;quint64 pixels=0;};
-    std::array<Kind,7> kinds={{{"плоский/композит",qRgb(96,110,138)},{"трава/растительность",qRgb(62,196,126)},{"песок/земля",qRgb(226,174,88)},{"кирпич/кладка",qRgb(220,92,74)},{"асфальт",qRgb(74,111,130)},{"брусчатка/камень",qRgb(89,210,205)},{"тонкие детали",qRgb(171,110,245)}}};
-    constexpr int bs=8;for(int by=0;by<src.height();by+=bs)for(int bx=0;bx<src.width();bx+=bs){const int ex=qMin(src.width(),bx+bs),ey=qMin(src.height(),by+bs),n=(ex-bx)*(ey-by);qint64 sr=0,sg=0,sb=0,sy=0,sy2=0,grad=0;
-        for(int y=by;y<ey;++y){const uchar*p=src.constScanLine(y);for(int x=bx;x<ex;++x){const int r=p[x*3],g=p[x*3+1],b=p[x*3+2],yy=(77*r+150*g+29*b)>>8;sr+=r;sg+=g;sb+=b;sy+=yy;sy2+=yy*yy;if(x>bx)grad+=qAbs(yy-((77*p[(x-1)*3]+150*p[(x-1)*3+1]+29*p[(x-1)*3+2])>>8));}}
-        const int r=sr/n,g=sg/n,b=sb/n,ymean=sy/n,variance=qMax<qint64>(0,sy2/n-qint64(ymean)*ymean),sat=std::max({r,g,b})-std::min({r,g,b}),edge=grad/qMax(1,n-(ey-by));int k;
-        if(variance<5&&edge<3)k=0;else if(edge>18||variance>900)k=6;else if(g>r+7&&g>b+10&&variance>8)k=1;else if(r>g+8&&g>b+3&&ymean>75)k=(edge>7?3:2);else if(sat<18&&ymean<145&&variance<90)k=4;else if(sat<30&&(variance>=20||edge>=5))k=5;else k=(variance>35?5:0);kinds[k].pixels+=n;
-        const int cr=qRed(kinds[k].color),cg=qGreen(kinds[k].color),cb=qBlue(kinds[k].color);for(int y=by;y<ey;++y){const uchar*s=src.constScanLine(y);uchar*d=map.scanLine(y);for(int x=bx;x<ex;++x){d[x*3]=uchar((s[x*3]*55+cr*45)/100);d[x*3+1]=uchar((s[x*3+1]*55+cg*45)/100);d[x*3+2]=uchar((s[x*3+2]*55+cb*45)/100);}}}
-    QStringList lines;const double total=double(src.width())*src.height();for(const auto&k:kinds)if(k.pixels)lines<<QString("%1 %2%").arg(k.name).arg(100.0*k.pixels/total,0,'f',1);summary=lines.join(" · ");return map;
-}
-
 void TextureProcessor::measure(const QImage &a0,const QImage &b0,double &mean,double &psnr,int &maximum) {
     const QImage a=a0.convertToFormat(QImage::Format_RGB888), b=b0.convertToFormat(QImage::Format_RGB888);
     quint64 sum=0,squared=0; maximum=0;
@@ -184,19 +167,17 @@ TextureResult TextureProcessor::process(const QString &path,qint64 limit,const P
     if(qMax(source.width(),source.height())>2048){const double k=2048.0/qMax(source.width(),source.height());source=areaDownsample(source,QSize(qMax(1,int(std::lround(source.width()*k))),qMax(1,int(std::lround(source.height()*k)))));}
     progress(.12,"Lossless RGB24: фильтры и libdeflate");
     auto exact=PngEncoder::encodeRgb24(source,10);
-    QString materialSummary;QImage materialMap=analyzeMaterials(source,materialSummary);
-    TextureResult best{source,source,materialMap,exact.bytes,{},0,0,0,1,true};
+    TextureResult best{source,source,exact.bytes,{},0,0,0,1,true};
     int secondPassPixels=0,secondPassStrength=0,selectedRgbGuard=0,selectedChromaGuard=0;
     if(exact.bytes.size()>=limit){
         const qint64 repairBudget=limit*90/100;
-        struct TextureLevel{int block,residual,chromaSmooth,chromaStep,rgb,chroma;};
-        const std::array<TextureLevel,14> textureLevels={{{2,2,20,2,8,3},{2,3,30,3,9,4},{4,3,35,3,10,4},{4,4,45,4,11,4},{4,5,55,5,12,5},{4,6,65,6,14,6},{4,8,72,8,16,7},{4,10,80,10,18,8},{4,12,86,12,20,9},{4,16,88,14,22,10},{4,20,90,16,24,11},{8,16,90,16,24,11},{8,24,92,20,28,12},{8,32,94,24,32,14}}};
-        for(const auto level:textureLevels){
-            progress(.13+.035*best.tested,QString("Микрофактура %1×%1 · остаток/%2").arg(level.block).arg(level.residual));
-            QImage candidate=guardCandidate(source,blockTextureCandidate(source,level.block,level.residual,level.chromaSmooth,level.chromaStep),level.rgb,level.chroma);
+        bool selectedPalette=false;
+        for(const int colors:{256,224,192,160,128}){
+            progress(.13+.04*best.tested,QString("Перцептуальная палитра · %1 цветов · RGB24").arg(colors));
+            QImage candidate=paletteCandidate(source,colors,24);
             auto encoded=PngEncoder::encodeRgb24(candidate,9);++best.tested;
             progress(.13+.035*best.tested,QString("Кандидат %1 · %2 MB").arg(best.tested).arg(encoded.bytes.size()/1000000.0,0,'f',3));
-            if(encoded.bytes.size()<limit){best.output=candidate;best.png=encoded.bytes;best.lossless=false;selectedRgbGuard=level.rgb;selectedChromaGuard=level.chroma;break;}
+            if(encoded.bytes.size()<limit){best.output=candidate;best.png=encoded.bytes;best.lossless=false;selectedPalette=true;break;}
         }
         // First remove only intra-material high-frequency noise. The bilateral
         // neighbourhood rejects different luminance, so silhouettes, atlas
@@ -255,7 +236,7 @@ TextureResult TextureProcessor::process(const QString &path,qint64 limit,const P
         // Independent second pass: compare every pixel, estimate systematic
         // colour bias per source-colour region, repair severe errors, re-encode
         // and keep the strongest repair that remains below the byte contract.
-        if(best.png.size()<limit&&!best.lossless){
+        if(best.png.size()<limit&&!best.lossless&&!selectedPalette){
             progress(.965,"Повторная проверка всех пикселей");
             const QImage base=best.output;
             for(int strength:{100,75,50,25}){
@@ -275,7 +256,6 @@ TextureResult TextureProcessor::process(const QString &path,qint64 limit,const P
         .arg(best.meanError,0,'f',2).arg(best.maxError).arg(best.tested);
     if(secondPassStrength)best.report+=QString("\nВторой проход: исправлено %1 пикселей · сила %2%").arg(secondPassPixels).arg(secondPassStrength);
     if(selectedRgbGuard)best.report+=QString("\nЖёсткая защита: RGB≤%1 · цветность≤%2").arg(selectedRgbGuard).arg(selectedChromaGuard);
-    best.report+=QString("\nКарта материалов: %1").arg(materialSummary);
     best.report+=QString("\nВремя обработки: %1 с").arg(timer.elapsed()/1000.0,0,'f',1);
     progress(1.0,"Готово"); return best;
 }

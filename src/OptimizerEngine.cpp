@@ -21,7 +21,8 @@ OptimizerEngine::OptimizerEngine(QObject *p):QObject(p){
             const QString reference=dir.filePath("original/"+src.completeBaseName()+"_2K_REFERENCE.png");
             if(!r.original.save(reference,"PNG",100))
                 throw std::runtime_error("Не удалось сохранить рабочий 2K-эталон");
-            const QString out=dir.filePath("compressed/"+src.completeBaseName()+"_AGR_RGB24.png");
+            const QString suffix=QString("_AGR_RGB24_A%1.png").arg(r.algorithmId,2,10,QChar('0'));
+            const QString out=dir.filePath("compressed/"+src.completeBaseName()+suffix);
             QFile f(out);
             if(!f.open(QIODevice::WriteOnly|QIODevice::Truncate)||f.write(r.png)!=r.png.size())
                 throw std::runtime_error("Не удалось записать оптимизированный PNG");
@@ -37,6 +38,6 @@ OptimizerEngine::OptimizerEngine(QObject *p):QObject(p){
 QString OptimizerEngine::localPath()const{return QUrl(m_sourceUrl).toLocalFile();}
 void OptimizerEngine::load(const QString&value){if(m_busy)return;const QUrl u(value);m_sourceUrl=u.isLocalFile()?u.toString():QUrl::fromLocalFile(value).toString();m_resultUrl={};m_referenceUrl={};m_outputPath={};m_report={};m_status="Текстура готова к анализу";emit sourceUrlChanged();emit resultUrlChanged();emit referenceUrlChanged();emit outputPathChanged();emit reportChanged();emit statusChanged();}
 void OptimizerEngine::setProgress(double p,const QString&s){QMetaObject::invokeMethod(this,[=]{const double previous=m_progress;m_progress=p;m_status=s;m_progressHistory.append(p);m_activityHistory.append(qBound(0.0,qAbs(p-previous)*850.0,1.0));while(m_progressHistory.size()>72)m_progressHistory.removeFirst();while(m_activityHistory.size()>72)m_activityHistory.removeFirst();emit progressChanged();emit statusChanged();emit telemetryChanged();},Qt::QueuedConnection);}
-void OptimizerEngine::optimize(double maxMb){if(m_sourceUrl.isEmpty()||m_busy)return;m_busy=true;m_progress=0;m_progressHistory={0.0};m_activityHistory={0.0};emit busyChanged();emit progressChanged();emit telemetryChanged();const QString p=localPath();m_watcher.setFuture(QtConcurrent::run([this,p,maxMb]{return TextureProcessor::process(p,qint64(maxMb*1000000.0),[this](double v,const QString&s){setProgress(v,s);});}));}
+void OptimizerEngine::optimize(double maxMb,int algorithmId){if(m_sourceUrl.isEmpty()||m_busy)return;m_busy=true;m_progress=0;m_progressHistory={0.0};m_activityHistory={0.0};emit busyChanged();emit progressChanged();emit telemetryChanged();const QString p=localPath();m_watcher.setFuture(QtConcurrent::run([this,p,maxMb,algorithmId]{return TextureProcessor::process(p,qint64(maxMb*1000000.0),algorithmId,[this](double v,const QString&s){setProgress(v,s);});}));}
 void OptimizerEngine::openSourceFolder(){const QFileInfo f(localPath());if(f.exists())QDesktopServices::openUrl(QUrl::fromLocalFile(f.absolutePath()));}
 void OptimizerEngine::openOutputFolder(){if(!m_outputPath.isEmpty())QDesktopServices::openUrl(QUrl::fromLocalFile(QFileInfo(m_outputPath).absolutePath()));}

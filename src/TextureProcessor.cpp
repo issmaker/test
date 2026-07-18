@@ -378,7 +378,7 @@ TextureResult TextureProcessor::process(const QString &path,qint64 limit,int alg
 
     const auto runAlgorithm=[&](int id,double start,double span){
         switch(id){
-        case 1:return runPalette(source,"Median RGB",id,0,0,start,span);
+        case 1:return runPalette(source,"AGR Adaptive RGB24",id,0,0,start,span);
         case 2:return runPalette(source,"Perceptual Oklab",id,1,0,start,span);
         case 3:return runPalette(source,"Luma + Color",id,2,0,start,span);
         case 4:return runPalette(source,"Ordered Microdither",id,1,3,start,span);

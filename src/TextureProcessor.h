@@ -21,6 +21,7 @@ public:
     static TextureResult process(const QString &path, qint64 limitBytes, const Progress &progress);
 private:
     static QImage edgeAwareCandidate(const QImage &, int smooth, int quant);
+    static QImage blockTextureCandidate(const QImage &, int block, int residualStep, int chromaSmooth, int chromaStep);
     static QImage lumaChromaCandidate(const QImage &, int lumaStep, int chromaStep);
     static QImage auditRepair(const QImage &, const QImage &, int strength, int &correctedPixels);
     static QImage guardCandidate(const QImage &, const QImage &, int rgbGuard, int chromaGuard);

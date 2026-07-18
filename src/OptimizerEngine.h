@@ -24,7 +24,7 @@ public:
     QString outputPath()const{return m_outputPath;}
     double progress()const{return m_progress;} bool busy()const{return m_busy;}
     QVariantList progressHistory()const{return m_progressHistory;} QVariantList activityHistory()const{return m_activityHistory;}
-    Q_INVOKABLE void load(const QString &url); Q_INVOKABLE void optimize(double maxMb=3.0);
+    Q_INVOKABLE void load(const QString &url); Q_INVOKABLE void optimize(double maxMb=3.0,int algorithmId=0);
     Q_INVOKABLE void openSourceFolder(); Q_INVOKABLE void openOutputFolder();
 signals:
     void sourceUrlChanged(); void resultUrlChanged(); void referenceUrlChanged(); void statusChanged(); void reportChanged();

@@ -32,18 +32,17 @@ ApplicationWindow {
     property real zoomWarp: 0
     property real zoomDirection: 1
     property real lastSliderValue: .25
+    property int caughtStars: 0
     property color accentColor: optimizer.accentColor
     Behavior on accentColor{ColorAnimation{duration:750;easing.type:Easing.InOutCubic}}
     Behavior on parallaxX{NumberAnimation{duration:115;easing.type:Easing.OutCubic}}
     Behavior on parallaxY{NumberAnimation{duration:115;easing.type:Easing.OutCubic}}
 
-    readonly property url leftImage: optimizer.showingMaster
-                                      ? optimizer.sourceUrl
-                                      : (optimizer.referenceUrl
-                                         ? optimizer.referenceUrl
-                                         : (optimizer.workingPreviewUrl
-                                            ? optimizer.workingPreviewUrl
-                                            : (optimizer.sourceIsLarge?"":optimizer.sourceUrl)))
+    readonly property url leftImage: optimizer.referenceUrl
+                                      ? optimizer.referenceUrl
+                                      : (optimizer.workingPreviewUrl
+                                         ? optimizer.workingPreviewUrl
+                                         : (optimizer.sourceIsLarge?"":optimizer.sourceUrl))
 
     function triggerZoomWarp(direction) {
         zoomDirection=direction
@@ -121,10 +120,11 @@ ApplicationWindow {
                 Layout.fillWidth: true
                 spacing: 3
                 Text{text:"Adaptive Texture Optimizer";color:"#f4fafb";font.pixelSize:24;font.weight:Font.DemiBold}
-                Text{text:"Median RGB  •  perceptual colour budget  •  verified RGB24";color:"#8599a3";font.pixelSize:12}
+                Text{text:"AGR Adaptive RGB24  •  perceptual colour budget  •  verified RGB24";color:"#8599a3";font.pixelSize:12}
             }
+            StarCounter{count:win.caughtStars;accentColor:win.accentColor}
             MetricChip{text:"v1.0";accentColor:win.accentColor}
-            MetricChip{text:"MEDIAN RGB";accentColor:win.accentColor;checked:true}
+            MetricChip{text:"AGR ADAPTIVE RGB24";accentColor:win.accentColor;checked:true}
         }
 
         GlassCard {
@@ -140,7 +140,7 @@ ApplicationWindow {
                     Sparkline{Layout.fillWidth:true;Layout.preferredHeight:38;values:optimizer.progressHistory;active:optimizer.busy;lineColor:win.accentColor;title:optimizer.busy?"LIVE PIPELINE":"СИСТЕМА ГОТОВА";valueText:Math.round(optimizer.progress*100)+"%";visible:optimizer.busy||optimizer.progress>0}
                 }
                 Column{spacing:3;Text{text:"ПРЕДЕЛ ФАЙЛА";color:"#738893";font.pixelSize:9;font.weight:Font.DemiBold}LimitSelector{value:win.targetMb;accentColor:win.accentColor;onValueChanged:win.targetMb=value}}
-                AppButton{text:optimizer.busy?"Оптимизация…":"Оптимизировать";accent:win.accentColor;enabled:optimizer.sourceUrl&&!optimizer.busy&&!optimizer.previewBusy;tip:"Запустить Median RGB с обязательной проверкой размера и RGB24";onClicked:optimizer.optimize(win.targetMb,1)}
+                AppButton{text:optimizer.busy?"Оптимизация…":"Оптимизировать";accent:win.accentColor;enabled:optimizer.sourceUrl&&!optimizer.busy&&!optimizer.previewBusy;tip:"Запустить AGR Adaptive RGB24 с обязательной проверкой размера и RGB24";onClicked:optimizer.optimize(win.targetMb,1)}
             }
         }
 
@@ -159,14 +159,6 @@ ApplicationWindow {
                 handle:Rectangle{x:scaleSlider.leftPadding+scaleSlider.visualPosition*(scaleSlider.availableWidth-width);y:scaleSlider.topPadding+scaleSlider.availableHeight/2-height/2;width:18;height:18;radius:9;color:"#eef8f8";border.width:4;border.color:win.accentColor}
             }
             MetricChip{text:Math.round(win.viewScale*100)+"%";accentColor:win.accentColor}
-            AppButton {
-                visible: optimizer.sourceIsLarge&&!optimizer.previewBusy
-                text: optimizer.showingMaster?"Рабочий эталон 2K":"Исходный мастер 8K"
-                accent: optimizer.showingMaster?win.accentColor:"#17232a"
-                implicitHeight:38
-                tip: optimizer.showingMaster?"Вернуться к быстрому рабочему эталону 2K":"Показать исходный мастер высокого разрешения; загрузка может занять время"
-                onClicked:{optimizer.toggleMasterView();win.resetView()}
-            }
             Item{Layout.fillWidth:true}
             AppButton{text:"Папка исходника";accent:"#17232a";implicitHeight:38;enabled:optimizer.sourceUrl;tip:"Открыть папку исходной текстуры";onClicked:optimizer.openSourceFolder()}
             AppButton{text:"Папка результата";accent:win.accentColor;implicitHeight:38;enabled:optimizer.outputPath;tip:"Открыть папку compressed с готовым RGB24 PNG";onClicked:optimizer.openOutputFolder()}
@@ -179,7 +171,7 @@ ApplicationWindow {
             ZoomView {
                 id:leftZoom
                 Layout.fillWidth:true;Layout.fillHeight:true
-                title:optimizer.showingMaster?"Исходный мастер высокого разрешения":(optimizer.sourceIsLarge?"Рабочий эталон 2K":"Оригинал")
+                title:optimizer.sourceIsLarge?"Рабочий эталон 2K":"Оригинал"
                 imageSource:win.leftImage
                 sharedScale:win.viewScale;sharedPanX:win.panX;sharedPanY:win.panY
                 parallaxX:win.parallaxX*2.2;parallaxY:win.parallaxY*2.2;accentColor:win.accentColor
@@ -191,7 +183,7 @@ ApplicationWindow {
             ZoomView {
                 id:rightZoom
                 Layout.fillWidth:true;Layout.fillHeight:true
-                title:"Результат Median RGB"
+                title:"Результат AGR Adaptive RGB24"
                 imageSource:optimizer.resultUrl
                 sharedScale:win.viewScale;sharedPanX:win.panX;sharedPanY:win.panY
                 parallaxX:win.parallaxX*2.2;parallaxY:win.parallaxY*2.2;accentColor:win.accentColor
@@ -234,9 +226,9 @@ ApplicationWindow {
             id: statusRow
             anchors.centerIn: parent
             spacing: 8
-            MetricChip{checked:optimizer.workingWidth>0;text:(optimizer.workingWidth>0?"✓ ":"")+optimizer.workingWidth+"×"+optimizer.workingHeight;accentColor:win.accentColor}
-            MetricChip{checked:optimizer.resultUrl;text:(optimizer.resultUrl?"✓ ":"")+"PNG RGB24";accentColor:win.accentColor}
-            MetricChip{checked:optimizer.outputFileMb>0&&optimizer.outputFileMb<win.targetMb;text:optimizer.outputFileMb>0?((optimizer.outputFileMb<win.targetMb?"✓ ":"! ")+optimizer.outputFileMb.toFixed(3)+" MB"):"≤ "+win.targetMb.toFixed(1)+" MB";accentColor:win.accentColor}
+            MetricChip{checked:optimizer.workingWidth>0;text:optimizer.workingWidth+"×"+optimizer.workingHeight;accentColor:win.accentColor}
+            MetricChip{checked:optimizer.resultUrl;text:"PNG RGB24";accentColor:win.accentColor}
+            MetricChip{checked:optimizer.outputFileMb>0&&optimizer.outputFileMb<win.targetMb;text:optimizer.outputFileMb>0?optimizer.outputFileMb.toFixed(3)+" MB":"≤ "+win.targetMb.toFixed(1)+" MB";accentColor:win.accentColor}
             MetricChip{visible:optimizer.sourceFileMb>0;text:"Исходник "+optimizer.sourceFileMb.toFixed(2)+" MB";accentColor:win.accentColor}
         }
     }
@@ -249,6 +241,6 @@ ApplicationWindow {
         cursorY: win.pointerNormY
         pointerActive: parallaxHover.hovered
         accentColor: win.accentColor
-        onCaught:(x,y)=>cosmos.triggerBurst(x,y)
+        onCaught:(x,y)=>{win.caughtStars++;cosmos.triggerBurst(x,y)}
     }
 }

@@ -52,15 +52,10 @@ QImage TextureProcessor::edgeAwareCandidate(const QImage &input, int smooth, int
 QImage TextureProcessor::lumaChromaCandidate(const QImage &input,int yStep,int cStep) {
     const QImage src=input.convertToFormat(QImage::Format_RGB888);
     QImage out(src.size(),QImage::Format_RGB888);
-    // Serpentine Floyd-Steinberg on luminance avoids the visible 8x8 grid of
-    // ordered dithering. Error is kept in fixed-point /16 units.
-    std::vector<int> error(src.width()+2),nextError(src.width()+2);
     for(int y=0;y<src.height();++y){
         const uchar*s=src.constScanLine(y);uchar*d=out.scanLine(y);
-        std::fill(nextError.begin(),nextError.end(),0);
-        const bool reverse=(y&1)!=0;
         for(int i=0;i<src.width();++i){
-            const int x=reverse?src.width()-1-i:i;
+            const int x=i;
             const int r=s[x*3],g=s[x*3+1],b=s[x*3+2];
             const int yy=(77*r+150*g+29*b+128)>>8;
             int cb=(((-43*r-85*g+128*b+128)>>8)+128);
@@ -74,11 +69,10 @@ QImage TextureProcessor::lumaChromaCandidate(const QImage &input,int yStep,int c
             if(range<=1){d[x*3]=uchar(r);d[x*3+1]=uchar(g);d[x*3+2]=uchar(b);continue;}
             const int ys=gradient>22?qMax(1,yStep/3):(gradient>10?qMax(1,yStep/2):yStep);
             const int cs=gradient>22?qMax(2,cStep/2):cStep;
-            const int adjusted=qBound(0,yy+(error[x+1]>=0?(error[x+1]+8)/16:-((-error[x+1]+8)/16)),255);
-            const int qy=quantize(adjusted,ys);
-            const int propagated=adjusted-qy;
-            if(!reverse){error[x+2]+=propagated*7;nextError[x]+=propagated*3;nextError[x+1]+=propagated*5;nextError[x+2]+=propagated;}
-            else{error[x]+=propagated*7;nextError[x+2]+=propagated*3;nextError[x+1]+=propagated*5;nextError[x]+=propagated;}
+            // Never diffuse quantisation error into neighbouring texels. Error
+            // diffusion produced coloured salt-and-pepper noise, destroyed
+            // DEFLATE locality and forced later candidates to become extreme.
+            const int qy=quantize(yy,ys);
             cb=qBound(0,128+quantizeSigned(cb-128,cs),255);
             cr=qBound(0,128+quantizeSigned(cr-128,cs),255);
             const int Cb=cb-128,Cr=cr-128;
@@ -86,7 +80,6 @@ QImage TextureProcessor::lumaChromaCandidate(const QImage &input,int yStep,int c
             d[x*3+1]=uchar(qBound(0,qy-((88*Cb+183*Cr)>>8),255));
             d[x*3+2]=uchar(qBound(0,qy+((454*Cb)>>8),255));
         }
-        error.swap(nextError);
     }
     return out;
 }
@@ -153,10 +146,22 @@ TextureResult TextureProcessor::process(const QString &path,qint64 limit,const P
     int secondPassPixels=0,secondPassStrength=0,selectedRgbGuard=0,selectedChromaGuard=0;
     if(exact.bytes.size()>=limit){
         const qint64 repairBudget=limit*90/100;
+        // First remove only intra-material high-frequency noise. The bilateral
+        // neighbourhood rejects different luminance, so silhouettes, atlas
+        // seams and thin markings do not bleed into their surroundings.
+        const std::array<std::pair<int,int>,7> spatial={{{18,2},{28,2},{38,3},{50,3},{62,4},{74,5},{86,6}}};
+        for(const auto [smooth,quant]:spatial){
+            progress(.13+.035*best.tested,QString("Локальная фактура · %1% · RGB/%2").arg(smooth).arg(quant));
+            const int rgb=qMin(12,6+quant),chroma=qMin(5,2+quant/2);
+            QImage candidate=guardCandidate(source,edgeAwareCandidate(source,smooth,quant),rgb,chroma);
+            auto encoded=PngEncoder::encodeRgb24(candidate,9);++best.tested;
+            if(encoded.bytes.size()<limit){best.output=candidate;best.png=encoded.bytes;best.lossless=false;selectedRgbGuard=rgb;selectedChromaGuard=chroma;break;}
+        }
         // Luminance carries masonry/ground microtexture; chroma may be reduced
         // more strongly without turning a surface into large RGB blocks.
         const std::array<std::pair<int,int>,12> ladder={{{2,6},{3,8},{4,10},{5,12},{6,16},{8,20},{10,24},{12,32},{16,40},{20,48},{24,64},{32,80}}};
         for(const auto [ys,cs]:ladder){
+            if(best.png.size()<limit)break;
             progress(.15+.055*best.tested,QString("Фактура Y/%1 · цветность/%2").arg(ys).arg(cs));
             QImage candidate=guardCandidate(source,lumaChromaCandidate(source,ys,cs),8,3);
             auto encoded=PngEncoder::encodeRgb24(candidate,9); ++best.tested;
@@ -187,7 +192,7 @@ TextureResult TextureProcessor::process(const QString &path,qint64 limit,const P
         // last levels preserve edge geometry and hue ordering, while reducing
         // the channel alphabet until the measured stream is below the limit.
         struct StrictLevel{int y,c,rgb,chroma;};
-        for(const auto level:{StrictLevel{40,96,10,4},StrictLevel{48,112,11,4},StrictLevel{64,128,12,5},StrictLevel{85,170,14,6},StrictLevel{128,255,16,7},StrictLevel{170,255,18,8},StrictLevel{255,255,20,9},StrictLevel{255,255,24,10},StrictLevel{255,255,28,12},StrictLevel{255,255,32,14},StrictLevel{255,255,40,18},StrictLevel{255,255,48,22},StrictLevel{255,255,64,28},StrictLevel{255,255,96,42},StrictLevel{255,255,128,56},StrictLevel{255,255,255,128}}){
+        for(const auto level:{StrictLevel{40,96,10,4},StrictLevel{48,112,11,4},StrictLevel{64,128,12,5},StrictLevel{85,170,14,6},StrictLevel{128,255,16,7},StrictLevel{170,255,18,8},StrictLevel{255,255,20,9},StrictLevel{255,255,24,10},StrictLevel{255,255,28,12},StrictLevel{255,255,32,14}}){
             if(best.png.size()<limit)break;
             progress(.93,QString("Строгий лимит · Y/%1 C/%2 · защита %3/%4").arg(level.y).arg(level.c).arg(level.rgb).arg(level.chroma));
             QImage candidate=guardCandidate(source,lumaChromaCandidate(source,level.y,level.c),level.rgb,level.chroma);

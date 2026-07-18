@@ -13,7 +13,8 @@ ApplicationWindow {
     property real panX: 0
     property real panY: 0
     property bool linkedViews: true
-    property bool showMaterials: false
+    property real parallaxX: 0
+    property real parallaxY: 0
 
     function resetView() { viewScale=fitValue;panX=0;panY=0 }
     function actualPixels() { viewScale=1;panX=0;panY=0 }
@@ -28,10 +29,12 @@ ApplicationWindow {
     Shortcut { sequence:"Ctrl+0";onActivated:win.resetView() }
     Shortcut { sequence:"Ctrl+1";onActivated:win.actualPixels() }
 
-    Rectangle { anchors.fill:parent;gradient:Gradient{GradientStop{position:0;color:"#080b12"}GradientStop{position:.48;color:"#0d1019"}GradientStop{position:1;color:"#110b1d"}} }
-    Rectangle { width:720;height:720;radius:360;x:-340;y:-400;color:"#6d28d9";opacity:.10 }
-    Rectangle { width:620;height:620;radius:310;anchors.right:parent.right;anchors.bottom:parent.bottom;anchors.margins:-280;color:"#7c3aed";opacity:.08 }
-    Rectangle { anchors.horizontalCenter:parent.horizontalCenter;y:-280;width:900;height:420;radius:210;color:"#2563eb";opacity:.035 }
+    Rectangle { anchors.fill:parent;gradient:Gradient{GradientStop{position:0;color:"#061014"}GradientStop{position:.45;color:"#0a1218"}GradientStop{position:1;color:"#120a1b"}} }
+    Item{anchors.fill:parent;HoverHandler{id:parallaxHover;onPointChanged:{win.parallaxX=(point.position.x-win.width/2)/win.width;win.parallaxY=(point.position.y-win.height/2)/win.height}}}
+    Rectangle { width:720;height:720;radius:360;x:-340+win.parallaxX*42;y:-400+win.parallaxY*32;color:"#5b21b6";opacity:.13;Behavior on x{NumberAnimation{duration:280;easing.type:Easing.OutCubic}}Behavior on y{NumberAnimation{duration:280;easing.type:Easing.OutCubic}} }
+    Rectangle { width:620;height:620;radius:310;x:win.width-340+win.parallaxX*-55;y:win.height-350+win.parallaxY*-38;color:"#0f766e";opacity:.10;Behavior on x{NumberAnimation{duration:360;easing.type:Easing.OutCubic}}Behavior on y{NumberAnimation{duration:360;easing.type:Easing.OutCubic}} }
+    Rectangle { x:win.width/2-450+win.parallaxX*24;y:-280+win.parallaxY*18;width:900;height:420;radius:210;color:"#2563eb";opacity:.055;Behavior on x{NumberAnimation{duration:320}}Behavior on y{NumberAnimation{duration:320}} }
+    Repeater{model:18;Rectangle{required property int index;width:2+(index%3);height:2+(index%3);radius:width/2;color:index%2?"#5eead4":"#a78bfa";opacity:.10+(index%4)*.035;x:(index*197%win.width)+win.parallaxX*(12+index%5*7);y:(index*113%win.height)+win.parallaxY*(10+index%7*5);Behavior on x{NumberAnimation{duration:420}}Behavior on y{NumberAnimation{duration:420}}}}
     DropArea { anchors.fill:parent;onDropped:drop=>{if(drop.hasUrls){optimizer.load(drop.urls[0]);win.resetView()}} }
 
     ColumnLayout { anchors.fill:parent;anchors.margins:22;spacing:14
@@ -57,7 +60,6 @@ ApplicationWindow {
         RowLayout { Layout.fillWidth:true;Layout.preferredHeight:48;spacing:8
             AppButton{text:"Вписать";accent:"#24202b";implicitHeight:40;onClicked:win.resetView();ToolTip.visible:hovered;ToolTip.text:"Показать текстуру целиком — Ctrl+0"}
             AppButton{text:"1:1";accent:"#24202b";implicitHeight:40;onClicked:win.actualPixels();ToolTip.visible:hovered;ToolTip.text:"Один пиксель изображения = один пиксель экрана — Ctrl+1"}
-            AppButton{text:win.showMaterials?"Показать результат":"Карта материалов";accent:win.showMaterials?"#0f766e":"#164e63";implicitHeight:40;enabled:optimizer.materialUrl;onClicked:win.showMaterials=!win.showMaterials;ToolTip.visible:hovered;ToolTip.text:"Цветная карта гипотез материалов по локальной фактуре"}
             Slider { Layout.preferredWidth:220;from:.08;to:8;value:win.viewScale;onMoved:{win.viewScale=value;win.panX=0;win.panY=0} }
             MetricChip{text:Math.round(win.viewScale*100)+"%"}
             Item{Layout.fillWidth:true}
@@ -70,7 +72,7 @@ ApplicationWindow {
                 ZoomView { anchors.fill:parent;anchors.margins:10;title:optimizer.referenceUrl?"Рабочий эталон 2K":"Оригинал";imageSource:optimizer.referenceUrl||optimizer.sourceUrl;sharedScale:win.viewScale;sharedPanX:win.panX;sharedPanY:win.panY;onViewChanged:(s,x,y)=>win.updateView(s,x,y);onResetRequested:win.resetView();onFitCalculated:s=>{win.fitValue=s;if(win.panX===0&&win.panY===0)win.viewScale=s} }
             }
             GlassCard { Layout.fillWidth:true;Layout.fillHeight:true
-                ZoomView { anchors.fill:parent;anchors.margins:10;title:win.showMaterials?"Карта материалов / гипотезы":"Результат / изменения";imageSource:win.showMaterials?optimizer.materialUrl:optimizer.resultUrl;sharedScale:win.viewScale;sharedPanX:win.panX;sharedPanY:win.panY;onViewChanged:(s,x,y)=>win.updateView(s,x,y);onResetRequested:win.resetView() }
+                ZoomView { anchors.fill:parent;anchors.margins:10;title:"Результат / изменения";imageSource:optimizer.resultUrl;sharedScale:win.viewScale;sharedPanX:win.panX;sharedPanY:win.panY;onViewChanged:(s,x,y)=>win.updateView(s,x,y);onResetRequested:win.resetView() }
             }
         }
 

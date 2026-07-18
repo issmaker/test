@@ -1,6 +1,7 @@
 #include <QGuiApplication>
 #include <QDateTime>
 #include <QFile>
+#include <QIcon>
 #include <QMutex>
 #include <QMutexLocker>
 #include <QQmlApplicationEngine>
@@ -59,6 +60,7 @@ void showStartupFailure(const QString &details) {
 
 int main(int argc,char**argv){
     QGuiApplication app(argc,argv);app.setApplicationName("Adaptive Texture Optimizer");app.setApplicationVersion("1.0");
+    app.setWindowIcon(QIcon(QStringLiteral(":/icons/black-hole.svg")));
     g_startupLogPath = QCoreApplication::applicationDirPath()
         + QStringLiteral("/AdaptiveTextureOptimizer-startup.log");
     {

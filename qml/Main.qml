@@ -13,6 +13,7 @@ ApplicationWindow {
     property real panX: 0
     property real panY: 0
     property bool linkedViews: true
+    property bool fullSpaceEffects: false
     property real parallaxX: 0
     property real parallaxY: 0
     property int algorithmId: 0
@@ -42,7 +43,7 @@ ApplicationWindow {
     Shortcut { sequence:"Ctrl+0";onActivated:win.resetView() }
     Shortcut { sequence:"Ctrl+1";onActivated:win.actualPixels() }
 
-    SpaceBackground{anchors.fill:parent;pointerX:win.parallaxX;pointerY:win.parallaxY;pointerActive:parallaxHover.hovered;warp:optimizer.busy;progress:optimizer.progress}
+    SpaceBackground{anchors.fill:parent;pointerX:win.parallaxX;pointerY:win.parallaxY;pointerActive:parallaxHover.hovered;fullEffects:win.fullSpaceEffects;warp:optimizer.busy;progress:optimizer.progress}
     Item{anchors.fill:parent;HoverHandler{id:parallaxHover;onPointChanged:{win.parallaxX=(point.position.x-win.width/2)/win.width;win.parallaxY=(point.position.y-win.height/2)/win.height}}}
     DropArea { anchors.fill:parent;onDropped:drop=>{if(drop.hasUrls){optimizer.load(drop.urls[0]);win.resetView()}} }
 
@@ -51,6 +52,7 @@ ApplicationWindow {
             Rectangle { width:54;height:54;radius:17;gradient:Gradient{GradientStop{position:0;color:"#5b21b6"}GradientStop{position:.55;color:"#7c3aed"}GradientStop{position:1;color:"#a855f7"}}Rectangle{anchors.fill:parent;anchors.margins:1;radius:16;color:"transparent";border.color:"#50ffffff"}Text{anchors.centerIn:parent;text:"AGR";color:"white";font.bold:true;font.pixelSize:16} }
             Column { Layout.fillWidth:true;spacing:3;Text{text:"Adaptive Texture Optimizer";color:"#f7f4ff";font.pixelSize:24;font.weight:Font.DemiBold}Text{text:"Color-safe texture laboratory  •  adaptive RGB24 pipeline";color:"#9588aa";font.pixelSize:12} }
             MetricChip{text:"v1.0"} MetricChip{text:"2K / 8K → 2K"} MetricChip{text:"RGB24 verified"}
+            AppButton{text:win.fullSpaceEffects?"FX · FULL":"FX · ECO";implicitHeight:34;accent:win.fullSpaceEffects?"#5b21b6":"#24202b";onClicked:win.fullSpaceEffects=!win.fullSpaceEffects;ToolTip.visible:hovered;ToolTip.text:"ECO экономит ресурсы. FULL включает максимальную частоту космической анимации."}
         }
 
         GlassCard { Layout.fillWidth:true;Layout.preferredHeight:96

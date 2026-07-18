@@ -5,9 +5,11 @@ Item {
     property real pointerX: 0
     property real pointerY: 0
     property bool pointerActive: false
-    property bool fullEffects: false
     property bool warp: false
     property real progress: 0
+    property real zoomPulse: 0
+    property real zoomDirection: 1
+    property color accentColor: "#ff641f"
     property real clock: 0
     property var stars: []
     property int caughtMeteor: -1
@@ -15,55 +17,181 @@ Item {
     property real burstX: 0
     property real burstY: 0
 
-    // The background used to repaint a full-HD/4K canvas every 33 ms even
-    // while the application was idle.  On Windows systems where Qt falls
-    // back to a software canvas this alone could occupy a CPU core and make
-    // the whole window look frozen.  Idle space is intentionally calm; the
-    // higher frame rate is enabled only for the warp animation.
-    readonly property int frameInterval: warp ? (fullEffects ? 33 : 50)
-                                              : (fullEffects ? 90 : 250)
+    function tint(alpha) {
+        return Qt.rgba(accentColor.r, accentColor.g, accentColor.b, alpha)
+    }
+    function hash(value) {
+        const n=Math.sin(value*91.731+17.113)*43758.5453
+        return n-Math.floor(n)
+    }
+    function meteorPosition(w,h,phase,cycle) {
+        const edge=Math.floor(hash(cycle+3)*4)
+        const a=.1+hash(cycle+11)*.55
+        const b=.18+hash(cycle+29)*.64
+        let sx,sy,ex,ey
+        if(edge===0){sx=-150;sy=h*a;ex=w+150;ey=h*b}
+        else if(edge===1){sx=w+150;sy=h*a;ex=-150;ey=h*b}
+        else if(edge===2){sx=w*a;sy=-100;ex=w*b;ey=h+100}
+        else{sx=w*a;sy=h+100;ex=w*b;ey=-100}
+        const eased=phase<.5?2*phase*phase:1-Math.pow(-2*phase+2,2)/2
+        return {x:sx+(ex-sx)*eased,y:sy+(ey-sy)*eased,dx:ex-sx,dy:ey-sy}
+    }
 
     Component.onCompleted: {
-        let a=[]; let seed=918273
+        let result=[];let seed=918273
         function rnd(){seed=(seed*1664525+1013904223)>>>0;return seed/4294967296}
-        for(let i=0;i<128;i++)a.push({x:rnd(),y:rnd(),z:.25+rnd()*.75,p:rnd(),h:rnd()})
-        stars=a; sky.requestPaint()
+        for(let i=0;i<96;i++)result.push({x:rnd(),y:rnd(),z:.22+rnd()*.78,p:rnd(),h:rnd()})
+        stars=result;sky.requestPaint()
     }
-    Timer{interval:root.frameInterval;running:root.visible;repeat:true;onTriggered:{
-        root.clock+=interval
-        const cycle=Math.floor(root.clock/7600),phase=(root.clock%7600)/7600
-        const mx=-180+phase*(root.width+360),my=root.height*.11+phase*root.height*.29
-        const px=(root.pointerX+.5)*root.width,py=(root.pointerY+.5)*root.height
-        if(root.pointerActive&&root.caughtMeteor!==cycle&&Math.hypot(px-mx,py-my)<58){root.caughtMeteor=cycle;root.burstStart=root.clock;root.burstX=mx;root.burstY=my}
-        sky.requestPaint()
-    }}
-    Canvas{
-        id:sky;anchors.fill:parent
+
+    Timer {
+        interval: 33
+        running: root.visible
+        repeat: true
+        onTriggered: {
+            root.clock+=interval
+            const cycle=Math.floor(root.clock/8400)
+            const phase=(root.clock%8400)/8400
+            const meteor=root.meteorPosition(root.width,root.height,phase,cycle)
+            const px=(root.pointerX+.5)*root.width
+            const py=(root.pointerY+.5)*root.height
+            if(root.pointerActive&&root.caughtMeteor!==cycle&&Math.hypot(px-meteor.x,py-meteor.y)<72){
+                root.caughtMeteor=cycle
+                root.burstStart=root.clock
+                root.burstX=meteor.x
+                root.burstY=meteor.y
+            }
+            sky.requestPaint()
+        }
+    }
+
+    Canvas {
+        id: sky
+        anchors.fill: parent
         renderStrategy: Canvas.Threaded
         renderTarget: Canvas.FramebufferObject
-        antialiasing: false
-        onPaint:{
-            const c=getContext("2d"),w=width,h=height;c.clearRect(0,0,w,h)
-            const bg=c.createLinearGradient(0,0,w,h);bg.addColorStop(0,"#03070d");bg.addColorStop(.48,"#071119");bg.addColorStop(1,"#100717");c.fillStyle=bg;c.fillRect(0,0,w,h)
-            const cx=w*.72+root.pointerX*34,cy=h*.30+root.pointerY*24,maxR=Math.sqrt(w*w+h*h)*.78
-            const starsToDraw=root.fullEffects?root.stars.length:72
-            for(let i=0;i<starsToDraw;i++){
-                const s=root.stars[i];let x,y,tail=0
-                if(root.warp){const phase=(s.p+root.clock*(.000055+s.z*.00009)*(1+root.progress*2.4))%1;const ang=s.x*6.283185+root.pointerX*.08;const rr=(.06+phase*.94)*maxR;x=cx+Math.cos(ang)*rr;y=cy+Math.sin(ang)*rr*.62;tail=5+32*s.z*(.35+root.progress)}
-                else{x=((s.x+root.pointerX*(.006+s.z*.018)+1)%1)*w;y=((s.y+root.pointerY*(.006+s.z*.018)+1)%1)*h}
-                const alpha=.22+s.z*.65,size=.55+s.z*1.7;c.strokeStyle=s.h>.82?`rgba(115,225,211,${alpha})`:s.h<.12?`rgba(168,139,250,${alpha})`:`rgba(220,235,255,${alpha})`;c.lineWidth=size
-                c.beginPath();if(tail){const dx=x-cx,dy=y-cy,len=Math.max(1,Math.sqrt(dx*dx+dy*dy));c.moveTo(x-dx/len*tail,y-dy/len*tail);c.lineTo(x,y)}else{c.moveTo(x,y);c.lineTo(x+.3,y+.3)}c.stroke()
-            }
-            const haloRadius=root.warp?540:410,halo=c.createRadialGradient(cx,cy,26,cx,cy,haloRadius);halo.addColorStop(0,"rgba(0,0,0,1)");halo.addColorStop(.24,"rgba(0,0,0,.98)");halo.addColorStop(.37,root.warp?"rgba(68,226,207,.32)":"rgba(73,103,178,.17)");halo.addColorStop(.58,"rgba(116,54,190,.19)");halo.addColorStop(1,"rgba(0,0,0,0)");c.fillStyle=halo;c.fillRect(cx-haloRadius,cy-haloRadius,haloRadius*2,haloRadius*2)
-            c.save();c.translate(cx,cy);c.rotate(-.17);c.scale(1,root.warp?.25:.19);const rings=root.fullEffects?5:3;for(let j=0;j<rings;j++){c.beginPath();c.arc(0,0,166+j*31,0,6.283185);c.strokeStyle=j%2?`rgba(106,224,210,${.16+j*.035})`:`rgba(158,93,242,${.13+j*.03})`;c.lineWidth=root.warp?12:8;c.stroke()}c.restore()
-            const hole=c.createRadialGradient(cx-16,cy-18,3,cx,cy,150);hole.addColorStop(0,"#000000");hole.addColorStop(.82,"#000000");hole.addColorStop(1,"rgba(0,0,0,.08)");c.fillStyle=hole;c.beginPath();c.arc(cx,cy,154,0,6.283185);c.fill()
+        antialiasing: true
 
-            // A catchable shooting star crosses the upper orbit. Bringing the
-            // cursor close to it turns the tail into a deterministic burst.
-            const meteorCycle=Math.floor(root.clock/7600),meteorPhase=(root.clock%7600)/7600,mx=-180+meteorPhase*(w+360),my=h*.11+meteorPhase*h*.29
-            if(root.caughtMeteor!==meteorCycle){const tail=c.createLinearGradient(mx-125,my-52,mx,my);tail.addColorStop(0,"rgba(108,225,215,0)");tail.addColorStop(1,"rgba(235,252,255,.95)");c.strokeStyle=tail;c.lineWidth=4.8;c.globalAlpha=.18;c.beginPath();c.moveTo(mx-125,my-52);c.lineTo(mx,my);c.stroke();c.globalAlpha=1;c.lineWidth=2.2;c.beginPath();c.moveTo(mx-125,my-52);c.lineTo(mx,my);c.stroke();c.fillStyle="#ffffff";c.beginPath();c.arc(mx,my,3.2,0,6.283185);c.fill()}
+        onPaint: {
+            const c=getContext("2d"),w=width,h=height
+            c.clearRect(0,0,w,h)
+
+            const background=c.createLinearGradient(0,0,w,h)
+            background.addColorStop(0,"#02070b")
+            background.addColorStop(.48,"#071016")
+            background.addColorStop(1,"#020609")
+            c.fillStyle=background;c.fillRect(0,0,w,h)
+
             const age=root.clock-root.burstStart
-            if(age>=0&&age<1150){const t=age/1150,particles=root.fullEffects?52:26;c.save();c.globalAlpha=1-t;for(let i=0;i<particles;i++){const angle=i*2.399963+root.burstX*.0017,rr=(18+105*t)*(.55+(i%9)/12);const x=root.burstX+Math.cos(angle)*rr,y=root.burstY+Math.sin(angle)*rr;c.strokeStyle=i%3===0?"#a86cff":i%3===1?"#73eadb":"#f3fbff";c.lineWidth=1+(i%4)*.35;c.beginPath();c.moveTo(x,y);c.lineTo(x-Math.cos(angle)*(6+18*(1-t)),y-Math.sin(angle)*(6+18*(1-t)));c.stroke()}c.restore()}
+            const burst=age>=0&&age<1500?Math.sin(Math.PI*age/1500):0
+            const effect=Math.max(root.warp?.42+root.progress*.58:0,root.zoomPulse)
+            const direction=root.warp?1:root.zoomDirection
+            const cx=w*.70+root.pointerX*88,cy=h*.29+root.pointerY*62
+            const maxR=Math.sqrt(w*w+h*h)*.82
+
+            // A restrained star field. It stays at 30 FPS, but the expensive
+            // blur filters are replaced by small vector strokes rendered on
+            // the Canvas render thread.
+            for(let i=0;i<root.stars.length;i++){
+                const s=root.stars[i]
+                let x,y,tail=0
+                if(effect>.01){
+                    const phase=(s.p+root.clock*(.000026+s.z*.000055)*(direction>0?1:-1)+2)%1
+                    const angle=s.x*6.283185+root.pointerX*.16
+                    const radius=(.05+phase*.95)*maxR
+                    x=cx+Math.cos(angle)*radius
+                    y=cy+Math.sin(angle)*radius*.66
+                    tail=(8+58*s.z)*effect
+                }else{
+                    x=((s.x+root.pointerX*(.025+s.z*.055)+1)%1)*w
+                    y=((s.y+root.pointerY*(.025+s.z*.055)+1)%1)*h
+                }
+                const alpha=.25+s.z*.68,size=.55+s.z*1.45
+                c.strokeStyle=s.h>.84?root.tint(alpha):`rgba(220,238,248,${alpha})`
+                c.lineWidth=size;c.beginPath()
+                if(tail){
+                    const dx=x-cx,dy=y-cy,len=Math.max(1,Math.sqrt(dx*dx+dy*dy)),sign=direction>0?1:-1
+                    c.moveTo(x-dx/len*tail*sign,y-dy/len*tail*sign);c.lineTo(x,y)
+                }else{c.moveTo(x,y);c.lineTo(x+.35,y+.35)}
+                c.stroke()
+            }
+
+            // A small planet provides a visible response when the shooting
+            // star is caught. The glow is built from gradients, not shadowBlur.
+            const planetX=w*.145-root.pointerX*70,planetY=h*.18-root.pointerY*48
+            const planetGlow=52+burst*150
+            const pg=c.createRadialGradient(planetX,planetY,12,planetX,planetY,planetGlow)
+            pg.addColorStop(0,root.tint(.42+.38*burst));pg.addColorStop(.24,root.tint(.18+.30*burst));pg.addColorStop(1,root.tint(0))
+            c.fillStyle=pg;c.fillRect(planetX-planetGlow,planetY-planetGlow,planetGlow*2,planetGlow*2)
+            const planet=c.createRadialGradient(planetX-10,planetY-12,3,planetX,planetY,35)
+            planet.addColorStop(0,"#d7edf0");planet.addColorStop(.18,root.tint(.92));planet.addColorStop(.68,"#173039");planet.addColorStop(1,"#050b0e")
+            c.fillStyle=planet;c.beginPath();c.arc(planetX,planetY,32+burst*5,0,6.283185);c.fill()
+            c.strokeStyle=root.tint(.55+.35*burst);c.lineWidth=2+burst*3;c.beginPath();c.ellipse(planetX-49,planetY-8,98,17);c.stroke()
+
+            // Black hole inspired by gravitational-lensing photography: a
+            // wide accretion disc, bright equatorial band and bent light arcs.
+            const diskScale=1+effect*.055
+            c.save();c.translate(cx,cy);c.scale(diskScale,diskScale)
+            const outer=470
+            const halo=c.createRadialGradient(0,0,70,0,0,outer)
+            halo.addColorStop(0,"rgba(0,0,0,1)")
+            halo.addColorStop(.26,"rgba(0,0,0,.98)")
+            halo.addColorStop(.42,root.tint(.23+.12*effect))
+            halo.addColorStop(.68,root.tint(.09))
+            halo.addColorStop(1,root.tint(0))
+            c.fillStyle=halo;c.fillRect(-outer,-outer,outer*2,outer*2)
+
+            c.save();c.rotate(-.025+Math.sin(root.clock*.00015)*.008);c.scale(1,.20)
+            for(let ring=0;ring<12;ring++){
+                const radius=172+ring*20
+                c.strokeStyle=root.tint(.12+ring*.036)
+                c.lineWidth=5+(ring%3)*2
+                c.beginPath();c.arc(0,0,radius,0,6.283185);c.stroke()
+            }
+            c.restore()
+
+            c.save();c.scale(1,.56)
+            for(let lens=0;lens<7;lens++){
+                c.strokeStyle=root.tint(.19+lens*.055)
+                c.lineWidth=3+lens*.7
+                c.beginPath();c.arc(0,12,145+lens*14,Math.PI+.12,6.283185-.12);c.stroke()
+            }
+            c.restore()
+
+            const band=c.createLinearGradient(-430,0,430,0)
+            band.addColorStop(0,root.tint(0));band.addColorStop(.17,root.tint(.58));band.addColorStop(.43,root.tint(.96));band.addColorStop(.5,"#fff2d6");band.addColorStop(.57,root.tint(.96));band.addColorStop(.83,root.tint(.58));band.addColorStop(1,root.tint(0))
+            c.strokeStyle=band;c.lineWidth=5+effect*5;c.beginPath();c.moveTo(-440,5);c.bezierCurveTo(-270,-7,-150,4,0,3);c.bezierCurveTo(150,2,270,-8,440,5);c.stroke()
+
+            const hole=c.createRadialGradient(-18,-20,4,0,0,145)
+            hole.addColorStop(0,"#000000");hole.addColorStop(.83,"#000000");hole.addColorStop(1,"rgba(0,0,0,.06)")
+            c.fillStyle=hole;c.beginPath();c.arc(0,0,148,0,6.283185);c.fill()
+            c.strokeStyle=root.tint(.50+.22*effect+.22*burst);c.lineWidth=2.2+effect*2;c.beginPath();c.arc(0,0,151,0,6.283185);c.stroke()
+            c.restore()
+
+            // Every flight receives another edge and trajectory. Catching it
+            // produces a larger colour-matched burst.
+            const meteorCycle=Math.floor(root.clock/8400),meteorPhase=(root.clock%8400)/8400
+            const meteor=root.meteorPosition(w,h,meteorPhase,meteorCycle)
+            if(root.caughtMeteor!==meteorCycle){
+                const length=Math.max(1,Math.sqrt(meteor.dx*meteor.dx+meteor.dy*meteor.dy)),tx=meteor.dx/length,ty=meteor.dy/length
+                const tail=c.createLinearGradient(meteor.x-tx*170,meteor.y-ty*170,meteor.x,meteor.y)
+                tail.addColorStop(0,root.tint(0));tail.addColorStop(.76,root.tint(.58));tail.addColorStop(1,"rgba(255,255,255,.98)")
+                c.strokeStyle=tail;c.lineWidth=5;c.globalAlpha=.18;c.beginPath();c.moveTo(meteor.x-tx*170,meteor.y-ty*170);c.lineTo(meteor.x,meteor.y);c.stroke()
+                c.globalAlpha=1;c.lineWidth=2;c.beginPath();c.moveTo(meteor.x-tx*170,meteor.y-ty*170);c.lineTo(meteor.x,meteor.y);c.stroke()
+                c.fillStyle="#ffffff";c.beginPath();c.arc(meteor.x,meteor.y,3.5,0,6.283185);c.fill()
+            }
+            if(age>=0&&age<1500){
+                const t=age/1500,fade=1-t,particles=84
+                c.save();c.globalAlpha=fade
+                for(let j=0;j<particles;j++){
+                    const angle=j*2.399963+root.burstX*.0017
+                    const radius=(22+190*t)*(.48+(j%11)/15)
+                    const x=root.burstX+Math.cos(angle)*radius,y=root.burstY+Math.sin(angle)*radius
+                    c.strokeStyle=j%4===0?"#ffffff":root.tint(.72)
+                    c.lineWidth=1+(j%5)*.36;c.beginPath();c.moveTo(x,y);c.lineTo(x-Math.cos(angle)*(9+26*fade),y-Math.sin(angle)*(9+26*fade));c.stroke()
+                }
+                c.restore()
+            }
         }
     }
 }

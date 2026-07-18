@@ -32,7 +32,8 @@ qt_add_qml_module(AdaptiveTextureOptimizer
         qml/Main.qml
         qml/AppButton.qml
         qml/GlassCard.qml
-        qml/MetricChip.qml)
+        qml/MetricChip.qml
+        qml/ZoomView.qml)
 
 target_include_directories(AdaptiveTextureOptimizer PRIVATE src)
 target_link_libraries(AdaptiveTextureOptimizer PRIVATE

@@ -68,22 +68,31 @@ jobs:
           }
           $env:QT_QPA_PLATFORM = "offscreen"
           $env:QT_QUICK_BACKEND = "software"
-          $stdout = "$pwd/dist/startup-stdout.log"
-          $stderr = "$pwd/dist/startup-stderr.log"
-          $process = Start-Process -FilePath $exe `
-            -WorkingDirectory $env:DIST_DIR `
-            -RedirectStandardOutput $stdout `
-            -RedirectStandardError $stderr `
-            -PassThru
-          Start-Sleep -Seconds 5
-          if ($process.HasExited) {
-            if (Test-Path $stdout) { Get-Content $stdout }
-            if (Test-Path $stderr) { Get-Content $stderr }
+          $env:AGR_STARTUP_TEST = "1"
+          foreach ($attempt in 1..3) {
+            $stdout = "$pwd/dist/startup-stdout-$attempt.log"
+            $stderr = "$pwd/dist/startup-stderr-$attempt.log"
+            $process = Start-Process -FilePath $exe `
+              -WorkingDirectory $env:DIST_DIR `
+              -RedirectStandardOutput $stdout `
+              -RedirectStandardError $stderr `
+              -PassThru
+            Start-Sleep -Seconds 3
             $startupLog = "$env:DIST_DIR/AdaptiveTextureOptimizer-startup.log"
-            if (Test-Path $startupLog) { Get-Content $startupLog }
-            throw "Application exited during the real startup smoke-test with code $($process.ExitCode)"
+            $startupText = if (Test-Path $startupLog) { Get-Content $startupLog -Raw } else { "" }
+            if ($process.HasExited) {
+              if (Test-Path $stdout) { Get-Content $stdout }
+              if (Test-Path $stderr) { Get-Content $stderr }
+              if ($startupText) { Write-Host $startupText }
+              throw "Application exited during startup attempt $attempt with code $($process.ExitCode)"
+            }
+            if ($startupText -match "\[CRITICAL\]|failed to load component") {
+              Stop-Process -Id $process.Id -Force
+              Write-Host $startupText
+              throw "QML startup diagnostics reported a fatal error on attempt $attempt"
+            }
+            Stop-Process -Id $process.Id -Force
           }
-          Stop-Process -Id $process.Id -Force
 
       - name: Pack portable application
         shell: pwsh

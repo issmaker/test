@@ -5,6 +5,9 @@ Button {
     id: root
     property color accent: "#d95718"
     property string tip: ""
+    property real accentLuma: accent.r*.2126+accent.g*.7152+accent.b*.0722
+    property real shadeFactor: accentLuma>.62?1.90:(accentLuma>.45?1.55:1.25)
+    property color safeAccent: Qt.darker(accent,shadeFactor)
     implicitHeight: 48
     leftPadding: 22
     rightPadding: 22
@@ -19,7 +22,7 @@ Button {
     }
     background: Rectangle {
         radius: 14
-        color: !root.enabled?"#111920":root.down?Qt.darker(root.accent,1.18):root.hovered?Qt.lighter(root.accent,1.08):root.accent
+        color: !root.enabled?"#111920":root.down?Qt.darker(root.safeAccent,1.15):root.hovered?Qt.lighter(root.safeAccent,1.10):root.safeAccent
         scale: root.down?.97:root.hovered?1.015:1
         border.width: 1
         border.color: root.hovered?Qt.rgba(root.accent.r,root.accent.g,root.accent.b,.85):"#30404a"

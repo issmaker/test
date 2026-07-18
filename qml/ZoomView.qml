@@ -10,6 +10,19 @@ Rectangle {
     signal viewChanged(real scale, real panX, real panY)
     signal resetRequested()
     signal fitCalculated(real scale)
+    function limitX(value, scaleValue) {
+        if (picture.status!==Image.Ready) return 0
+        const edge=Math.max(0,(picture.sourceSize.width*scaleValue-root.width)/2)
+        return Math.max(-edge,Math.min(edge,value))
+    }
+    function limitY(value, scaleValue) {
+        if (picture.status!==Image.Ready) return 0
+        const edge=Math.max(0,(picture.sourceSize.height*scaleValue-root.height)/2)
+        return Math.max(-edge,Math.min(edge,value))
+    }
+    function publish(scaleValue, xValue, yValue) {
+        root.viewChanged(scaleValue,limitX(xValue,scaleValue),limitY(yValue,scaleValue))
+    }
     function calculateFit() {
         if (picture.status===Image.Ready && picture.sourceSize.width>0)
             fitCalculated(Math.min((width-28)/picture.sourceSize.width,(height-28)/picture.sourceSize.height))
@@ -35,14 +48,14 @@ Rectangle {
             const next=Math.max(.08,Math.min(16,old*Math.pow(1.0015,event.angleDelta.y)))
             const px=event.x-root.width/2-root.sharedPanX
             const py=event.y-root.height/2-root.sharedPanY
-            root.viewChanged(next,root.sharedPanX-px*(next/old-1),root.sharedPanY-py*(next/old-1))
+            root.publish(next,root.sharedPanX-px*(next/old-1),root.sharedPanY-py*(next/old-1))
         }
     }
     DragHandler {
         target:null
         property real startX:0;property real startY:0
         onActiveChanged:if(active){startX=root.sharedPanX;startY=root.sharedPanY}
-        onTranslationChanged:root.viewChanged(root.sharedScale,startX+translation.x,startY+translation.y)
+        onTranslationChanged:root.publish(root.sharedScale,startX+translation.x,startY+translation.y)
     }
     TapHandler { acceptedButtons:Qt.LeftButton;onDoubleTapped:root.resetRequested() }
     Rectangle { anchors.right:parent.right;anchors.bottom:parent.bottom;anchors.margins:12;width:scaleText.width+18;height:28;radius:9;color:"#c9142030";Text{id:scaleText;anchors.centerIn:parent;text:Math.round(root.sharedScale*100)+"%";color:"#9bb7d8";font.pixelSize:11} }

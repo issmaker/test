@@ -1,0 +1,78 @@
+name: Build Windows Portable EXE
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 35
+    env:
+      QT_VERSION: 6.8.3
+      BUILD_DIR: build
+      DIST_DIR: dist/AdaptiveTextureOptimizer-1.0-Windows
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          arch: win64_msvc2022_64
+          modules: qtshadertools
+          cache: true
+
+      - name: Configure release
+        shell: pwsh
+        run: >-
+          cmake -S . -B $env:BUILD_DIR -G "Visual Studio 17 2022"
+          -A x64 -DCMAKE_BUILD_TYPE=Release
+
+      - name: Compile
+        shell: pwsh
+        run: cmake --build $env:BUILD_DIR --config Release --parallel
+
+      - name: Create portable directory
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path $env:DIST_DIR | Out-Null
+          Copy-Item "$env:BUILD_DIR/Release/AdaptiveTextureOptimizer.exe" $env:DIST_DIR
+          Copy-Item "README.md" $env:DIST_DIR
+          & "${env:QT_ROOT_DIR}/bin/windeployqt.exe" `
+            --release `
+            --compiler-runtime `
+            --qmldir "$pwd/qml" `
+            "$env:DIST_DIR/AdaptiveTextureOptimizer.exe"
+
+      - name: Smoke-test package
+        shell: pwsh
+        run: |
+          $exe = "$env:DIST_DIR/AdaptiveTextureOptimizer.exe"
+          if (!(Test-Path $exe)) { throw "EXE was not created" }
+          $required = @("Qt6Core.dll", "Qt6Gui.dll", "Qt6Qml.dll", "Qt6Quick.dll")
+          foreach ($dll in $required) {
+            if (!(Test-Path "$env:DIST_DIR/$dll")) { throw "Missing $dll" }
+          }
+          Get-ChildItem $env:DIST_DIR -Recurse | ForEach-Object {
+            if ($_.FullName.Length -gt 240) { throw "Path is too long: $($_.FullName)" }
+          }
+
+      - name: Pack portable application
+        shell: pwsh
+        run: Compress-Archive -Path "$env:DIST_DIR/*" -DestinationPath "dist/AdaptiveTextureOptimizer-1.0-Windows-Portable.zip" -CompressionLevel Optimal
+
+      - name: Upload ready-to-run application
+        uses: actions/upload-artifact@v4
+        with:
+          name: AdaptiveTextureOptimizer-1.0-Windows-Portable
+          path: dist/AdaptiveTextureOptimizer-1.0-Windows-Portable.zip
+          if-no-files-found: error
+          retention-days: 30

@@ -5,7 +5,7 @@ import QtQuick.Dialogs
 
 ApplicationWindow {
     id: win
-    width: 1500; height: 920; minimumWidth: 1120; minimumHeight: 720; visible: true
+    width: 1500; height: 980; minimumWidth: 1120; minimumHeight: 820; visible: true
     title: "Adaptive Texture Optimizer 1.0"; color: "#080d16"
     property real targetMb: 3.0
     property real fitValue: .25
@@ -15,6 +15,19 @@ ApplicationWindow {
     property bool linkedViews: true
     property real parallaxX: 0
     property real parallaxY: 0
+    property int algorithmId: 0
+    property var algorithms: [
+        {short:"AUTO RACE", tip:"Запускает все семейства и выбирает лучший результат, который действительно меньше лимита."},
+        {short:"MEDIAN RGB", tip:"Взвешенный Median Cut в RGB. Чёткие плоские цвета и хорошая сжимаемость."},
+        {short:"OKLAB HQ", tip:"Перцептуальная Oklab-палитра с итеративным уточнением. Основной кандидат на лучшее качество."},
+        {short:"LUMA+COLOR", tip:"Отдельно ценит яркостную фактуру и цветность. Для травы, камня, земли и кирпича."},
+        {short:"MICRODITHER", tip:"Oklab с очень слабым упорядоченным дизерингом. Проверка мелкой фактуры без случайных выбросов."},
+        {short:"QT WEB", tip:"Базовая web-палитра Qt; если не входит — адаптивно снижает число цветов."},
+        {short:"JPEG 96", tip:"Эксперимент: JPEG-мост качества 96, затем Oklab и обязательный RGB24 PNG."},
+        {short:"JPEG 90", tip:"Более сильный JPEG-мост качества 90, затем Oklab. Позволяет увидеть цену JPEG на вашей текстуре."},
+        {short:"TEXTURE Y", tip:"Мягкая яркостная подготовка перед Oklab. Ставит фактуру поверхности выше цветового шума."},
+        {short:"EDGE HQ", tip:"Защита локальных границ перед Oklab. Для кладки, решёток, швов и мелкой геометрии."}
+    ]
 
     function resetView() { viewScale=fitValue;panX=0;panY=0 }
     function actualPixels() { viewScale=1;panX=0;panY=0 }
@@ -29,7 +42,7 @@ ApplicationWindow {
     Shortcut { sequence:"Ctrl+0";onActivated:win.resetView() }
     Shortcut { sequence:"Ctrl+1";onActivated:win.actualPixels() }
 
-    SpaceBackground{anchors.fill:parent;pointerX:win.parallaxX;pointerY:win.parallaxY;warp:optimizer.busy;progress:optimizer.progress}
+    SpaceBackground{anchors.fill:parent;pointerX:win.parallaxX;pointerY:win.parallaxY;pointerActive:parallaxHover.hovered;warp:optimizer.busy;progress:optimizer.progress}
     Item{anchors.fill:parent;HoverHandler{id:parallaxHover;onPointChanged:{win.parallaxX=(point.position.x-win.width/2)/win.width;win.parallaxY=(point.position.y-win.height/2)/win.height}}}
     DropArea { anchors.fill:parent;onDropped:drop=>{if(drop.hasUrls){optimizer.load(drop.urls[0]);win.resetView()}} }
 
@@ -49,7 +62,31 @@ ApplicationWindow {
                 }
                 Text{text:"Лимит";color:"#9385a3"}
                 SpinBox{id:limit;from:10;to:100;value:30;stepSize:1;editable:true;textFromValue:v=>(v/10).toFixed(1)+" MB";valueFromText:t=>Math.round(parseFloat(t)*10);onValueChanged:win.targetMb=value/10}
-                AppButton{text:"Оптимизировать";enabled:optimizer.sourceUrl&&!optimizer.busy;onClicked:optimizer.optimize(win.targetMb)}
+                MetricChip{text:win.algorithms[win.algorithmId].short}
+                AppButton{text:"Оптимизировать";enabled:optimizer.sourceUrl&&!optimizer.busy;onClicked:optimizer.optimize(win.targetMb,win.algorithmId)}
+            }
+        }
+
+        GlassCard { Layout.fillWidth:true;Layout.preferredHeight:108
+            ColumnLayout { anchors.fill:parent;anchors.margins:11;spacing:7
+                RowLayout { Layout.fillWidth:true
+                    Text{text:"10 АЛГОРИТМОВ · ВЫБЕРИТЕ И СРАВНИТЕ";color:"#78ded5";font.pixelSize:11;font.weight:Font.DemiBold}
+                    Item{Layout.fillWidth:true}
+                    Text{text:"Результаты сохраняются отдельно: A00 … A09";color:"#756b88";font.pixelSize:10}
+                }
+                GridLayout { Layout.fillWidth:true;Layout.fillHeight:true;columns:5;columnSpacing:8;rowSpacing:7
+                    Repeater { model:win.algorithms
+                        AppButton {
+                            required property int index
+                            required property var modelData
+                            Layout.fillWidth:true;implicitHeight:34;leftPadding:8;rightPadding:8
+                            text:(index+1)+" · "+modelData.short
+                            accent:win.algorithmId===index?"#6d28d9":"#201b2b"
+                            onClicked:win.algorithmId=index
+                            ToolTip.visible:hovered;ToolTip.delay:350;ToolTip.text:modelData.tip
+                        }
+                    }
+                }
             }
         }
 
@@ -72,7 +109,7 @@ ApplicationWindow {
             }
         }
 
-        GlassCard { Layout.fillWidth:true;Layout.preferredHeight:132
+        GlassCard { Layout.fillWidth:true;Layout.preferredHeight:124
             RowLayout { anchors.fill:parent;anchors.margins:14;spacing:14
                 Text { text:optimizer.report||"Колесо мыши — масштаб по курсору  ·  перетаскивание — синхронное перемещение  ·  двойной клик — вписать";color:optimizer.report?"#c7daf2":"#60738f";font.pixelSize:12;lineHeight:1.2;wrapMode:Text.Wrap;Layout.fillWidth:true;Layout.fillHeight:true;verticalAlignment:Text.AlignVCenter }
                 Rectangle{Layout.preferredWidth:1;Layout.fillHeight:true;color:"#26344242"}

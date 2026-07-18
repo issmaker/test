@@ -5,8 +5,10 @@ Rectangle {
     property alias text: label.text
     property color accentColor: "#ff641f"
     property bool checked: false
-    height: 30
-    width: label.implicitWidth+24
+    implicitHeight: 30
+    implicitWidth: label.implicitWidth+24
+    height: implicitHeight
+    width: implicitWidth
     radius: 10
     color: "#151e24"
     border.color: Qt.rgba(accentColor.r,accentColor.g,accentColor.b,.28)

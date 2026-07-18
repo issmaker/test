@@ -20,6 +20,8 @@ ApplicationWindow {
     property real panY: 0
     property real parallaxX: 0
     property real parallaxY: 0
+    property real pointerNormX: .5
+    property real pointerNormY: .5
     property real zoomWarp: 0
     property real zoomDirection: 1
     property real lastSliderValue: .25
@@ -67,6 +69,7 @@ ApplicationWindow {
     Shortcut{sequence:"Ctrl+1";onActivated:win.actualPixels()}
 
     SpaceBackground {
+        id: cosmos
         anchors.fill: parent
         pointerX: win.parallaxX*1.65
         pointerY: win.parallaxY*1.65
@@ -82,6 +85,8 @@ ApplicationWindow {
         HoverHandler {
             id: parallaxHover
             onPointChanged: {
+                win.pointerNormX=Math.max(0,Math.min(1,point.position.x/win.width))
+                win.pointerNormY=Math.max(0,Math.min(1,point.position.y/win.height))
                 win.parallaxX=(point.position.x-win.width/2)/win.width
                 win.parallaxY=(point.position.y-win.height/2)/win.height
             }
@@ -142,7 +147,7 @@ ApplicationWindow {
                 id:scaleSlider
                 Layout.preferredWidth:245
                 from:.08;to:8;value:win.viewScale
-                onMoved:{const dir=value>=win.lastSliderValue?1:-1;win.triggerZoomWarp(dir);win.viewScale=value;win.lastSliderValue=value;win.panX=0;win.panY=0}
+                onMoved:{const dir=value>=win.lastSliderValue?1:-1;win.triggerZoomWarp(dir);win.lastSliderValue=value;leftZoom.publish(value,win.panX,win.panY)}
                 background:Rectangle{x:scaleSlider.leftPadding;y:scaleSlider.topPadding+scaleSlider.availableHeight/2-height/2;width:scaleSlider.availableWidth;height:5;radius:3;color:"#1b2930";Rectangle{width:scaleSlider.visualPosition*parent.width;height:parent.height;radius:3;color:win.accentColor}}
                 handle:Rectangle{x:scaleSlider.leftPadding+scaleSlider.visualPosition*(scaleSlider.availableWidth-width);y:scaleSlider.topPadding+scaleSlider.availableHeight/2-height/2;width:18;height:18;radius:9;color:"#eef8f8";border.width:4;border.color:win.accentColor}
             }
@@ -165,6 +170,7 @@ ApplicationWindow {
             Layout.fillHeight:true
             spacing:16
             ZoomView {
+                id:leftZoom
                 Layout.fillWidth:true;Layout.fillHeight:true
                 title:optimizer.showingMaster?"Исходный мастер высокого разрешения":(optimizer.sourceIsLarge?"Рабочий эталон 2K":"Оригинал")
                 imageSource:win.leftImage
@@ -176,6 +182,7 @@ ApplicationWindow {
                 onFitCalculated:scale=>{win.fitValue=scale;if(win.panX===0&&win.panY===0){win.viewScale=scale;win.lastSliderValue=scale}}
             }
             ZoomView {
+                id:rightZoom
                 Layout.fillWidth:true;Layout.fillHeight:true
                 title:"Результат Median RGB"
                 imageSource:optimizer.resultUrl
@@ -223,7 +230,18 @@ ApplicationWindow {
             MetricChip{checked:optimizer.workingWidth>0;text:(optimizer.workingWidth>0?"✓ ":"")+optimizer.workingWidth+"×"+optimizer.workingHeight;accentColor:win.accentColor}
             MetricChip{checked:optimizer.resultUrl;text:(optimizer.resultUrl?"✓ ":"")+"PNG RGB24";accentColor:win.accentColor}
             MetricChip{checked:optimizer.outputFileMb>0&&optimizer.outputFileMb<win.targetMb;text:optimizer.outputFileMb>0?((optimizer.outputFileMb<win.targetMb?"✓ ":"! ")+optimizer.outputFileMb.toFixed(3)+" MB"):"≤ "+win.targetMb.toFixed(1)+" MB";accentColor:win.accentColor}
-            Text{visible:optimizer.sourceFileMb>0;text:"SOURCE "+optimizer.sourceFileMb.toFixed(2)+" MB";color:"#6f858e";font.pixelSize:10}
+            MetricChip{visible:optimizer.sourceFileMb>0;text:"Исходник "+optimizer.sourceFileMb.toFixed(2)+" MB";accentColor:win.accentColor}
         }
+    }
+
+    MeteorOverlay {
+        anchors.fill: parent
+        z: 1000
+        enabled: false
+        cursorX: win.pointerNormX
+        cursorY: win.pointerNormY
+        pointerActive: parallaxHover.hovered
+        accentColor: win.accentColor
+        onCaught:(x,y)=>cosmos.triggerBurst(x,y)
     }
 }

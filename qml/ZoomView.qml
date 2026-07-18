@@ -1,6 +1,6 @@
 import QtQuick
 
-Rectangle {
+Item {
     id: root
     required property url imageSource
     required property string title
@@ -26,42 +26,59 @@ Rectangle {
         return Math.max(-edge,Math.min(edge,value))
     }
     function publish(scaleValue,xValue,yValue) {
-        root.viewChanged(scaleValue,limitX(xValue,scaleValue),limitY(yValue,scaleValue))
+        const safeScale=Math.max(.08,Math.min(16,scaleValue))
+        root.viewChanged(safeScale,limitX(xValue,safeScale),limitY(yValue,safeScale))
     }
     function calculateFit() {
         if(picture.status===Image.Ready&&picture.sourceSize.width>0)
-            fitCalculated(Math.min((viewport.width-30)/picture.sourceSize.width,(viewport.height-30)/picture.sourceSize.height))
+            fitCalculated(Math.min((viewport.width-26)/picture.sourceSize.width,(viewport.height-26)/picture.sourceSize.height))
+    }
+    function zoomAt(scaleValue,screenX,screenY) {
+        const old=Math.max(.0001,root.sharedScale)
+        const next=Math.max(.08,Math.min(16,scaleValue))
+        const localX=screenX-(viewport.x+viewport.width/2)
+        const localY=screenY-(viewport.y+viewport.height/2)
+        const ratio=next/old
+        const nextX=localX-(localX-root.sharedPanX)*ratio
+        const nextY=localY-(localY-root.sharedPanY)*ratio
+        publish(next,nextX,nextY)
     }
     onWidthChanged: calculateFit()
     onHeightChanged: calculateFit()
 
-    color: "#05090d"
-    radius: 21
-    border.width: 1
-    border.color: Qt.rgba(accentColor.r,accentColor.g,accentColor.b,.28)
-
+    // Only this decorative plate follows the cursor.  Image coordinates stay
+    // fixed, so parallax can no longer fight wheel zoom and synchronized pan.
     Rectangle {
-        anchors.fill: parent
-        anchors.margins: -4
-        radius: root.radius+4
-        color: "transparent"
+        id: outerGlow
+        anchors.fill: viewport
+        anchors.margins: -7
+        radius: 22
+        color: "#a8070d12"
         border.width: 1
-        border.color: Qt.rgba(root.accentColor.r,root.accentColor.g,root.accentColor.b,.12)
+        border.color: Qt.rgba(root.accentColor.r,root.accentColor.g,root.accentColor.b,.30)
+        transform: Translate {
+            x: root.parallaxX*5
+            y: root.parallaxY*4
+            Behavior on x { NumberAnimation{duration:210;easing.type:Easing.OutCubic} }
+            Behavior on y { NumberAnimation{duration:210;easing.type:Easing.OutCubic} }
+        }
+        Rectangle {
+            anchors.fill:parent
+            anchors.margins:-4
+            radius:parent.radius+4
+            color:"transparent"
+            border.width:1
+            border.color:Qt.rgba(root.accentColor.r,root.accentColor.g,root.accentColor.b,.09)
+        }
     }
 
     Rectangle {
         id: viewport
-        x: 8+root.parallaxX*8
-        y: 8+root.parallaxY*6
-        width: root.width-16
-        height: root.height-16
-        radius: 15
+        anchors.fill: parent
+        anchors.margins: 10
+        radius: 16
         clip: true
         color: "#070c11"
-        border.width: 1
-        border.color: Qt.rgba(root.accentColor.r,root.accentColor.g,root.accentColor.b,.20)
-        Behavior on x { NumberAnimation{duration:180;easing.type:Easing.OutCubic} }
-        Behavior on y { NumberAnimation{duration:180;easing.type:Easing.OutCubic} }
 
         Rectangle {
             anchors.fill: parent
@@ -87,7 +104,6 @@ Rectangle {
             opacity: status===Image.Ready?1:0
             onStatusChanged: if(status===Image.Ready)Qt.callLater(root.calculateFit)
             Behavior on opacity { NumberAnimation{duration:360;easing.type:Easing.OutCubic} }
-            Behavior on scale { NumberAnimation{duration:105;easing.type:Easing.OutCubic} }
         }
 
         Rectangle {
@@ -128,13 +144,12 @@ Rectangle {
     WheelHandler {
         acceptedDevices: PointerDevice.Mouse|PointerDevice.TouchPad
         onWheel: event => {
-            const old=root.sharedScale
-            const direction=event.angleDelta.y>=0?1:-1
-            const next=Math.max(.08,Math.min(16,old*Math.pow(1.0015,event.angleDelta.y)))
-            const px=event.x-root.width/2-root.sharedPanX
-            const py=event.y-root.height/2-root.sharedPanY
+            const delta=event.angleDelta.y!==0?event.angleDelta.y:event.pixelDelta.y*8
+            const direction=delta>=0?1:-1
+            const next=root.sharedScale*Math.pow(1.0015,delta)
             root.zoomPulse(direction)
-            root.publish(next,root.sharedPanX-px*(next/old-1),root.sharedPanY-py*(next/old-1))
+            root.zoomAt(next,event.x,event.y)
+            event.accepted=true
         }
     }
     DragHandler {

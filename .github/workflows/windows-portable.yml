@@ -79,6 +79,8 @@ jobs:
           if ($process.HasExited) {
             if (Test-Path $stdout) { Get-Content $stdout }
             if (Test-Path $stderr) { Get-Content $stderr }
+            $startupLog = "$env:DIST_DIR/AdaptiveTextureOptimizer-startup.log"
+            if (Test-Path $startupLog) { Get-Content $startupLog }
             throw "Application exited during the real startup smoke-test with code $($process.ExitCode)"
           }
           Stop-Process -Id $process.Id -Force

@@ -38,12 +38,12 @@ QString analyseAccent(const QImage &input) {
     // The texture controls only the hue of the UI.  Saturation and lightness
     // are kept inside a safe range so a pale facade, snow or sand can never
     // turn buttons white and destroy text contrast.
-    qreal hue=0.0,saturation=0.0,lightness=0.0,alpha=1.0;
+    float hue=0.0f,saturation=0.0f,lightness=0.0f,alpha=1.0f;
     colour.getHslF(&hue,&saturation,&lightness,&alpha);
-    if(hue<0.0)return "#ff641f";
-    saturation=qBound(0.50,saturation,0.86);
-    lightness=qBound(0.40,lightness,0.58);
-    colour.setHslF(hue,saturation,lightness,1.0);
+    if(hue<0.0f)return "#ff641f";
+    saturation=qBound(0.50f,saturation,0.86f);
+    lightness=qBound(0.40f,lightness,0.58f);
+    colour.setHslF(hue,saturation,lightness,1.0f);
     return colour.name(QColor::HexRgb);
 }
 

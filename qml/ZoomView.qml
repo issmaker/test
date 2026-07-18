@@ -53,7 +53,7 @@ Item {
         anchors.fill: viewport
         anchors.margins: -7
         radius: 22
-        color: "#a8070d12"
+        color: "transparent"
         border.width: 1
         border.color: Qt.rgba(root.accentColor.r,root.accentColor.g,root.accentColor.b,.30)
         transform: Translate {
@@ -64,11 +64,11 @@ Item {
         }
         Rectangle {
             anchors.fill:parent
-            anchors.margins:-4
-            radius:parent.radius+4
+            anchors.margins:4
+            radius:parent.radius-4
             color:"transparent"
             border.width:1
-            border.color:Qt.rgba(root.accentColor.r,root.accentColor.g,root.accentColor.b,.09)
+            border.color:Qt.rgba(root.accentColor.r,root.accentColor.g,root.accentColor.b,.13)
         }
     }
 
@@ -78,16 +78,7 @@ Item {
         anchors.margins: 10
         radius: 16
         clip: true
-        color: "#070c11"
-
-        Rectangle {
-            anchors.fill: parent
-            gradient: Gradient {
-                GradientStop{position:0;color:"#0b141b"}
-                GradientStop{position:.55;color:"#060b10"}
-                GradientStop{position:1;color:"#10100d"}
-            }
-        }
+        color: "transparent"
 
         Image {
             id: picture

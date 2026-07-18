@@ -33,15 +33,28 @@ qt_add_qml_module(AdaptiveTextureOptimizer
         qml/AppButton.qml
         qml/GlassCard.qml
         qml/MetricChip.qml
+        qml/StarCounter.qml
+        qml/LimitSelector.qml
         qml/ZoomView.qml
         qml/Sparkline.qml
-        qml/SpaceBackground.qml)
+        qml/SpaceBackground.qml
+        qml/MeteorOverlay.qml)
+
+qt_add_resources(AdaptiveTextureOptimizer app_icons
+    PREFIX "/icons"
+    BASE "assets"
+    FILES assets/black-hole.svg)
 
 target_include_directories(AdaptiveTextureOptimizer PRIVATE src)
 target_link_libraries(AdaptiveTextureOptimizer PRIVATE
     Qt6::Quick Qt6::QuickControls2 Qt6::Concurrent libdeflate_static)
 
 if(WIN32)
+    enable_language(RC)
+    configure_file(resources/windows/app.rc.in
+        ${CMAKE_CURRENT_BINARY_DIR}/app_icon.rc @ONLY)
+    target_sources(AdaptiveTextureOptimizer PRIVATE
+        ${CMAKE_CURRENT_BINARY_DIR}/app_icon.rc)
     set_target_properties(AdaptiveTextureOptimizer PROPERTIES WIN32_EXECUTABLE TRUE)
 endif()
 

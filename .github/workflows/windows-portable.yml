@@ -2,16 +2,14 @@ name: Build Windows Portable EXE
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [main]
   push:
     branches: [main]
     tags: ['v*']
 
 permissions:
   contents: read
-
-concurrency:
-  group: windows-portable-main
-  cancel-in-progress: true
 
 jobs:
   windows:
@@ -33,6 +31,10 @@ jobs:
           arch: win64_msvc2022_64
           modules: qtshadertools
           cache: true
+
+      - name: Create Windows black-hole icon
+        shell: pwsh
+        run: ./tools/create_icon.ps1 -OutputPath ./assets/black-hole.ico
 
       - name: Configure release
         shell: pwsh
@@ -67,6 +69,33 @@ jobs:
           }
           Get-ChildItem $env:DIST_DIR -Recurse | ForEach-Object {
             if ($_.FullName.Length -gt 240) { throw "Path is too long: $($_.FullName)" }
+          }
+          $env:QT_QPA_PLATFORM = "offscreen"
+          $env:QT_QUICK_BACKEND = "software"
+          $env:AGR_STARTUP_TEST = "1"
+          foreach ($attempt in 1..3) {
+            $stdout = "$pwd/dist/startup-stdout-$attempt.log"
+            $stderr = "$pwd/dist/startup-stderr-$attempt.log"
+            $process = Start-Process -FilePath $exe `
+              -WorkingDirectory $env:DIST_DIR `
+              -RedirectStandardOutput $stdout `
+              -RedirectStandardError $stderr `
+              -PassThru
+            Start-Sleep -Seconds 3
+            $startupLog = "$env:DIST_DIR/AdaptiveTextureOptimizer-startup.log"
+            $startupText = if (Test-Path $startupLog) { Get-Content $startupLog -Raw } else { "" }
+            if ($process.HasExited) {
+              if (Test-Path $stdout) { Get-Content $stdout }
+              if (Test-Path $stderr) { Get-Content $stderr }
+              if ($startupText) { Write-Host $startupText }
+              throw "Application exited during startup attempt $attempt with code $($process.ExitCode)"
+            }
+            if ($startupText -match "\[CRITICAL\]|failed to load component") {
+              Stop-Process -Id $process.Id -Force
+              Write-Host $startupText
+              throw "QML startup diagnostics reported a fatal error on attempt $attempt"
+            }
+            Stop-Process -Id $process.Id -Force
           }
 
       - name: Pack portable application

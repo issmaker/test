@@ -27,15 +27,16 @@ ApplicationWindow {
     Shortcut { sequence:"Ctrl+0";onActivated:win.resetView() }
     Shortcut { sequence:"Ctrl+1";onActivated:win.actualPixels() }
 
-    Rectangle { anchors.fill:parent;gradient:Gradient{GradientStop{position:0;color:"#09080d"}GradientStop{position:.55;color:"#0d0b12"}GradientStop{position:1;color:"#100b18"}} }
-    Rectangle { width:560;height:560;radius:280;x:-260;y:-300;color:"#6d28d9";opacity:.12 }
-    Rectangle { width:500;height:500;radius:250;anchors.right:parent.right;anchors.bottom:parent.bottom;anchors.margins:-210;color:"#8b5cf6";opacity:.09 }
+    Rectangle { anchors.fill:parent;gradient:Gradient{GradientStop{position:0;color:"#080b12"}GradientStop{position:.48;color:"#0d1019"}GradientStop{position:1;color:"#110b1d"}} }
+    Rectangle { width:720;height:720;radius:360;x:-340;y:-400;color:"#6d28d9";opacity:.10 }
+    Rectangle { width:620;height:620;radius:310;anchors.right:parent.right;anchors.bottom:parent.bottom;anchors.margins:-280;color:"#7c3aed";opacity:.08 }
+    Rectangle { anchors.horizontalCenter:parent.horizontalCenter;y:-280;width:900;height:420;radius:210;color:"#2563eb";opacity:.035 }
     DropArea { anchors.fill:parent;onDropped:drop=>{if(drop.hasUrls){optimizer.load(drop.urls[0]);win.resetView()}} }
 
     ColumnLayout { anchors.fill:parent;anchors.margins:22;spacing:14
         RowLayout { Layout.fillWidth:true;Layout.preferredHeight:68;spacing:14
-            Rectangle { width:54;height:54;radius:17;gradient:Gradient{GradientStop{position:0;color:"#6d28d9"}GradientStop{position:1;color:"#a855f7"}}Text{anchors.centerIn:parent;text:"AGR";color:"white";font.bold:true;font.pixelSize:16} }
-            Column { Layout.fillWidth:true;spacing:3;Text{text:"Adaptive Texture Optimizer";color:"white";font.pixelSize:24;font.weight:Font.DemiBold}Text{text:"High fidelity RGB24 texture pipeline";color:"#8f829f";font.pixelSize:12} }
+            Rectangle { width:54;height:54;radius:17;gradient:Gradient{GradientStop{position:0;color:"#5b21b6"}GradientStop{position:.55;color:"#7c3aed"}GradientStop{position:1;color:"#a855f7"}}Rectangle{anchors.fill:parent;anchors.margins:1;radius:16;color:"transparent";border.color:"#50ffffff"}Text{anchors.centerIn:parent;text:"AGR";color:"white";font.bold:true;font.pixelSize:16} }
+            Column { Layout.fillWidth:true;spacing:3;Text{text:"Adaptive Texture Optimizer";color:"#f7f4ff";font.pixelSize:24;font.weight:Font.DemiBold}Text{text:"Color-safe texture laboratory  •  adaptive RGB24 pipeline";color:"#9588aa";font.pixelSize:12} }
             MetricChip{text:"v1.0"} MetricChip{text:"2K / 8K → 2K"} MetricChip{text:"RGB24 verified"}
         }
 

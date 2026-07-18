@@ -1,2 +1,20 @@
 import QtQuick
-Rectangle { property alias text: label.text; height: 30; width: label.implicitWidth+22; radius: 10; color: "#1a1622"; border.color: "#392b50"; Text{id:label;anchors.centerIn:parent;color:"#cbb8ea";font.pixelSize:12} }
+
+Rectangle {
+    id: root
+    property alias text: label.text
+    property color accentColor: "#ff641f"
+    property bool checked: false
+    height: 30
+    width: label.implicitWidth+24
+    radius: 10
+    color: "#151e24"
+    border.color: Qt.rgba(accentColor.r,accentColor.g,accentColor.b,.28)
+    Text {
+        id: label
+        anchors.centerIn: parent
+        color: root.checked?"#dff9ed":"#c6d6dc"
+        font.pixelSize: 11
+        font.weight: root.checked?Font.DemiBold:Font.Normal
+    }
+}

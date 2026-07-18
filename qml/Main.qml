@@ -29,12 +29,8 @@ ApplicationWindow {
     Shortcut { sequence:"Ctrl+0";onActivated:win.resetView() }
     Shortcut { sequence:"Ctrl+1";onActivated:win.actualPixels() }
 
-    Rectangle { anchors.fill:parent;gradient:Gradient{GradientStop{position:0;color:"#061014"}GradientStop{position:.45;color:"#0a1218"}GradientStop{position:1;color:"#120a1b"}} }
+    SpaceBackground{anchors.fill:parent;pointerX:win.parallaxX;pointerY:win.parallaxY;warp:optimizer.busy;progress:optimizer.progress}
     Item{anchors.fill:parent;HoverHandler{id:parallaxHover;onPointChanged:{win.parallaxX=(point.position.x-win.width/2)/win.width;win.parallaxY=(point.position.y-win.height/2)/win.height}}}
-    Rectangle { width:720;height:720;radius:360;x:-340+win.parallaxX*42;y:-400+win.parallaxY*32;color:"#5b21b6";opacity:.13;Behavior on x{NumberAnimation{duration:280;easing.type:Easing.OutCubic}}Behavior on y{NumberAnimation{duration:280;easing.type:Easing.OutCubic}} }
-    Rectangle { width:620;height:620;radius:310;x:win.width-340+win.parallaxX*-55;y:win.height-350+win.parallaxY*-38;color:"#0f766e";opacity:.10;Behavior on x{NumberAnimation{duration:360;easing.type:Easing.OutCubic}}Behavior on y{NumberAnimation{duration:360;easing.type:Easing.OutCubic}} }
-    Rectangle { x:win.width/2-450+win.parallaxX*24;y:-280+win.parallaxY*18;width:900;height:420;radius:210;color:"#2563eb";opacity:.055;Behavior on x{NumberAnimation{duration:320}}Behavior on y{NumberAnimation{duration:320}} }
-    Repeater{model:18;Rectangle{required property int index;width:2+(index%3);height:2+(index%3);radius:width/2;color:index%2?"#5eead4":"#a78bfa";opacity:.10+(index%4)*.035;x:(index*197%win.width)+win.parallaxX*(12+index%5*7);y:(index*113%win.height)+win.parallaxY*(10+index%7*5);Behavior on x{NumberAnimation{duration:420}}Behavior on y{NumberAnimation{duration:420}}}}
     DropArea { anchors.fill:parent;onDropped:drop=>{if(drop.hasUrls){optimizer.load(drop.urls[0]);win.resetView()}} }
 
     ColumnLayout { anchors.fill:parent;anchors.margins:22;spacing:14

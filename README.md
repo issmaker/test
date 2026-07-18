@@ -37,7 +37,7 @@ C:/Qt/6.8.3/msvc2022_64/bin/windeployqt --qmldir qml build/AdaptiveTextureOptimi
 друг друга.
 
 1. **AUTO RACE** — запускает семейства и выбирает лучший прошедший лимит по PSNR.
-2. **MEDIAN RGB** — взвешенный Median Cut на компактной гистограмме.
+2. **AGR ADAPTIVE RGB24** — взвешенный Median Cut на компактной гистограмме.
 3. **OKLAB HQ** — Median Cut + три итерации перцептуального Lloyd refinement.
 4. **LUMA+COLOR** — отдельно оценивает яркостную фактуру и цветность.
 5. **MICRODITHER** — слабый детерминированный ordered dither без случайных выбросов.

@@ -140,7 +140,9 @@ QImage TextureProcessor::guardCandidate(const QImage &source0,const QImage &cand
         // Leave a fractional safety margin: integer rounding must never turn a
         // mathematically valid colour into a one-code-value chroma outlier.
         double scale=1.0;if(maximum>rgbGuard)scale=qMin(scale,qMax(0.0,(rgbGuard-.35)/maximum));if(maximumChroma>chromaGuard)scale=qMin(scale,qMax(0.0,(chromaGuard-.35)/maximumChroma));
-        d[x*3]=uchar(qBound(0,int(s[x*3]+std::lround(dr*scale)),255));d[x*3+1]=uchar(qBound(0,int(s[x*3+1]+std::lround(dg*scale)),255));d[x*3+2]=uchar(qBound(0,int(s[x*3+2]+std::lround(db*scale)),255));
+        int rr=qBound(0,int(s[x*3]+std::lround(dr*scale)),255),gg=qBound(0,int(s[x*3+1]+std::lround(dg*scale)),255),bb=qBound(0,int(s[x*3+2]+std::lround(db*scale)),255);
+        int loR=255,loG=255,loB=255,hiR=0,hiG=0,hiB=0;for(int oy=-1;oy<=1;++oy){const uchar*n=source.constScanLine(qBound(0,y+oy,source.height()-1));for(int ox=-1;ox<=1;++ox){const int nx=qBound(0,x+ox,source.width()-1);loR=qMin(loR,int(n[nx*3]));loG=qMin(loG,int(n[nx*3+1]));loB=qMin(loB,int(n[nx*3+2]));hiR=qMax(hiR,int(n[nx*3]));hiG=qMax(hiG,int(n[nx*3+1]));hiB=qMax(hiB,int(n[nx*3+2]));}}
+        d[x*3]=uchar(qBound(loR-2,rr,hiR+2));d[x*3+1]=uchar(qBound(loG-2,gg,hiG+2));d[x*3+2]=uchar(qBound(loB-2,bb,hiB+2));
     }}return out;
 }
 
@@ -149,6 +151,18 @@ QImage TextureProcessor::areaDownsample(const QImage &input,const QSize &target)
     if(src.width()%target.width()!=0||src.height()%target.height()!=0)return src.scaled(target,Qt::KeepAspectRatio,Qt::SmoothTransformation).convertToFormat(QImage::Format_RGB888);
     const int sx=src.width()/target.width(),sy=src.height()/target.height();QImage out(target,QImage::Format_RGB888);
     for(int y=0;y<target.height();++y){uchar*d=out.scanLine(y);for(int x=0;x<target.width();++x){quint64 r=0,g=0,b=0;for(int yy=0;yy<sy;++yy){const uchar*p=src.constScanLine(y*sy+yy)+(x*sx)*3;for(int xx=0;xx<sx;++xx){r+=p[xx*3];g+=p[xx*3+1];b+=p[xx*3+2];}}const int n=sx*sy;d[x*3]=uchar((r+n/2)/n);d[x*3+1]=uchar((g+n/2)/n);d[x*3+2]=uchar((b+n/2)/n);}}return out;
+}
+
+QImage TextureProcessor::analyzeMaterials(const QImage &input,QString &summary){
+    const QImage src=input.convertToFormat(QImage::Format_RGB888);QImage map(src.size(),QImage::Format_RGB888);
+    struct Kind{const char*name;QRgb color;quint64 pixels=0;};
+    std::array<Kind,7> kinds={{{"плоский/композит",qRgb(96,110,138)},{"трава/растительность",qRgb(62,196,126)},{"песок/земля",qRgb(226,174,88)},{"кирпич/кладка",qRgb(220,92,74)},{"асфальт",qRgb(74,111,130)},{"брусчатка/камень",qRgb(89,210,205)},{"тонкие детали",qRgb(171,110,245)}}};
+    constexpr int bs=8;for(int by=0;by<src.height();by+=bs)for(int bx=0;bx<src.width();bx+=bs){const int ex=qMin(src.width(),bx+bs),ey=qMin(src.height(),by+bs),n=(ex-bx)*(ey-by);qint64 sr=0,sg=0,sb=0,sy=0,sy2=0,grad=0;
+        for(int y=by;y<ey;++y){const uchar*p=src.constScanLine(y);for(int x=bx;x<ex;++x){const int r=p[x*3],g=p[x*3+1],b=p[x*3+2],yy=(77*r+150*g+29*b)>>8;sr+=r;sg+=g;sb+=b;sy+=yy;sy2+=yy*yy;if(x>bx)grad+=qAbs(yy-((77*p[(x-1)*3]+150*p[(x-1)*3+1]+29*p[(x-1)*3+2])>>8));}}
+        const int r=sr/n,g=sg/n,b=sb/n,ymean=sy/n,variance=qMax<qint64>(0,sy2/n-qint64(ymean)*ymean),sat=std::max({r,g,b})-std::min({r,g,b}),edge=grad/qMax(1,n-(ey-by));int k;
+        if(variance<5&&edge<3)k=0;else if(edge>18||variance>900)k=6;else if(g>r+7&&g>b+10&&variance>8)k=1;else if(r>g+8&&g>b+3&&ymean>75)k=(edge>7?3:2);else if(sat<18&&ymean<145&&variance<90)k=4;else if(sat<30&&(variance>=20||edge>=5))k=5;else k=(variance>35?5:0);kinds[k].pixels+=n;
+        const int cr=qRed(kinds[k].color),cg=qGreen(kinds[k].color),cb=qBlue(kinds[k].color);for(int y=by;y<ey;++y){const uchar*s=src.constScanLine(y);uchar*d=map.scanLine(y);for(int x=bx;x<ex;++x){d[x*3]=uchar((s[x*3]*55+cr*45)/100);d[x*3+1]=uchar((s[x*3+1]*55+cg*45)/100);d[x*3+2]=uchar((s[x*3+2]*55+cb*45)/100);}}}
+    QStringList lines;const double total=double(src.width())*src.height();for(const auto&k:kinds)if(k.pixels)lines<<QString("%1 %2%").arg(k.name).arg(100.0*k.pixels/total,0,'f',1);summary=lines.join(" · ");return map;
 }
 
 void TextureProcessor::measure(const QImage &a0,const QImage &b0,double &mean,double &psnr,int &maximum) {
@@ -170,16 +184,18 @@ TextureResult TextureProcessor::process(const QString &path,qint64 limit,const P
     if(qMax(source.width(),source.height())>2048){const double k=2048.0/qMax(source.width(),source.height());source=areaDownsample(source,QSize(qMax(1,int(std::lround(source.width()*k))),qMax(1,int(std::lround(source.height()*k)))));}
     progress(.12,"Lossless RGB24: фильтры и libdeflate");
     auto exact=PngEncoder::encodeRgb24(source,10);
-    TextureResult best{source,source,exact.bytes,{},0,0,0,1,true};
+    QString materialSummary;QImage materialMap=analyzeMaterials(source,materialSummary);
+    TextureResult best{source,source,materialMap,exact.bytes,{},0,0,0,1,true};
     int secondPassPixels=0,secondPassStrength=0,selectedRgbGuard=0,selectedChromaGuard=0;
     if(exact.bytes.size()>=limit){
         const qint64 repairBudget=limit*90/100;
         struct TextureLevel{int block,residual,chromaSmooth,chromaStep,rgb,chroma;};
-        const std::array<TextureLevel,9> textureLevels={{{2,2,20,2,8,3},{2,3,30,3,9,4},{4,3,35,3,10,4},{4,4,45,4,11,4},{4,5,55,5,12,5},{4,6,65,6,14,6},{4,8,72,8,16,7},{4,10,80,10,18,8},{4,12,86,12,20,9}}};
+        const std::array<TextureLevel,14> textureLevels={{{2,2,20,2,8,3},{2,3,30,3,9,4},{4,3,35,3,10,4},{4,4,45,4,11,4},{4,5,55,5,12,5},{4,6,65,6,14,6},{4,8,72,8,16,7},{4,10,80,10,18,8},{4,12,86,12,20,9},{4,16,88,14,22,10},{4,20,90,16,24,11},{8,16,90,16,24,11},{8,24,92,20,28,12},{8,32,94,24,32,14}}};
         for(const auto level:textureLevels){
             progress(.13+.035*best.tested,QString("Микрофактура %1×%1 · остаток/%2").arg(level.block).arg(level.residual));
             QImage candidate=guardCandidate(source,blockTextureCandidate(source,level.block,level.residual,level.chromaSmooth,level.chromaStep),level.rgb,level.chroma);
             auto encoded=PngEncoder::encodeRgb24(candidate,9);++best.tested;
+            progress(.13+.035*best.tested,QString("Кандидат %1 · %2 MB").arg(best.tested).arg(encoded.bytes.size()/1000000.0,0,'f',3));
             if(encoded.bytes.size()<limit){best.output=candidate;best.png=encoded.bytes;best.lossless=false;selectedRgbGuard=level.rgb;selectedChromaGuard=level.chroma;break;}
         }
         // First remove only intra-material high-frequency noise. The bilateral
@@ -259,6 +275,7 @@ TextureResult TextureProcessor::process(const QString &path,qint64 limit,const P
         .arg(best.meanError,0,'f',2).arg(best.maxError).arg(best.tested);
     if(secondPassStrength)best.report+=QString("\nВторой проход: исправлено %1 пикселей · сила %2%").arg(secondPassPixels).arg(secondPassStrength);
     if(selectedRgbGuard)best.report+=QString("\nЖёсткая защита: RGB≤%1 · цветность≤%2").arg(selectedRgbGuard).arg(selectedChromaGuard);
+    best.report+=QString("\nКарта материалов: %1").arg(materialSummary);
     best.report+=QString("\nВремя обработки: %1 с").arg(timer.elapsed()/1000.0,0,'f',1);
     progress(1.0,"Готово"); return best;
 }

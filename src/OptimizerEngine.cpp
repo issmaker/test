@@ -87,7 +87,7 @@ OptimizerEngine::OptimizerEngine(QObject *parent):QObject(parent) {
         m_workingWidth=preview.workingWidth;m_workingHeight=preview.workingHeight;
         if(!preview.previewPath.isEmpty())m_workingPreviewUrl=QUrl::fromLocalFile(preview.previewPath).toString();
         m_accentColor=preview.accent;
-        m_status=sourceIsLarge()?"Рабочий эталон 2K подготовлен · мастер 8K доступен отдельно":"Текстура готова к оптимизации";
+        m_status=sourceIsLarge()?"Рабочий эталон 2K подготовлен из исходной 8K-текстуры":"Текстура готова к оптимизации";
         emit sourceInfoChanged();emit previewChanged();emit accentColorChanged();emit statusChanged();
     });
 
@@ -105,7 +105,7 @@ OptimizerEngine::OptimizerEngine(QObject *parent):QObject(parent) {
             if(!file.open(QIODevice::WriteOnly|QIODevice::Truncate)||file.write(result.png)!=result.png.size())throw std::runtime_error("Не удалось записать оптимизированный PNG");
             file.close();m_outputPath=QDir::toNativeSeparators(out);m_outputFileMb=result.png.size()/1000000.0;
             m_referenceUrl=QUrl::fromLocalFile(reference).toString();m_resultUrl=QUrl::fromLocalFile(out).toString();
-            m_report=result.report+"\n\nСохранено: "+m_outputPath;m_status="Готово — Median RGB сохранён";
+            m_report=result.report+"\n\nСохранено: "+m_outputPath;m_status="Готово — AGR Adaptive RGB24 сохранён";
             emit resultUrlChanged();emit referenceUrlChanged();emit reportChanged();emit outputPathChanged();emit outputSizeChanged();emit statusChanged();
         }catch(const std::exception&error){m_status=QString("Ошибка: ")+error.what();emit statusChanged();}
         m_telemetryTimer.stop();m_busy=false;emit busyChanged();

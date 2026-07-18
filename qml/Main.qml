@@ -40,12 +40,12 @@ ApplicationWindow {
             MetricChip{text:"v1.0"} MetricChip{text:"2K / 8K → 2K"} MetricChip{text:"RGB24 verified"}
         }
 
-        GlassCard { Layout.fillWidth:true;Layout.preferredHeight:82
+        GlassCard { Layout.fillWidth:true;Layout.preferredHeight:96
             RowLayout { anchors.fill:parent;anchors.margins:14;spacing:12
                 AppButton { text:"Открыть PNG";accent:"#282330";onClicked:picker.open();ToolTip.visible:hovered;ToolTip.text:"Выбрать файл — Ctrl+O" }
                 ColumnLayout { Layout.fillWidth:true;spacing:5
                     Text{text:optimizer.status;color:"white";font.pixelSize:14;font.weight:Font.DemiBold;elide:Text.ElideMiddle;Layout.fillWidth:true}
-                    ProgressBar{Layout.fillWidth:true;from:0;to:1;value:optimizer.progress;visible:optimizer.busy}
+                    Sparkline{Layout.fillWidth:true;Layout.preferredHeight:38;values:optimizer.progressHistory;title:optimizer.busy?"LIVE PIPELINE":"ГОТОВ К ЗАПУСКУ";valueText:Math.round(optimizer.progress*100)+"%";visible:optimizer.busy||optimizer.progress>0}
                 }
                 Text{text:"Лимит";color:"#9385a3"}
                 SpinBox{id:limit;from:10;to:100;value:30;stepSize:1;editable:true;textFromValue:v=>(v/10).toFixed(1)+" MB";valueFromText:t=>Math.round(parseFloat(t)*10);onValueChanged:win.targetMb=value/10}
@@ -72,9 +72,14 @@ ApplicationWindow {
             }
         }
 
-        GlassCard { Layout.fillWidth:true;Layout.preferredHeight:104
+        GlassCard { Layout.fillWidth:true;Layout.preferredHeight:132
             RowLayout { anchors.fill:parent;anchors.margins:14;spacing:14
                 Text { text:optimizer.report||"Колесо мыши — масштаб по курсору  ·  перетаскивание — синхронное перемещение  ·  двойной клик — вписать";color:optimizer.report?"#c7daf2":"#60738f";font.pixelSize:12;lineHeight:1.2;wrapMode:Text.Wrap;Layout.fillWidth:true;Layout.fillHeight:true;verticalAlignment:Text.AlignVCenter }
+                Rectangle{Layout.preferredWidth:1;Layout.fillHeight:true;color:"#26344242"}
+                ColumnLayout{Layout.preferredWidth:330;Layout.fillHeight:true;spacing:6
+                    Sparkline{Layout.fillWidth:true;Layout.fillHeight:true;values:optimizer.progressHistory;title:"ПРОГРЕСС";valueText:Math.round(optimizer.progress*100)+"%"}
+                    Sparkline{Layout.fillWidth:true;Layout.fillHeight:true;values:optimizer.activityHistory;title:"АКТИВНОСТЬ АНАЛИЗА";valueText:optimizer.busy?"LIVE":"IDLE";lineColor:"#52c7bd"}
+                }
                 Text{text:"by issmaker";color:"#465975";font.pixelSize:10;Layout.alignment:Qt.AlignBottom}
             }
         }

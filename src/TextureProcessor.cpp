@@ -168,16 +168,24 @@ TextureResult TextureProcessor::process(const QString &path,qint64 limit,const P
     progress(.12,"Lossless RGB24: фильтры и libdeflate");
     auto exact=PngEncoder::encodeRgb24(source,10);
     TextureResult best{source,source,exact.bytes,{},0,0,0,1,true};
-    int secondPassPixels=0,secondPassStrength=0,selectedRgbGuard=0,selectedChromaGuard=0;
+    int secondPassPixels=0,secondPassStrength=0,selectedRgbGuard=0,selectedChromaGuard=0,paletteRestore=0;
     if(exact.bytes.size()>=limit){
         const qint64 repairBudget=limit*90/100;
         bool selectedPalette=false;
-        for(const int colors:{256,224,192,160,128}){
-            progress(.13+.04*best.tested,QString("Перцептуальная палитра · %1 цветов · RGB24").arg(colors));
-            QImage candidate=paletteCandidate(source,colors,24);
+        struct PaletteLevel{int colors,preserve;};
+        for(const auto level:{PaletteLevel{256,24},PaletteLevel{224,28},PaletteLevel{192,32},PaletteLevel{160,40},PaletteLevel{128,48},PaletteLevel{96,64},PaletteLevel{64,96},PaletteLevel{48,128},PaletteLevel{32,255}}){
+            progress(.13+.04*best.tested,QString("Перцептуальная палитра · %1 цветов · RGB24").arg(level.colors));
+            QImage candidate=paletteCandidate(source,level.colors,level.preserve);
             auto encoded=PngEncoder::encodeRgb24(candidate,9);++best.tested;
             progress(.13+.035*best.tested,QString("Кандидат %1 · %2 MB").arg(best.tested).arg(encoded.bytes.size()/1000000.0,0,'f',3));
-            if(encoded.bytes.size()<limit){best.output=candidate;best.png=encoded.bytes;best.lossless=false;selectedPalette=true;break;}
+            if(encoded.bytes.size()<limit){
+                best.output=candidate;best.png=encoded.bytes;best.lossless=false;selectedPalette=true;
+                // Spend every safe byte below the contract by returning source
+                // information. Greedy binary increments converge close to the
+                // limit without ever allowing the result to cross it.
+                for(const int add:{50,25,12,6,3,2,1}){const int attempt=paletteRestore+add;if(attempt>99)continue;QImage richer=blendSource(candidate,source,attempt);auto rich=PngEncoder::encodeRgb24(richer,9);++best.tested;progress(.56,QString("Восстановление %1% · %2 MB").arg(attempt).arg(rich.bytes.size()/1000000.0,0,'f',3));if(rich.bytes.size()<limit){best.output=richer;best.png=rich.bytes;paletteRestore=attempt;}}
+                break;
+            }
         }
         // First remove only intra-material high-frequency noise. The bilateral
         // neighbourhood rejects different luminance, so silhouettes, atlas
@@ -256,6 +264,7 @@ TextureResult TextureProcessor::process(const QString &path,qint64 limit,const P
         .arg(best.meanError,0,'f',2).arg(best.maxError).arg(best.tested);
     if(secondPassStrength)best.report+=QString("\nВторой проход: исправлено %1 пикселей · сила %2%").arg(secondPassPixels).arg(secondPassStrength);
     if(selectedRgbGuard)best.report+=QString("\nЖёсткая защита: RGB≤%1 · цветность≤%2").arg(selectedRgbGuard).arg(selectedChromaGuard);
+    if(paletteRestore)best.report+=QString("\nВозвращено исходной информации: %1% · запас до лимита %2 KB").arg(paletteRestore).arg((limit-best.png.size())/1000.0,0,'f',1);
     best.report+=QString("\nВремя обработки: %1 с").arg(timer.elapsed()/1000.0,0,'f',1);
     progress(1.0,"Готово"); return best;
 }

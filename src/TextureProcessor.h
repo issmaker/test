@@ -23,5 +23,7 @@ private:
     static QImage edgeAwareCandidate(const QImage &, int smooth, int quant);
     static QImage lumaChromaCandidate(const QImage &, int lumaStep, int chromaStep);
     static QImage auditRepair(const QImage &, const QImage &, int strength, int &correctedPixels);
+    static QImage guardCandidate(const QImage &, const QImage &, int rgbGuard, int chromaGuard);
+    static QImage areaDownsample(const QImage &, const QSize &);
     static void measure(const QImage &, const QImage &, double &, double &, int &);
 };

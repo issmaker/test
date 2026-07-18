@@ -9,7 +9,13 @@ Rectangle {
     property real sharedPanY: 0
     signal viewChanged(real scale, real panX, real panY)
     signal resetRequested()
-    color: "#080d14"; radius: 15; clip: true
+    signal fitCalculated(real scale)
+    function calculateFit() {
+        if (picture.status===Image.Ready && picture.sourceSize.width>0)
+            fitCalculated(Math.min((width-28)/picture.sourceSize.width,(height-28)/picture.sourceSize.height))
+    }
+    onWidthChanged:calculateFit();onHeightChanged:calculateFit()
+    color: "#09080d"; radius: 15; clip: true
 
     Text { x:14;y:12;z:5;text:root.title;color:"#dceaff";font.pixelSize:13;font.weight:Font.DemiBold }
     Image {
@@ -18,9 +24,10 @@ Rectangle {
         x: root.width/2-width/2+root.sharedPanX; y:root.height/2-height/2+root.sharedPanY
         scale:root.sharedScale; transformOrigin:Item.Center
         opacity:status===Image.Ready?1:0
+        onStatusChanged:if(status===Image.Ready)Qt.callLater(root.calculateFit)
         Behavior on opacity{NumberAnimation{duration:300}}
     }
-    Text { anchors.centerIn:parent;visible:!root.imageSource;text:"Выберите или перетащите PNG";color:"#52657f" }
+    Text { anchors.centerIn:parent;visible:!root.imageSource;text:"Выберите или перетащите PNG";color:"#665f76" }
     WheelHandler {
         acceptedDevices: PointerDevice.Mouse|PointerDevice.TouchPad
         onWheel: event => {

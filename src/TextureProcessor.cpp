@@ -60,6 +60,23 @@ QImage TextureProcessor::edgeAwareCandidate(const QImage &input, int smooth, int
     return out;
 }
 
+QImage TextureProcessor::blockTextureCandidate(const QImage &input,int block,int residualStep,int chromaSmooth,int chromaStep){
+    const QImage src=input.convertToFormat(QImage::Format_RGB888);QImage out(src.size(),QImage::Format_RGB888);
+    for(int by=0;by<src.height();by+=block)for(int bx=0;bx<src.width();bx+=block){
+        const int ex=qMin(src.width(),bx+block),ey=qMin(src.height(),by+block),n=(ex-bx)*(ey-by);
+        int sumY=0,sumCb=0,sumCr=0,minY=255,maxY=0;
+        for(int y=by;y<ey;++y){const uchar*s=src.constScanLine(y);for(int x=bx;x<ex;++x){const int r=s[x*3],g=s[x*3+1],b=s[x*3+2];const int yy=(77*r+150*g+29*b+128)>>8,cb=(-43*r-85*g+128*b+128)>>8,cr=(128*r-107*g-21*b+128)>>8;sumY+=yy;sumCb+=cb;sumCr+=cr;minY=qMin(minY,yy);maxY=qMax(maxY,yy);}}
+        const int meanY=(sumY+n/2)/n,meanCb=(sumCb+(sumCb>=0?n/2:-n/2))/n,meanCr=(sumCr+(sumCr>=0?n/2:-n/2))/n;const bool edge=maxY-minY>54;
+        for(int y=by;y<ey;++y){const uchar*s=src.constScanLine(y);uchar*d=out.scanLine(y);for(int x=bx;x<ex;++x){const int r=s[x*3],g=s[x*3+1],b=s[x*3+2];const int yy=(77*r+150*g+29*b+128)>>8,pcb=(-43*r-85*g+128*b+128)>>8,pcr=(128*r-107*g-21*b+128)>>8;
+            const int qy=edge?yy:qBound(0,meanY+quantizeSigned(yy-meanY,residualStep),255);const int amount=edge?0:chromaSmooth;
+            int cb=(pcb*(100-amount)+meanCb*amount+(pcb*(100-amount)+meanCb*amount>=0?50:-50))/100;
+            int cr=(pcr*(100-amount)+meanCr*amount+(pcr*(100-amount)+meanCr*amount>=0?50:-50))/100;
+            cb=quantizeSigned(cb,chromaStep);cr=quantizeSigned(cr,chromaStep);
+            d[x*3]=uchar(qBound(0,qy+((359*cr)>>8),255));d[x*3+1]=uchar(qBound(0,qy-((88*cb+183*cr)>>8),255));d[x*3+2]=uchar(qBound(0,qy+((454*cb)>>8),255));
+        }}
+    }return out;
+}
+
 QImage TextureProcessor::lumaChromaCandidate(const QImage &input,int yStep,int cStep) {
     const QImage src=input.convertToFormat(QImage::Format_RGB888);
     QImage out(src.size(),QImage::Format_RGB888);
@@ -157,11 +174,20 @@ TextureResult TextureProcessor::process(const QString &path,qint64 limit,const P
     int secondPassPixels=0,secondPassStrength=0,selectedRgbGuard=0,selectedChromaGuard=0;
     if(exact.bytes.size()>=limit){
         const qint64 repairBudget=limit*90/100;
+        struct TextureLevel{int block,residual,chromaSmooth,chromaStep,rgb,chroma;};
+        const std::array<TextureLevel,9> textureLevels={{{2,2,20,2,8,3},{2,3,30,3,9,4},{4,3,35,3,10,4},{4,4,45,4,11,4},{4,5,55,5,12,5},{4,6,65,6,14,6},{4,8,72,8,16,7},{4,10,80,10,18,8},{4,12,86,12,20,9}}};
+        for(const auto level:textureLevels){
+            progress(.13+.035*best.tested,QString("Микрофактура %1×%1 · остаток/%2").arg(level.block).arg(level.residual));
+            QImage candidate=guardCandidate(source,blockTextureCandidate(source,level.block,level.residual,level.chromaSmooth,level.chromaStep),level.rgb,level.chroma);
+            auto encoded=PngEncoder::encodeRgb24(candidate,9);++best.tested;
+            if(encoded.bytes.size()<limit){best.output=candidate;best.png=encoded.bytes;best.lossless=false;selectedRgbGuard=level.rgb;selectedChromaGuard=level.chroma;break;}
+        }
         // First remove only intra-material high-frequency noise. The bilateral
         // neighbourhood rejects different luminance, so silhouettes, atlas
         // seams and thin markings do not bleed into their surroundings.
         const std::array<std::pair<int,int>,7> spatial={{{18,2},{28,2},{38,3},{50,3},{62,4},{74,5},{86,6}}};
         for(const auto [smooth,quant]:spatial){
+            if(best.png.size()<limit)break;
             progress(.13+.035*best.tested,QString("Локальная фактура · %1% · RGB/%2").arg(smooth).arg(quant));
             const int rgb=qMin(12,6+quant),chroma=qMin(5,2+quant/2);
             QImage candidate=guardCandidate(source,edgeAwareCandidate(source,smooth,quant),rgb,chroma);

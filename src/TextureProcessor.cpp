@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <QFileInfo>
 #include <QImageReader>
+#include <QElapsedTimer>
 #include <array>
 #include <cmath>
 #include <limits>
@@ -120,6 +121,7 @@ void TextureProcessor::measure(const QImage &a0,const QImage &b0,double &mean,do
 }
 
 TextureResult TextureProcessor::process(const QString &path,qint64 limit,const Progress &progress) {
+    QElapsedTimer timer;timer.start();
     QImageReader reader(path); reader.setAutoTransform(true);
     QImage source=reader.read().convertToFormat(QImage::Format_RGB888);
     if(source.isNull()) throw std::runtime_error("PNG не удалось прочитать");
@@ -135,6 +137,7 @@ TextureResult TextureProcessor::process(const QString &path,qint64 limit,const P
         // more strongly without turning a surface into large RGB blocks.
         const std::array<std::pair<int,int>,12> ladder={{{2,6},{3,8},{4,10},{5,12},{6,16},{8,20},{10,24},{12,32},{16,40},{20,48},{24,64},{32,80}}};
         for(const auto [ys,cs]:ladder){
+            if(timer.elapsed()>42000)break;
             progress(.15+.055*best.tested,QString("Фактура Y/%1 · цветность/%2").arg(ys).arg(cs));
             QImage candidate=lumaChromaCandidate(source,ys,cs);
             auto encoded=PngEncoder::encodeRgb24(candidate,9); ++best.tested;
@@ -146,7 +149,7 @@ TextureResult TextureProcessor::process(const QString &path,qint64 limit,const P
         // Web compressors gain most of their ratio from an adaptive palette.
         // We use the same rate model, then immediately expand it to RGB888 so
         // the final PNG remains color type 2 (RGB24), never indexed PNG8.
-        if(best.png.size()>=limit){
+        if(best.png.size()>=limit&&timer.elapsed()<47000){
             progress(.89,"Адаптивная цветовая модель RGB24");
             QImage palette=source.convertToFormat(QImage::Format_Indexed8,Qt::DiffuseDither|Qt::PreferDither)
                                  .convertToFormat(QImage::Format_RGB888);
@@ -174,10 +177,11 @@ TextureResult TextureProcessor::process(const QString &path,qint64 limit,const P
         // Independent second pass: compare every pixel, estimate systematic
         // colour bias per source-colour region, repair severe errors, re-encode
         // and keep the strongest repair that remains below the byte contract.
-        if(best.png.size()<limit&&!best.lossless){
+        if(best.png.size()<limit&&!best.lossless&&timer.elapsed()<50000){
             progress(.965,"Повторная проверка всех пикселей");
             const QImage base=best.output;
             for(int strength:{100,75,50,25}){
+                if(timer.elapsed()>56000)break;
                 int corrected=0;QImage repaired=auditRepair(source,base,strength,corrected);
                 auto encoded=PngEncoder::encodeRgb24(repaired,10);++best.tested;
                 if(encoded.bytes.size()<limit){best.output=repaired;best.png=encoded.bytes;secondPassPixels=corrected;secondPassStrength=strength;break;}
@@ -192,5 +196,6 @@ TextureResult TextureProcessor::process(const QString &path,qint64 limit,const P
         .arg(std::isinf(best.psnr)?QString("∞"):QString::number(best.psnr,'f',1))
         .arg(best.meanError,0,'f',2).arg(best.maxError).arg(best.tested);
     if(secondPassStrength)best.report+=QString("\nВторой проход: исправлено %1 пикселей · сила %2%").arg(secondPassPixels).arg(secondPassStrength);
+    best.report+=QString("\nВремя обработки: %1 с").arg(timer.elapsed()/1000.0,0,'f',1);
     progress(1.0,"Готово"); return best;
 }

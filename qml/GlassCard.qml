@@ -1,4 +1,4 @@
 import QtQuick
 Rectangle {
-    radius: 22; color: "#cc111827"; border.color: "#26ffffff"; border.width: 1
+    radius: 20; color: "#ed121016"; border.color: "#22c8b8ff"; border.width: 1
 }

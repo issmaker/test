@@ -6,17 +6,30 @@ Rectangle {
     property color accentColor: "#ff641f"
     property bool checked: false
     implicitHeight: 30
-    implicitWidth: label.implicitWidth+24
+    implicitWidth: content.implicitWidth+24
     height: implicitHeight
     width: implicitWidth
     radius: 10
     color: "#151e24"
-    border.color: Qt.rgba(accentColor.r,accentColor.g,accentColor.b,.28)
-    Text {
-        id: label
+    border.width: 1
+    border.color: checked?"#4753e996":Qt.rgba(accentColor.r,accentColor.g,accentColor.b,.28)
+
+    Row {
+        id: content
         anchors.centerIn: parent
-        color: root.checked?"#dff9ed":"#c6d6dc"
-        font.pixelSize: 11
-        font.weight: root.checked?Font.DemiBold:Font.Normal
+        spacing: root.checked?6:0
+        Text {
+            visible: root.checked
+            text: "✓"
+            color: "#53e996"
+            font.pixelSize: 12
+            font.weight: Font.Bold
+        }
+        Text {
+            id: label
+            color: "#c6d6dc"
+            font.pixelSize: 11
+            font.weight: root.checked?Font.DemiBold:Font.Normal
+        }
     }
 }

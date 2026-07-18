@@ -49,7 +49,7 @@ Button {
             color: "#dcebf0"
             font.pixelSize: 11
             wrapMode: Text.Wrap
-            implicitWidth: Math.min(310,Math.max(150,implicitContentWidth))
+            width: Math.min(310,Math.max(150,implicitContentWidth))
         }
         background: Rectangle {
             radius: 11

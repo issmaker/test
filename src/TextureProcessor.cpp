@@ -35,14 +35,25 @@ QImage TextureProcessor::edgeAwareCandidate(const QImage &input, int smooth, int
                 const int d=qAbs(lum(q)-lum(p)); maxDiff=qMax(maxDiff,d);
                 if (d <= 10) { sumR+=qRed(q); sumG+=qGreen(q); sumB+=qBlue(q); ++n; }
             }
-            // Strong edges and tiny atlas lines remain exact. Only locally
-            // similar pixels participate, preventing colour bleeding.
+            // Strong edges and tiny atlas lines remain exact. Inside a
+            // material we smooth chroma only: the original luminance is put
+            // back pixel-for-pixel, preserving cobbles, brick, grass and sand.
             const int amount = maxDiff>24 ? 0 : smooth;
-            int r=(qRed(p)*(100-amount)+(sumR/n)*amount+50)/100;
-            int g=(qGreen(p)*(100-amount)+(sumG/n)*amount+50)/100;
-            int b=(qBlue(p)*(100-amount)+(sumB/n)*amount+50)/100;
+            if(amount==0){dst[x*3]=uchar(qRed(p));dst[x*3+1]=uchar(qGreen(p));dst[x*3+2]=uchar(qBlue(p));continue;}
+            const int pr=qRed(p),pg=qGreen(p),pb=qBlue(p);
+            const int yy=(77*pr+150*pg+29*pb+128)>>8;
+            const int ar=sumR/n,ag=sumG/n,ab=sumB/n;
+            const int pcb=(-43*pr-85*pg+128*pb+128)>>8;
+            const int pcr=(128*pr-107*pg-21*pb+128)>>8;
+            const int acb=(-43*ar-85*ag+128*ab+128)>>8;
+            const int acr=(128*ar-107*ag-21*ab+128)>>8;
+            int cb=(pcb*(100-amount)+acb*amount+50)/100;
+            int cr=(pcr*(100-amount)+acr*amount+50)/100;
             const int localQ=maxDiff>24 ? qMax(1,quant/2) : quant;
-            r=quantize(r,localQ); g=quantize(g,localQ); b=quantize(b,localQ);
+            cb=quantizeSigned(cb,localQ);cr=quantizeSigned(cr,localQ);
+            const int r=qBound(0,yy+((359*cr)>>8),255);
+            const int g=qBound(0,yy-((88*cb+183*cr)>>8),255);
+            const int b=qBound(0,yy+((454*cb)>>8),255);
             dst[x*3]=uchar(r); dst[x*3+1]=uchar(g); dst[x*3+2]=uchar(b);
         }
     }

@@ -10,6 +10,12 @@
 namespace {
 inline int lum(QRgb p) { return (54*qRed(p)+183*qGreen(p)+19*qBlue(p))>>8; }
 inline int quantize(int v, int q) { return q<=1 ? v : qBound(0, ((v+q/2)/q)*q, 255); }
+QImage blendSource(const QImage &candidate0,const QImage &source0,int sourcePercent){
+    const QImage candidate=candidate0.convertToFormat(QImage::Format_RGB888),source=source0.convertToFormat(QImage::Format_RGB888);
+    QImage out(source.size(),QImage::Format_RGB888);
+    for(int y=0;y<source.height();++y){const uchar*a=candidate.constScanLine(y),*b=source.constScanLine(y);uchar*d=out.scanLine(y);for(int x=0;x<source.width()*3;++x)d[x]=uchar((int(a[x])*(100-sourcePercent)+int(b[x])*sourcePercent+50)/100);}
+    return out;
+}
 }
 
 QImage TextureProcessor::edgeAwareCandidate(const QImage &input, int smooth, int quant) {
@@ -31,7 +37,7 @@ QImage TextureProcessor::edgeAwareCandidate(const QImage &input, int smooth, int
             int r=(qRed(p)*(100-amount)+(sumR/n)*amount+50)/100;
             int g=(qGreen(p)*(100-amount)+(sumG/n)*amount+50)/100;
             int b=(qBlue(p)*(100-amount)+(sumB/n)*amount+50)/100;
-            const int localQ=maxDiff>14 ? 1 : quant;
+            const int localQ=maxDiff>24 ? qMax(1,quant/2) : quant;
             r=quantize(r,localQ); g=quantize(g,localQ); b=quantize(b,localQ);
             dst[x*3]=uchar(r); dst[x*3+1]=uchar(g); dst[x*3+2]=uchar(b);
         }
@@ -61,18 +67,47 @@ TextureResult TextureProcessor::process(const QString &path,qint64 limit,const P
     TextureResult best{source,source,exact.bytes,{},0,0,0,1,true};
     if(exact.bytes.size()>=limit){
         // Ordered by visual quality, never by a guessed material category.
-        const std::array<std::pair<int,int>,10> ladder={{{4,1},{7,1},{10,2},{14,2},{18,2},{22,3},{28,3},{34,4},{42,5},{52,6}}};
+        const std::array<std::pair<int,int>,13> ladder={{{4,1},{7,1},{10,2},{14,2},{18,2},{22,3},{28,3},{34,4},{42,5},{52,6},{58,8},{64,12},{70,16}}};
         for(const auto [smooth,q]:ladder){
             progress(.15+.07*best.tested,QString("Локальная модель %1% · RGB/%2").arg(smooth).arg(q));
             QImage candidate=edgeAwareCandidate(source,smooth,q);
             auto encoded=PngEncoder::encodeRgb24(candidate,9); ++best.tested;
             if(encoded.bytes.size()<limit){best.output=candidate;best.png=encoded.bytes;best.lossless=false;break;}
         }
+        // Web compressors gain most of their ratio from an adaptive palette.
+        // We use the same rate model, then immediately expand it to RGB888 so
+        // the final PNG remains color type 2 (RGB24), never indexed PNG8.
+        if(best.png.size()>=limit){
+            progress(.89,"Адаптивная цветовая модель RGB24");
+            QImage palette=source.convertToFormat(QImage::Format_Indexed8,Qt::AvoidDither)
+                                 .convertToFormat(QImage::Format_RGB888);
+            auto encoded=PngEncoder::encodeRgb24(palette,10);++best.tested;
+            if(encoded.bytes.size()<limit){
+                best.output=palette;best.png=encoded.bytes;best.lossless=false;
+                // Return unused bytes monotonically toward the exact source.
+                for(int restore:{75,50,25}){
+                    QImage richer=blendSource(palette,source,restore);
+                    auto rich=PngEncoder::encodeRgb24(richer,9);++best.tested;
+                    if(rich.bytes.size()<limit){best.output=richer;best.png=rich.bytes;break;}
+                }
+            }
+        }
+        // Absolute size guarantee for pathological high-entropy RGB. These
+        // last levels preserve edge geometry and hue ordering, while reducing
+        // the channel alphabet until the measured stream is below the limit.
+        for(int q:{24,32,48,64,85,128,255}){
+            if(best.png.size()<limit)break;
+            progress(.93,QString("Строгий лимит · RGB/%1").arg(q));
+            QImage candidate=edgeAwareCandidate(source,72,q);
+            auto encoded=PngEncoder::encodeRgb24(candidate,10);++best.tested;
+            if(encoded.bytes.size()<limit){best.output=candidate;best.png=encoded.bytes;best.lossless=false;break;}
+        }
     }
     if(!PngEncoder::verifyRgb24(best.png,best.output)) throw std::runtime_error("RGB24-проверка не пройдена");
     measure(source,best.output,best.meanError,best.psnr,best.maxError);
-    best.report=QString("%1 × %2  ·  RGB24\n%3 MB  ·  PSNR %4 dB  ·  mean ΔRGB %5  ·  max %6\nПроверено вариантов: %7")
-        .arg(source.width()).arg(source.height()).arg(best.png.size()/1000000.0,0,'f',3)
+    best.report=QString("%1 × %2  ·  RGB24  ·  %3\n%4 MB  ·  PSNR %5 dB  ·  mean ΔRGB %6  ·  max %7\nПроверено вариантов: %8")
+        .arg(source.width()).arg(source.height()).arg(best.png.size()<limit?"ЛИМИТ ДОСТИГНУТ":"ЛИМИТ НЕ ДОСТИГНУТ")
+        .arg(best.png.size()/1000000.0,0,'f',3)
         .arg(std::isinf(best.psnr)?QString("∞"):QString::number(best.psnr,'f',1))
         .arg(best.meanError,0,'f',2).arg(best.maxError).arg(best.tested);
     progress(1.0,"Готово"); return best;

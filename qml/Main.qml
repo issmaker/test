@@ -12,6 +12,13 @@ ApplicationWindow {
     visible: true
     title: "Adaptive Texture Optimizer 1.0"
     color: "#05090d"
+    palette.window: "#05090d"
+    palette.windowText: "#f4fafb"
+    palette.base: "#0b141a"
+    palette.text: "#f4fafb"
+    palette.button: "#17232a"
+    palette.buttonText: "#f4fafb"
+    palette.highlight: win.accentColor
 
     property real targetMb: 3.0
     property real fitValue: .25

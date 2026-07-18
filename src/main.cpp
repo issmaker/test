@@ -77,7 +77,8 @@ int main(int argc,char**argv){
         const QString details = QStringLiteral("QML root object was not created. Log: %1")
             .arg(g_startupLogPath);
         startupMessageHandler(QtCriticalMsg, QMessageLogContext(), details);
-        showStartupFailure(details);
+        if (qEnvironmentVariableIsEmpty("AGR_STARTUP_TEST"))
+            showStartupFailure(details);
         return -1;
     }
     if(argc>1)optimizer.load(QUrl::fromLocalFile(QString::fromLocal8Bit(argv[1])).toString());

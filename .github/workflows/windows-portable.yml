@@ -32,6 +32,10 @@ jobs:
           modules: qtshadertools
           cache: true
 
+      - name: Create Windows black-hole icon
+        shell: pwsh
+        run: ./tools/create_icon.ps1 -OutputPath ./assets/black-hole.ico
+
       - name: Configure release
         shell: pwsh
         run: >-

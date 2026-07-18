@@ -5,122 +5,225 @@ import QtQuick.Dialogs
 
 ApplicationWindow {
     id: win
-    width: 1500; height: 980; minimumWidth: 1120; minimumHeight: 820; visible: true
-    title: "Adaptive Texture Optimizer 1.0"; color: "#080d16"
+    width: 1500
+    height: 940
+    minimumWidth: 1120
+    minimumHeight: 790
+    visible: true
+    title: "Adaptive Texture Optimizer 1.0"
+    color: "#05090d"
+
     property real targetMb: 3.0
     property real fitValue: .25
     property real viewScale: fitValue
     property real panX: 0
     property real panY: 0
-    property bool linkedViews: true
-    property bool fullSpaceEffects: false
     property real parallaxX: 0
     property real parallaxY: 0
-    property int algorithmId: 0
-    property var algorithms: [
-        {short:"AUTO RACE", tip:"Запускает все семейства и выбирает лучший результат, который действительно меньше лимита."},
-        {short:"MEDIAN RGB", tip:"Взвешенный Median Cut в RGB. Чёткие плоские цвета и хорошая сжимаемость."},
-        {short:"OKLAB HQ", tip:"Перцептуальная Oklab-палитра с итеративным уточнением. Основной кандидат на лучшее качество."},
-        {short:"LUMA+COLOR", tip:"Отдельно ценит яркостную фактуру и цветность. Для травы, камня, земли и кирпича."},
-        {short:"MICRODITHER", tip:"Oklab с очень слабым упорядоченным дизерингом. Проверка мелкой фактуры без случайных выбросов."},
-        {short:"QT WEB", tip:"Базовая web-палитра Qt; если не входит — адаптивно снижает число цветов."},
-        {short:"JPEG 96", tip:"Эксперимент: JPEG-мост качества 96, затем Oklab и обязательный RGB24 PNG."},
-        {short:"JPEG 90", tip:"Более сильный JPEG-мост качества 90, затем Oklab. Позволяет увидеть цену JPEG на вашей текстуре."},
-        {short:"TEXTURE Y", tip:"Мягкая яркостная подготовка перед Oklab. Ставит фактуру поверхности выше цветового шума."},
-        {short:"EDGE HQ", tip:"Защита локальных границ перед Oklab. Для кладки, решёток, швов и мелкой геометрии."}
-    ]
+    property real zoomWarp: 0
+    property real zoomDirection: 1
+    property real lastSliderValue: .25
+    property color accentColor: optimizer.accentColor
+    Behavior on accentColor{ColorAnimation{duration:750;easing.type:Easing.InOutCubic}}
+    Behavior on parallaxX{NumberAnimation{duration:115;easing.type:Easing.OutCubic}}
+    Behavior on parallaxY{NumberAnimation{duration:115;easing.type:Easing.OutCubic}}
 
-    function resetView() { viewScale=fitValue;panX=0;panY=0 }
-    function actualPixels() { viewScale=1;panX=0;panY=0 }
-    function updateView(s,x,y) { viewScale=s;panX=x;panY=y }
+    readonly property url leftImage: optimizer.showingMaster
+                                      ? optimizer.sourceUrl
+                                      : (optimizer.referenceUrl
+                                         ? optimizer.referenceUrl
+                                         : (optimizer.workingPreviewUrl
+                                            ? optimizer.workingPreviewUrl
+                                            : (optimizer.sourceIsLarge?"":optimizer.sourceUrl)))
+
+    function triggerZoomWarp(direction) {
+        zoomDirection=direction
+        zoomFx.stop();zoomWarp=0;zoomFx.start()
+    }
+    function resetView() {
+        triggerZoomWarp(fitValue>=viewScale?1:-1)
+        viewScale=fitValue;lastSliderValue=viewScale;panX=0;panY=0
+    }
+    function actualPixels() {
+        triggerZoomWarp(1)
+        viewScale=1;lastSliderValue=viewScale;panX=0;panY=0
+    }
+    function updateView(scale,x,y) { viewScale=scale;lastSliderValue=scale;panX=x;panY=y }
+
+    SequentialAnimation {
+        id: zoomFx
+        NumberAnimation{target:win;property:"zoomWarp";from:0;to:1;duration:130;easing.type:Easing.OutCubic}
+        NumberAnimation{target:win;property:"zoomWarp";to:0;duration:520;easing.type:Easing.OutExpo}
+    }
 
     FileDialog {
-        id: picker; title:"Выберите PNG-текстуру"
-        nameFilters:["PNG textures (*.png)"]
-        onAccepted:{optimizer.load(selectedFile);win.resetView()}
+        id: picker
+        title: "Выберите PNG-текстуру"
+        nameFilters: ["PNG textures (*.png)"]
+        onAccepted: {optimizer.load(selectedFile);win.resetView()}
     }
-    Shortcut { sequence:StandardKey.Open;onActivated:picker.open() }
-    Shortcut { sequence:"Ctrl+0";onActivated:win.resetView() }
-    Shortcut { sequence:"Ctrl+1";onActivated:win.actualPixels() }
+    Shortcut{sequence:StandardKey.Open;onActivated:picker.open()}
+    Shortcut{sequence:"Ctrl+0";onActivated:win.resetView()}
+    Shortcut{sequence:"Ctrl+1";onActivated:win.actualPixels()}
 
-    SpaceBackground{anchors.fill:parent;pointerX:win.parallaxX;pointerY:win.parallaxY;pointerActive:parallaxHover.hovered;fullEffects:win.fullSpaceEffects;warp:optimizer.busy;progress:optimizer.progress}
-    Item{anchors.fill:parent;HoverHandler{id:parallaxHover;onPointChanged:{win.parallaxX=(point.position.x-win.width/2)/win.width;win.parallaxY=(point.position.y-win.height/2)/win.height}}}
-    DropArea { anchors.fill:parent;onDropped:drop=>{if(drop.hasUrls){optimizer.load(drop.urls[0]);win.resetView()}} }
+    SpaceBackground {
+        anchors.fill: parent
+        pointerX: win.parallaxX*1.65
+        pointerY: win.parallaxY*1.65
+        pointerActive: parallaxHover.hovered
+        warp: optimizer.busy
+        progress: optimizer.progress
+        zoomPulse: win.zoomWarp
+        zoomDirection: win.zoomDirection
+        accentColor: win.accentColor
+    }
+    Item {
+        anchors.fill: parent
+        HoverHandler {
+            id: parallaxHover
+            onPointChanged: {
+                win.parallaxX=(point.position.x-win.width/2)/win.width
+                win.parallaxY=(point.position.y-win.height/2)/win.height
+            }
+        }
+    }
+    DropArea{anchors.fill:parent;onDropped:drop=>{if(drop.hasUrls){optimizer.load(drop.urls[0]);win.resetView()}}}
 
-    ColumnLayout { anchors.fill:parent;anchors.margins:22;spacing:14
-        RowLayout { Layout.fillWidth:true;Layout.preferredHeight:68;spacing:14
-            Rectangle { width:54;height:54;radius:17;gradient:Gradient{GradientStop{position:0;color:"#5b21b6"}GradientStop{position:.55;color:"#7c3aed"}GradientStop{position:1;color:"#a855f7"}}Rectangle{anchors.fill:parent;anchors.margins:1;radius:16;color:"transparent";border.color:"#50ffffff"}Text{anchors.centerIn:parent;text:"AGR";color:"white";font.bold:true;font.pixelSize:16} }
-            Column { Layout.fillWidth:true;spacing:3;Text{text:"Adaptive Texture Optimizer";color:"#f7f4ff";font.pixelSize:24;font.weight:Font.DemiBold}Text{text:"Color-safe texture laboratory  •  adaptive RGB24 pipeline";color:"#9588aa";font.pixelSize:12} }
-            MetricChip{text:"v1.0"} MetricChip{text:"2K / 8K → 2K"} MetricChip{text:"RGB24 verified"}
-            AppButton{text:win.fullSpaceEffects?"FX · FULL":"FX · ECO";implicitHeight:34;accent:win.fullSpaceEffects?"#5b21b6":"#24202b";onClicked:win.fullSpaceEffects=!win.fullSpaceEffects;ToolTip.visible:hovered;ToolTip.text:"ECO экономит ресурсы. FULL включает максимальную частоту космической анимации."}
+    ColumnLayout {
+        anchors.fill: parent
+        anchors.leftMargin: 22;anchors.rightMargin:22;anchors.topMargin:18;anchors.bottomMargin:70
+        spacing: 13
+
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 62
+            spacing: 14
+            Rectangle {
+                width:52;height:52;radius:16;color:win.accentColor
+                border.width:1;border.color:"#70ffffff"
+                Rectangle{anchors.fill:parent;anchors.margins:-5;radius:21;color:"transparent";border.width:1;border.color:Qt.rgba(win.accentColor.r,win.accentColor.g,win.accentColor.b,.28)}
+                Text{anchors.centerIn:parent;text:"AGR";color:"white";font.bold:true;font.pixelSize:16}
+                Behavior on color{ColorAnimation{duration:700}}
+            }
+            Column {
+                Layout.fillWidth: true
+                spacing: 3
+                Text{text:"Adaptive Texture Optimizer";color:"#f4fafb";font.pixelSize:24;font.weight:Font.DemiBold}
+                Text{text:"Median RGB  •  perceptual colour budget  •  verified RGB24";color:"#8599a3";font.pixelSize:12}
+            }
+            MetricChip{text:"v1.0";accentColor:win.accentColor}
+            MetricChip{text:"MEDIAN RGB";accentColor:win.accentColor;checked:true}
         }
 
-        GlassCard { Layout.fillWidth:true;Layout.preferredHeight:96
-            RowLayout { anchors.fill:parent;anchors.margins:14;spacing:12
-                AppButton { text:"Открыть PNG";accent:"#282330";onClicked:picker.open();ToolTip.visible:hovered;ToolTip.text:"Выбрать файл — Ctrl+O" }
-                ColumnLayout { Layout.fillWidth:true;spacing:5
-                    Text{text:optimizer.status;color:"white";font.pixelSize:14;font.weight:Font.DemiBold;elide:Text.ElideMiddle;Layout.fillWidth:true}
-                    Sparkline{Layout.fillWidth:true;Layout.preferredHeight:38;values:optimizer.progressHistory;title:optimizer.busy?"LIVE PIPELINE":"ГОТОВ К ЗАПУСКУ";valueText:Math.round(optimizer.progress*100)+"%";visible:optimizer.busy||optimizer.progress>0}
+        GlassCard {
+            accentColor: win.accentColor
+            Layout.fillWidth: true
+            Layout.preferredHeight: 94
+            RowLayout {
+                anchors.fill:parent;anchors.margins:13;spacing:12
+                AppButton{text:"Открыть PNG";accent:"#17232a";tip:"Выбрать PNG-текстуру — Ctrl+O";onClicked:picker.open()}
+                ColumnLayout {
+                    Layout.fillWidth:true;spacing:5
+                    Text{text:optimizer.status;color:"#f4fafb";font.pixelSize:13;font.weight:Font.DemiBold;elide:Text.ElideMiddle;Layout.fillWidth:true}
+                    Sparkline{Layout.fillWidth:true;Layout.preferredHeight:38;values:optimizer.progressHistory;active:optimizer.busy;lineColor:win.accentColor;title:optimizer.busy?"LIVE PIPELINE":"СИСТЕМА ГОТОВА";valueText:Math.round(optimizer.progress*100)+"%";visible:optimizer.busy||optimizer.progress>0}
                 }
-                Text{text:"Лимит";color:"#9385a3"}
-                SpinBox{id:limit;from:10;to:100;value:30;stepSize:1;editable:true;textFromValue:v=>(v/10).toFixed(1)+" MB";valueFromText:t=>Math.round(parseFloat(t)*10);onValueChanged:win.targetMb=value/10}
-                MetricChip{text:win.algorithms[win.algorithmId].short}
-                AppButton{text:"Оптимизировать";enabled:optimizer.sourceUrl&&!optimizer.busy;onClicked:optimizer.optimize(win.targetMb,win.algorithmId)}
+                Column{spacing:3;Text{text:"ПРЕДЕЛ ФАЙЛА";color:"#738893";font.pixelSize:9;font.weight:Font.DemiBold}LimitSelector{value:win.targetMb;accentColor:win.accentColor;onValueChanged:win.targetMb=value}}
+                AppButton{text:optimizer.busy?"Оптимизация…":"Оптимизировать";accent:win.accentColor;enabled:optimizer.sourceUrl&&!optimizer.busy&&!optimizer.previewBusy;tip:"Запустить Median RGB с обязательной проверкой размера и RGB24";onClicked:optimizer.optimize(win.targetMb,1)}
             }
         }
 
-        GlassCard { Layout.fillWidth:true;Layout.preferredHeight:108
-            ColumnLayout { anchors.fill:parent;anchors.margins:11;spacing:7
-                RowLayout { Layout.fillWidth:true
-                    Text{text:"10 АЛГОРИТМОВ · ВЫБЕРИТЕ И СРАВНИТЕ";color:"#78ded5";font.pixelSize:11;font.weight:Font.DemiBold}
-                    Item{Layout.fillWidth:true}
-                    Text{text:"Результаты сохраняются отдельно: A00 … A09";color:"#756b88";font.pixelSize:10}
-                }
-                GridLayout { Layout.fillWidth:true;Layout.fillHeight:true;columns:5;columnSpacing:8;rowSpacing:7
-                    Repeater { model:win.algorithms
-                        AppButton {
-                            required property int index
-                            required property var modelData
-                            Layout.fillWidth:true;implicitHeight:34;leftPadding:8;rightPadding:8
-                            text:(index+1)+" · "+modelData.short
-                            accent:win.algorithmId===index?"#6d28d9":"#201b2b"
-                            onClicked:win.algorithmId=index
-                            ToolTip.visible:hovered;ToolTip.delay:350;ToolTip.text:modelData.tip
-                        }
-                    }
-                }
+        RowLayout {
+            Layout.fillWidth:true
+            Layout.preferredHeight:46
+            spacing:8
+            AppButton{text:"Вписать";accent:"#17232a";implicitHeight:38;tip:"Показать текстуру целиком — Ctrl+0";onClicked:win.resetView()}
+            AppButton{text:"1:1";accent:"#17232a";implicitHeight:38;tip:"Один пиксель изображения равен одному пикселю экрана — Ctrl+1";onClicked:win.actualPixels()}
+            Slider {
+                id:scaleSlider
+                Layout.preferredWidth:245
+                from:.08;to:8;value:win.viewScale
+                onMoved:{const dir=value>=win.lastSliderValue?1:-1;win.triggerZoomWarp(dir);win.viewScale=value;win.lastSliderValue=value;win.panX=0;win.panY=0}
+                background:Rectangle{x:scaleSlider.leftPadding;y:scaleSlider.topPadding+scaleSlider.availableHeight/2-height/2;width:scaleSlider.availableWidth;height:5;radius:3;color:"#1b2930";Rectangle{width:scaleSlider.visualPosition*parent.width;height:parent.height;radius:3;color:win.accentColor}}
+                handle:Rectangle{x:scaleSlider.leftPadding+scaleSlider.visualPosition*(scaleSlider.availableWidth-width);y:scaleSlider.topPadding+scaleSlider.availableHeight/2-height/2;width:18;height:18;radius:9;color:"#eef8f8";border.width:4;border.color:win.accentColor}
             }
-        }
-
-        RowLayout { Layout.fillWidth:true;Layout.preferredHeight:48;spacing:8
-            AppButton{text:"Вписать";accent:"#24202b";implicitHeight:40;onClicked:win.resetView();ToolTip.visible:hovered;ToolTip.text:"Показать текстуру целиком — Ctrl+0"}
-            AppButton{text:"1:1";accent:"#24202b";implicitHeight:40;onClicked:win.actualPixels();ToolTip.visible:hovered;ToolTip.text:"Один пиксель изображения = один пиксель экрана — Ctrl+1"}
-            Slider { Layout.preferredWidth:220;from:.08;to:8;value:win.viewScale;onMoved:{win.viewScale=value;win.panX=0;win.panY=0} }
-            MetricChip{text:Math.round(win.viewScale*100)+"%"}
+            MetricChip{text:Math.round(win.viewScale*100)+"%";accentColor:win.accentColor}
+            AppButton {
+                visible: optimizer.sourceIsLarge&&!optimizer.previewBusy
+                text: optimizer.showingMaster?"Рабочий эталон 2K":"Исходный мастер 8K"
+                accent: optimizer.showingMaster?win.accentColor:"#17232a"
+                implicitHeight:38
+                tip: optimizer.showingMaster?"Вернуться к быстрому рабочему эталону 2K":"Показать исходный мастер высокого разрешения; загрузка может занять время"
+                onClicked:{optimizer.toggleMasterView();win.resetView()}
+            }
             Item{Layout.fillWidth:true}
-            AppButton{text:"Папка исходника";accent:"#24202b";implicitHeight:40;enabled:optimizer.sourceUrl;onClicked:optimizer.openSourceFolder();ToolTip.visible:hovered;ToolTip.text:"Открыть папку, где лежит исходный PNG"}
-            AppButton{text:"Папка результата";accent:"#5b21b6";implicitHeight:40;enabled:optimizer.outputPath;onClicked:optimizer.openOutputFolder();ToolTip.visible:hovered;ToolTip.text:"Открыть папку compressed"}
+            AppButton{text:"Папка исходника";accent:"#17232a";implicitHeight:38;enabled:optimizer.sourceUrl;tip:"Открыть папку исходной текстуры";onClicked:optimizer.openSourceFolder()}
+            AppButton{text:"Папка результата";accent:win.accentColor;implicitHeight:38;enabled:optimizer.outputPath;tip:"Открыть папку compressed с готовым RGB24 PNG";onClicked:optimizer.openOutputFolder()}
         }
 
-        RowLayout { Layout.fillWidth:true;Layout.fillHeight:true;spacing:14
-            GlassCard { Layout.fillWidth:true;Layout.fillHeight:true
-                ZoomView { anchors.fill:parent;anchors.margins:10;title:optimizer.referenceUrl?"Рабочий эталон 2K":"Оригинал";imageSource:optimizer.referenceUrl||optimizer.sourceUrl;sharedScale:win.viewScale;sharedPanX:win.panX;sharedPanY:win.panY;onViewChanged:(s,x,y)=>win.updateView(s,x,y);onResetRequested:win.resetView();onFitCalculated:s=>{win.fitValue=s;if(win.panX===0&&win.panY===0)win.viewScale=s} }
+        RowLayout {
+            Layout.fillWidth:true
+            Layout.fillHeight:true
+            spacing:16
+            ZoomView {
+                Layout.fillWidth:true;Layout.fillHeight:true
+                title:optimizer.showingMaster?"Исходный мастер высокого разрешения":(optimizer.sourceIsLarge?"Рабочий эталон 2K":"Оригинал")
+                imageSource:win.leftImage
+                sharedScale:win.viewScale;sharedPanX:win.panX;sharedPanY:win.panY
+                parallaxX:win.parallaxX*2.2;parallaxY:win.parallaxY*2.2;accentColor:win.accentColor
+                onViewChanged:(scale,x,y)=>win.updateView(scale,x,y)
+                onZoomPulse:direction=>win.triggerZoomWarp(direction)
+                onResetRequested:win.resetView()
+                onFitCalculated:scale=>{win.fitValue=scale;if(win.panX===0&&win.panY===0){win.viewScale=scale;win.lastSliderValue=scale}}
             }
-            GlassCard { Layout.fillWidth:true;Layout.fillHeight:true
-                ZoomView { anchors.fill:parent;anchors.margins:10;title:"Результат / изменения";imageSource:optimizer.resultUrl;sharedScale:win.viewScale;sharedPanX:win.panX;sharedPanY:win.panY;onViewChanged:(s,x,y)=>win.updateView(s,x,y);onResetRequested:win.resetView() }
+            ZoomView {
+                Layout.fillWidth:true;Layout.fillHeight:true
+                title:"Результат Median RGB"
+                imageSource:optimizer.resultUrl
+                sharedScale:win.viewScale;sharedPanX:win.panX;sharedPanY:win.panY
+                parallaxX:win.parallaxX*2.2;parallaxY:win.parallaxY*2.2;accentColor:win.accentColor
+                onViewChanged:(scale,x,y)=>win.updateView(scale,x,y)
+                onZoomPulse:direction=>win.triggerZoomWarp(direction)
+                onResetRequested:win.resetView()
             }
         }
 
-        GlassCard { Layout.fillWidth:true;Layout.preferredHeight:124
-            RowLayout { anchors.fill:parent;anchors.margins:14;spacing:14
-                Text { text:optimizer.report||"Колесо мыши — масштаб по курсору  ·  перетаскивание — синхронное перемещение  ·  двойной клик — вписать";color:optimizer.report?"#c7daf2":"#60738f";font.pixelSize:12;lineHeight:1.2;wrapMode:Text.Wrap;Layout.fillWidth:true;Layout.fillHeight:true;verticalAlignment:Text.AlignVCenter }
-                Rectangle{Layout.preferredWidth:1;Layout.fillHeight:true;color:"#26344242"}
-                ColumnLayout{Layout.preferredWidth:330;Layout.fillHeight:true;spacing:6
-                    Sparkline{Layout.fillWidth:true;Layout.fillHeight:true;values:optimizer.progressHistory;title:"ПРОГРЕСС";valueText:Math.round(optimizer.progress*100)+"%"}
-                    Sparkline{Layout.fillWidth:true;Layout.fillHeight:true;values:optimizer.activityHistory;title:"АКТИВНОСТЬ АНАЛИЗА";valueText:optimizer.busy?"LIVE":"IDLE";lineColor:"#52c7bd"}
+        GlassCard {
+            accentColor:win.accentColor
+            Layout.fillWidth:true
+            Layout.preferredHeight:116
+            RowLayout {
+                anchors.fill:parent;anchors.margins:13;spacing:14
+                Text{text:optimizer.report||"Колесо — плавный масштаб по курсору  •  перетаскивание — синхронное перемещение  •  двойной клик — вписать";color:optimizer.report?"#c9dce2":"#60757f";font.pixelSize:11;lineHeight:1.2;wrapMode:Text.Wrap;Layout.fillWidth:true;Layout.fillHeight:true;verticalAlignment:Text.AlignVCenter}
+                Rectangle{Layout.preferredWidth:1;Layout.fillHeight:true;color:Qt.rgba(win.accentColor.r,win.accentColor.g,win.accentColor.b,.18)}
+                ColumnLayout {
+                    Layout.preferredWidth:350;Layout.fillHeight:true;spacing:6
+                    Sparkline{Layout.fillWidth:true;Layout.fillHeight:true;values:optimizer.progressHistory;active:optimizer.busy;lineColor:win.accentColor;title:"ПРОГРЕСС";valueText:Math.round(optimizer.progress*100)+"%"}
+                    Sparkline{Layout.fillWidth:true;Layout.fillHeight:true;values:optimizer.activityHistory;active:optimizer.busy;lineColor:Qt.lighter(win.accentColor,1.25);title:"АКТИВНОСТЬ АНАЛИЗА";valueText:optimizer.busy?"LIVE":"IDLE"}
                 }
-                Text{text:"by issmaker";color:"#465975";font.pixelSize:10;Layout.alignment:Qt.AlignBottom}
+                Text{text:"by issmaker";color:"#526871";font.pixelSize:10;Layout.alignment:Qt.AlignBottom}
             }
+        }
+    }
+
+    Rectangle {
+        z: 50
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: 16
+        height: 42
+        width: statusRow.implicitWidth+30
+        radius: 15
+        color: "#ee091117"
+        border.width: 1
+        border.color: Qt.rgba(win.accentColor.r,win.accentColor.g,win.accentColor.b,.42)
+        RowLayout {
+            id: statusRow
+            anchors.centerIn: parent
+            spacing: 8
+            MetricChip{checked:optimizer.workingWidth>0;text:(optimizer.workingWidth>0?"✓ ":"")+optimizer.workingWidth+"×"+optimizer.workingHeight;accentColor:win.accentColor}
+            MetricChip{checked:optimizer.resultUrl;text:(optimizer.resultUrl?"✓ ":"")+"PNG RGB24";accentColor:win.accentColor}
+            MetricChip{checked:optimizer.outputFileMb>0&&optimizer.outputFileMb<win.targetMb;text:optimizer.outputFileMb>0?((optimizer.outputFileMb<win.targetMb?"✓ ":"! ")+optimizer.outputFileMb.toFixed(3)+" MB"):"≤ "+win.targetMb.toFixed(1)+" MB";accentColor:win.accentColor}
+            Text{visible:optimizer.sourceFileMb>0;text:"SOURCE "+optimizer.sourceFileMb.toFixed(2)+" MB";color:"#6f858e";font.pixelSize:10}
         }
     }
 }

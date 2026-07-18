@@ -109,6 +109,27 @@ QImage TextureProcessor::auditRepair(const QImage &source0,const QImage &candida
     return out;
 }
 
+QImage TextureProcessor::guardCandidate(const QImage &source0,const QImage &candidate0,int rgbGuard,int chromaGuard){
+    const QImage source=source0.convertToFormat(QImage::Format_RGB888),candidate=candidate0.convertToFormat(QImage::Format_RGB888);
+    QImage out(source.size(),QImage::Format_RGB888);
+    for(int y=0;y<source.height();++y){const uchar*s=source.constScanLine(y),*c=candidate.constScanLine(y);uchar*d=out.scanLine(y);for(int x=0;x<source.width();++x){
+        const int dr=int(c[x*3])-int(s[x*3]),dg=int(c[x*3+1])-int(s[x*3+1]),db=int(c[x*3+2])-int(s[x*3+2]);
+        const int maximum=std::max({qAbs(dr),qAbs(dg),qAbs(db)});
+        const int dcb=qAbs((-43*dr-85*dg+128*db)/256),dcr=qAbs((128*dr-107*dg-21*db)/256),maximumChroma=qMax(dcb,dcr);
+        // Leave a fractional safety margin: integer rounding must never turn a
+        // mathematically valid colour into a one-code-value chroma outlier.
+        double scale=1.0;if(maximum>rgbGuard)scale=qMin(scale,qMax(0.0,(rgbGuard-.35)/maximum));if(maximumChroma>chromaGuard)scale=qMin(scale,qMax(0.0,(chromaGuard-.35)/maximumChroma));
+        d[x*3]=uchar(qBound(0,int(s[x*3]+std::lround(dr*scale)),255));d[x*3+1]=uchar(qBound(0,int(s[x*3+1]+std::lround(dg*scale)),255));d[x*3+2]=uchar(qBound(0,int(s[x*3+2]+std::lround(db*scale)),255));
+    }}return out;
+}
+
+QImage TextureProcessor::areaDownsample(const QImage &input,const QSize &target){
+    const QImage src=input.convertToFormat(QImage::Format_RGB888);
+    if(src.width()%target.width()!=0||src.height()%target.height()!=0)return src.scaled(target,Qt::KeepAspectRatio,Qt::SmoothTransformation).convertToFormat(QImage::Format_RGB888);
+    const int sx=src.width()/target.width(),sy=src.height()/target.height();QImage out(target,QImage::Format_RGB888);
+    for(int y=0;y<target.height();++y){uchar*d=out.scanLine(y);for(int x=0;x<target.width();++x){quint64 r=0,g=0,b=0;for(int yy=0;yy<sy;++yy){const uchar*p=src.constScanLine(y*sy+yy)+(x*sx)*3;for(int xx=0;xx<sx;++xx){r+=p[xx*3];g+=p[xx*3+1];b+=p[xx*3+2];}}const int n=sx*sy;d[x*3]=uchar((r+n/2)/n);d[x*3+1]=uchar((g+n/2)/n);d[x*3+2]=uchar((b+n/2)/n);}}return out;
+}
+
 void TextureProcessor::measure(const QImage &a0,const QImage &b0,double &mean,double &psnr,int &maximum) {
     const QImage a=a0.convertToFormat(QImage::Format_RGB888), b=b0.convertToFormat(QImage::Format_RGB888);
     quint64 sum=0,squared=0; maximum=0;
@@ -125,12 +146,11 @@ TextureResult TextureProcessor::process(const QString &path,qint64 limit,const P
     QImageReader reader(path); reader.setAutoTransform(true);
     QImage source=reader.read().convertToFormat(QImage::Format_RGB888);
     if(source.isNull()) throw std::runtime_error("PNG не удалось прочитать");
-    if(qMax(source.width(),source.height())>2048)
-        source=source.scaled(2048,2048,Qt::KeepAspectRatio,Qt::SmoothTransformation).convertToFormat(QImage::Format_RGB888);
+    if(qMax(source.width(),source.height())>2048){const double k=2048.0/qMax(source.width(),source.height());source=areaDownsample(source,QSize(qMax(1,int(std::lround(source.width()*k))),qMax(1,int(std::lround(source.height()*k)))));}
     progress(.12,"Lossless RGB24: фильтры и libdeflate");
     auto exact=PngEncoder::encodeRgb24(source,10);
     TextureResult best{source,source,exact.bytes,{},0,0,0,1,true};
-    int secondPassPixels=0,secondPassStrength=0;
+    int secondPassPixels=0,secondPassStrength=0,selectedRgbGuard=0,selectedChromaGuard=0;
     if(exact.bytes.size()>=limit){
         const qint64 repairBudget=limit*90/100;
         // Luminance carries masonry/ground microtexture; chroma may be reduced
@@ -139,11 +159,11 @@ TextureResult TextureProcessor::process(const QString &path,qint64 limit,const P
         for(const auto [ys,cs]:ladder){
             if(timer.elapsed()>42000)break;
             progress(.15+.055*best.tested,QString("Фактура Y/%1 · цветность/%2").arg(ys).arg(cs));
-            QImage candidate=lumaChromaCandidate(source,ys,cs);
+            QImage candidate=guardCandidate(source,lumaChromaCandidate(source,ys,cs),8,3);
             auto encoded=PngEncoder::encodeRgb24(candidate,9); ++best.tested;
             if(encoded.bytes.size()<limit){
-                if(best.png.size()>=limit){best.output=candidate;best.png=encoded.bytes;best.lossless=false;}
-                if(encoded.bytes.size()<repairBudget){best.output=candidate;best.png=encoded.bytes;best.lossless=false;break;}
+                if(best.png.size()>=limit){best.output=candidate;best.png=encoded.bytes;best.lossless=false;selectedRgbGuard=8;selectedChromaGuard=3;}
+                if(encoded.bytes.size()<repairBudget){best.output=candidate;best.png=encoded.bytes;best.lossless=false;selectedRgbGuard=8;selectedChromaGuard=3;break;}
             }
         }
         // Web compressors gain most of their ratio from an adaptive palette.
@@ -151,11 +171,11 @@ TextureResult TextureProcessor::process(const QString &path,qint64 limit,const P
         // the final PNG remains color type 2 (RGB24), never indexed PNG8.
         if(best.png.size()>=limit&&timer.elapsed()<47000){
             progress(.89,"Адаптивная цветовая модель RGB24");
-            QImage palette=source.convertToFormat(QImage::Format_Indexed8,Qt::DiffuseDither|Qt::PreferDither)
-                                 .convertToFormat(QImage::Format_RGB888);
+            QImage palette=guardCandidate(source,source.convertToFormat(QImage::Format_Indexed8,Qt::AvoidDither)
+                                 .convertToFormat(QImage::Format_RGB888),12,5);
             auto encoded=PngEncoder::encodeRgb24(palette,10);++best.tested;
             if(encoded.bytes.size()<limit){
-                best.output=palette;best.png=encoded.bytes;best.lossless=false;
+                best.output=palette;best.png=encoded.bytes;best.lossless=false;selectedRgbGuard=12;selectedChromaGuard=5;
                 // Return unused bytes monotonically toward the exact source.
                 for(int restore:{75,50,25}){
                     QImage richer=blendSource(palette,source,restore);
@@ -167,12 +187,13 @@ TextureResult TextureProcessor::process(const QString &path,qint64 limit,const P
         // Absolute size guarantee for pathological high-entropy RGB. These
         // last levels preserve edge geometry and hue ordering, while reducing
         // the channel alphabet until the measured stream is below the limit.
-        for(const auto steps:{std::pair{40,96},std::pair{48,112},std::pair{64,128},std::pair{85,170},std::pair{128,255}}){
+        struct StrictLevel{int y,c,rgb,chroma;};
+        for(const auto level:{StrictLevel{40,96,10,4},StrictLevel{48,112,11,4},StrictLevel{64,128,12,5},StrictLevel{85,170,14,6},StrictLevel{128,255,16,7},StrictLevel{255,255,18,8}}){
             if(best.png.size()<limit)break;
-            progress(.93,QString("Строгий лимит · Y/%1 C/%2").arg(steps.first).arg(steps.second));
-            QImage candidate=lumaChromaCandidate(source,steps.first,steps.second);
+            progress(.93,QString("Строгий лимит · Y/%1 C/%2 · защита %3/%4").arg(level.y).arg(level.c).arg(level.rgb).arg(level.chroma));
+            QImage candidate=guardCandidate(source,lumaChromaCandidate(source,level.y,level.c),level.rgb,level.chroma);
             auto encoded=PngEncoder::encodeRgb24(candidate,10);++best.tested;
-            if(encoded.bytes.size()<limit){best.output=candidate;best.png=encoded.bytes;best.lossless=false;break;}
+            if(encoded.bytes.size()<limit){best.output=candidate;best.png=encoded.bytes;best.lossless=false;selectedRgbGuard=level.rgb;selectedChromaGuard=level.chroma;break;}
         }
         // Independent second pass: compare every pixel, estimate systematic
         // colour bias per source-colour region, repair severe errors, re-encode
@@ -183,6 +204,7 @@ TextureResult TextureProcessor::process(const QString &path,qint64 limit,const P
             for(int strength:{100,75,50,25}){
                 if(timer.elapsed()>56000)break;
                 int corrected=0;QImage repaired=auditRepair(source,base,strength,corrected);
+                repaired=guardCandidate(source,repaired,selectedRgbGuard,selectedChromaGuard);
                 auto encoded=PngEncoder::encodeRgb24(repaired,10);++best.tested;
                 if(encoded.bytes.size()<limit){best.output=repaired;best.png=encoded.bytes;secondPassPixels=corrected;secondPassStrength=strength;break;}
             }
@@ -196,6 +218,7 @@ TextureResult TextureProcessor::process(const QString &path,qint64 limit,const P
         .arg(std::isinf(best.psnr)?QString("∞"):QString::number(best.psnr,'f',1))
         .arg(best.meanError,0,'f',2).arg(best.maxError).arg(best.tested);
     if(secondPassStrength)best.report+=QString("\nВторой проход: исправлено %1 пикселей · сила %2%").arg(secondPassPixels).arg(secondPassStrength);
+    if(selectedRgbGuard)best.report+=QString("\nЖёсткая защита: RGB≤%1 · цветность≤%2").arg(selectedRgbGuard).arg(selectedChromaGuard);
     best.report+=QString("\nВремя обработки: %1 с").arg(timer.elapsed()/1000.0,0,'f',1);
     progress(1.0,"Готово"); return best;
 }

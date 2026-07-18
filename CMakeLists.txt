@@ -33,6 +33,7 @@ qt_add_qml_module(AdaptiveTextureOptimizer
         qml/AppButton.qml
         qml/GlassCard.qml
         qml/MetricChip.qml
+        qml/LimitSelector.qml
         qml/ZoomView.qml
         qml/Sparkline.qml
         qml/SpaceBackground.qml)

@@ -12,7 +12,6 @@ Item {
     property color accentColor: "#ff641f"
     property real clock: 0
     property var stars: []
-    property int caughtMeteor: -1
     property real burstStart: -10000
     property real burstX: 0
     property real burstY: 0
@@ -24,17 +23,11 @@ Item {
         const n=Math.sin(value*91.731+17.113)*43758.5453
         return n-Math.floor(n)
     }
-    function meteorPosition(w,h,phase,cycle) {
-        const edge=Math.floor(hash(cycle+3)*4)
-        const a=.1+hash(cycle+11)*.55
-        const b=.18+hash(cycle+29)*.64
-        let sx,sy,ex,ey
-        if(edge===0){sx=-150;sy=h*a;ex=w+150;ey=h*b}
-        else if(edge===1){sx=w+150;sy=h*a;ex=-150;ey=h*b}
-        else if(edge===2){sx=w*a;sy=-100;ex=w*b;ey=h+100}
-        else{sx=w*a;sy=h+100;ex=w*b;ey=-100}
-        const eased=phase<.5?2*phase*phase:1-Math.pow(-2*phase+2,2)/2
-        return {x:sx+(ex-sx)*eased,y:sy+(ey-sy)*eased,dx:ex-sx,dy:ey-sy}
+    function triggerBurst(x,y) {
+        burstStart=clock
+        burstX=x
+        burstY=y
+        sky.requestPaint()
     }
 
     Component.onCompleted: {
@@ -50,17 +43,6 @@ Item {
         repeat: true
         onTriggered: {
             root.clock+=interval
-            const cycle=Math.floor(root.clock/8400)
-            const phase=(root.clock%8400)/8400
-            const meteor=root.meteorPosition(root.width,root.height,phase,cycle)
-            const px=(root.pointerX+.5)*root.width
-            const py=(root.pointerY+.5)*root.height
-            if(root.pointerActive&&root.caughtMeteor!==cycle&&Math.hypot(px-meteor.x,py-meteor.y)<72){
-                root.caughtMeteor=cycle
-                root.burstStart=root.clock
-                root.burstX=meteor.x
-                root.burstY=meteor.y
-            }
             sky.requestPaint()
         }
     }
@@ -168,30 +150,6 @@ Item {
             c.strokeStyle=root.tint(.50+.22*effect+.22*burst);c.lineWidth=2.2+effect*2;c.beginPath();c.arc(0,0,151,0,6.283185);c.stroke()
             c.restore()
 
-            // Every flight receives another edge and trajectory. Catching it
-            // produces a larger colour-matched burst.
-            const meteorCycle=Math.floor(root.clock/8400),meteorPhase=(root.clock%8400)/8400
-            const meteor=root.meteorPosition(w,h,meteorPhase,meteorCycle)
-            if(root.caughtMeteor!==meteorCycle){
-                const length=Math.max(1,Math.sqrt(meteor.dx*meteor.dx+meteor.dy*meteor.dy)),tx=meteor.dx/length,ty=meteor.dy/length
-                const tail=c.createLinearGradient(meteor.x-tx*170,meteor.y-ty*170,meteor.x,meteor.y)
-                tail.addColorStop(0,root.tint(0));tail.addColorStop(.76,root.tint(.58));tail.addColorStop(1,"rgba(255,255,255,.98)")
-                c.strokeStyle=tail;c.lineWidth=5;c.globalAlpha=.18;c.beginPath();c.moveTo(meteor.x-tx*170,meteor.y-ty*170);c.lineTo(meteor.x,meteor.y);c.stroke()
-                c.globalAlpha=1;c.lineWidth=2;c.beginPath();c.moveTo(meteor.x-tx*170,meteor.y-ty*170);c.lineTo(meteor.x,meteor.y);c.stroke()
-                c.fillStyle="#ffffff";c.beginPath();c.arc(meteor.x,meteor.y,3.5,0,6.283185);c.fill()
-            }
-            if(age>=0&&age<1500){
-                const t=age/1500,fade=1-t,particles=84
-                c.save();c.globalAlpha=fade
-                for(let j=0;j<particles;j++){
-                    const angle=j*2.399963+root.burstX*.0017
-                    const radius=(22+190*t)*(.48+(j%11)/15)
-                    const x=root.burstX+Math.cos(angle)*radius,y=root.burstY+Math.sin(angle)*radius
-                    c.strokeStyle=j%4===0?"#ffffff":root.tint(.72)
-                    c.lineWidth=1+(j%5)*.36;c.beginPath();c.moveTo(x,y);c.lineTo(x-Math.cos(angle)*(9+26*fade),y-Math.sin(angle)*(9+26*fade));c.stroke()
-                }
-                c.restore()
-            }
         }
     }
 }

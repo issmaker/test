@@ -13,6 +13,7 @@ ApplicationWindow {
     property real panX: 0
     property real panY: 0
     property bool linkedViews: true
+    property bool showMaterials: false
 
     function resetView() { viewScale=fitValue;panX=0;panY=0 }
     function actualPixels() { viewScale=1;panX=0;panY=0 }
@@ -56,6 +57,7 @@ ApplicationWindow {
         RowLayout { Layout.fillWidth:true;Layout.preferredHeight:48;spacing:8
             AppButton{text:"Вписать";accent:"#24202b";implicitHeight:40;onClicked:win.resetView();ToolTip.visible:hovered;ToolTip.text:"Показать текстуру целиком — Ctrl+0"}
             AppButton{text:"1:1";accent:"#24202b";implicitHeight:40;onClicked:win.actualPixels();ToolTip.visible:hovered;ToolTip.text:"Один пиксель изображения = один пиксель экрана — Ctrl+1"}
+            AppButton{text:win.showMaterials?"Показать результат":"Карта материалов";accent:win.showMaterials?"#0f766e":"#164e63";implicitHeight:40;enabled:optimizer.materialUrl;onClicked:win.showMaterials=!win.showMaterials;ToolTip.visible:hovered;ToolTip.text:"Цветная карта гипотез материалов по локальной фактуре"}
             Slider { Layout.preferredWidth:220;from:.08;to:8;value:win.viewScale;onMoved:{win.viewScale=value;win.panX=0;win.panY=0} }
             MetricChip{text:Math.round(win.viewScale*100)+"%"}
             Item{Layout.fillWidth:true}
@@ -68,7 +70,7 @@ ApplicationWindow {
                 ZoomView { anchors.fill:parent;anchors.margins:10;title:optimizer.referenceUrl?"Рабочий эталон 2K":"Оригинал";imageSource:optimizer.referenceUrl||optimizer.sourceUrl;sharedScale:win.viewScale;sharedPanX:win.panX;sharedPanY:win.panY;onViewChanged:(s,x,y)=>win.updateView(s,x,y);onResetRequested:win.resetView();onFitCalculated:s=>{win.fitValue=s;if(win.panX===0&&win.panY===0)win.viewScale=s} }
             }
             GlassCard { Layout.fillWidth:true;Layout.fillHeight:true
-                ZoomView { anchors.fill:parent;anchors.margins:10;title:"Результат / изменения";imageSource:optimizer.resultUrl;sharedScale:win.viewScale;sharedPanX:win.panX;sharedPanY:win.panY;onViewChanged:(s,x,y)=>win.updateView(s,x,y);onResetRequested:win.resetView() }
+                ZoomView { anchors.fill:parent;anchors.margins:10;title:win.showMaterials?"Карта материалов / гипотезы":"Результат / изменения";imageSource:win.showMaterials?optimizer.materialUrl:optimizer.resultUrl;sharedScale:win.viewScale;sharedPanX:win.panX;sharedPanY:win.panY;onViewChanged:(s,x,y)=>win.updateView(s,x,y);onResetRequested:win.resetView() }
             }
         }
 

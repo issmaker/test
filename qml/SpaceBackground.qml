@@ -98,17 +98,49 @@ Item {
                 c.stroke()
             }
 
-            // A small planet provides a visible response when the shooting
-            // star is caught. The glow is built from gradients, not shadowBlur.
+            // A small living planet: atmosphere, surface bands, craters,
+            // tilted rings and an orbiting moon all react to a caught meteor.
             const planetX=w*.145-root.pointerX*70,planetY=h*.18-root.pointerY*48
-            const planetGlow=52+burst*150
+            const planetGlow=58+burst*165
             const pg=c.createRadialGradient(planetX,planetY,12,planetX,planetY,planetGlow)
-            pg.addColorStop(0,root.tint(.42+.38*burst));pg.addColorStop(.24,root.tint(.18+.30*burst));pg.addColorStop(1,root.tint(0))
+            pg.addColorStop(0,root.tint(.48+.40*burst));pg.addColorStop(.24,root.tint(.20+.32*burst));pg.addColorStop(1,root.tint(0))
             c.fillStyle=pg;c.fillRect(planetX-planetGlow,planetY-planetGlow,planetGlow*2,planetGlow*2)
+
+            c.strokeStyle=root.tint(.22+.36*burst);c.lineWidth=5+burst*4
+            c.beginPath();c.ellipse(planetX-56,planetY-10,112,21);c.stroke()
             const planet=c.createRadialGradient(planetX-10,planetY-12,3,planetX,planetY,35)
-            planet.addColorStop(0,"#d7edf0");planet.addColorStop(.18,root.tint(.92));planet.addColorStop(.68,"#173039");planet.addColorStop(1,"#050b0e")
-            c.fillStyle=planet;c.beginPath();c.arc(planetX,planetY,32+burst*5,0,6.283185);c.fill()
-            c.strokeStyle=root.tint(.55+.35*burst);c.lineWidth=2+burst*3;c.beginPath();c.ellipse(planetX-49,planetY-8,98,17);c.stroke()
+            planet.addColorStop(0,"#e8f7f4");planet.addColorStop(.18,root.tint(.96));planet.addColorStop(.62,"#173640");planet.addColorStop(1,"#03080b")
+            const planetRadius=34+burst*5
+            c.fillStyle=planet;c.beginPath();c.arc(planetX,planetY,planetRadius,0,6.283185);c.fill()
+
+            c.save();c.beginPath();c.arc(planetX,planetY,planetRadius-1,0,6.283185);c.clip()
+            c.strokeStyle="rgba(215,246,245,.19)";c.lineWidth=4
+            for(let belt=-1;belt<=1;belt++){
+                const by=planetY+belt*11
+                c.beginPath();c.moveTo(planetX-38,by-2);c.bezierCurveTo(planetX-15,by+6,planetX+12,by-7,planetX+39,by+1);c.stroke()
+            }
+            c.fillStyle="rgba(1,7,10,.38)";c.beginPath();c.arc(planetX+19,planetY+3,32,0,6.283185);c.fill()
+            c.strokeStyle="rgba(225,248,246,.25)";c.lineWidth=1.4
+            const craterData=[[-13,-9,4],[4,13,3],[15,-12,2.5],[-18,10,2]]
+            for(let crater=0;crater<craterData.length;crater++){
+                const d=craterData[crater];c.beginPath();c.arc(planetX+d[0],planetY+d[1],d[2],0,6.283185);c.stroke()
+            }
+            c.restore()
+
+            c.strokeStyle=root.tint(.70+.25*burst);c.lineWidth=2.2+burst*3
+            c.beginPath();c.arc(planetX,planetY,planetRadius+1,0,6.283185);c.stroke()
+            c.strokeStyle=root.tint(.62+.32*burst);c.lineWidth=2+burst*2
+            c.beginPath();c.ellipse(planetX-52,planetY-8,104,17);c.stroke()
+            c.strokeStyle="rgba(242,255,255,.38)";c.lineWidth=1
+            c.beginPath();c.ellipse(planetX-46,planetY-6,92,13);c.stroke()
+
+            const moonAngle=root.clock*.00048
+            const moonX=planetX+Math.cos(moonAngle)*66,moonY=planetY+Math.sin(moonAngle)*24
+            const moonGlow=10+burst*22
+            const mg=c.createRadialGradient(moonX,moonY,1,moonX,moonY,moonGlow)
+            mg.addColorStop(0,`rgba(255,255,255,${.55+.35*burst})`);mg.addColorStop(1,root.tint(0))
+            c.fillStyle=mg;c.fillRect(moonX-moonGlow,moonY-moonGlow,moonGlow*2,moonGlow*2)
+            c.fillStyle="#d7e5e8";c.beginPath();c.arc(moonX,moonY,3.2+burst*1.8,0,6.283185);c.fill()
 
             // Black hole inspired by gravitational-lensing photography: a
             // wide accretion disc, bright equatorial band and bent light arcs.

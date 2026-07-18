@@ -11,6 +11,9 @@ if "%QT_ROOT%"=="" (
 where cmake >nul 2>nul || (echo CMake was not found & pause & exit /b 1)
 where ninja >nul 2>nul || (echo Ninja was not found & pause & exit /b 1)
 
+powershell -NoProfile -ExecutionPolicy Bypass -File "%cd%\tools\create_icon.ps1" -OutputPath "%cd%\assets\black-hole.ico"
+if errorlevel 1 goto :failed
+
 cmake -S . -B build -G Ninja ^
   -DCMAKE_BUILD_TYPE=Release ^
   -DCMAKE_PREFIX_PATH="%QT_ROOT%"

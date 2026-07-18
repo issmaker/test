@@ -157,7 +157,6 @@ TextureResult TextureProcessor::process(const QString &path,qint64 limit,const P
         // more strongly without turning a surface into large RGB blocks.
         const std::array<std::pair<int,int>,12> ladder={{{2,6},{3,8},{4,10},{5,12},{6,16},{8,20},{10,24},{12,32},{16,40},{20,48},{24,64},{32,80}}};
         for(const auto [ys,cs]:ladder){
-            if(timer.elapsed()>42000)break;
             progress(.15+.055*best.tested,QString("Фактура Y/%1 · цветность/%2").arg(ys).arg(cs));
             QImage candidate=guardCandidate(source,lumaChromaCandidate(source,ys,cs),8,3);
             auto encoded=PngEncoder::encodeRgb24(candidate,9); ++best.tested;
@@ -169,7 +168,7 @@ TextureResult TextureProcessor::process(const QString &path,qint64 limit,const P
         // Web compressors gain most of their ratio from an adaptive palette.
         // We use the same rate model, then immediately expand it to RGB888 so
         // the final PNG remains color type 2 (RGB24), never indexed PNG8.
-        if(best.png.size()>=limit&&timer.elapsed()<47000){
+        if(best.png.size()>=limit){
             progress(.89,"Адаптивная цветовая модель RGB24");
             QImage palette=guardCandidate(source,source.convertToFormat(QImage::Format_Indexed8,Qt::AvoidDither)
                                  .convertToFormat(QImage::Format_RGB888),12,5);
@@ -188,7 +187,7 @@ TextureResult TextureProcessor::process(const QString &path,qint64 limit,const P
         // last levels preserve edge geometry and hue ordering, while reducing
         // the channel alphabet until the measured stream is below the limit.
         struct StrictLevel{int y,c,rgb,chroma;};
-        for(const auto level:{StrictLevel{40,96,10,4},StrictLevel{48,112,11,4},StrictLevel{64,128,12,5},StrictLevel{85,170,14,6},StrictLevel{128,255,16,7},StrictLevel{255,255,18,8}}){
+        for(const auto level:{StrictLevel{40,96,10,4},StrictLevel{48,112,11,4},StrictLevel{64,128,12,5},StrictLevel{85,170,14,6},StrictLevel{128,255,16,7},StrictLevel{170,255,18,8},StrictLevel{255,255,20,9},StrictLevel{255,255,24,10},StrictLevel{255,255,28,12},StrictLevel{255,255,32,14}}){
             if(best.png.size()<limit)break;
             progress(.93,QString("Строгий лимит · Y/%1 C/%2 · защита %3/%4").arg(level.y).arg(level.c).arg(level.rgb).arg(level.chroma));
             QImage candidate=guardCandidate(source,lumaChromaCandidate(source,level.y,level.c),level.rgb,level.chroma);
@@ -198,11 +197,10 @@ TextureResult TextureProcessor::process(const QString &path,qint64 limit,const P
         // Independent second pass: compare every pixel, estimate systematic
         // colour bias per source-colour region, repair severe errors, re-encode
         // and keep the strongest repair that remains below the byte contract.
-        if(best.png.size()<limit&&!best.lossless&&timer.elapsed()<50000){
+        if(best.png.size()<limit&&!best.lossless){
             progress(.965,"Повторная проверка всех пикселей");
             const QImage base=best.output;
             for(int strength:{100,75,50,25}){
-                if(timer.elapsed()>56000)break;
                 int corrected=0;QImage repaired=auditRepair(source,base,strength,corrected);
                 repaired=guardCandidate(source,repaired,selectedRgbGuard,selectedChromaGuard);
                 auto encoded=PngEncoder::encodeRgb24(repaired,10);++best.tested;

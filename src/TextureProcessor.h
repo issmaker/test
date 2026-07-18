@@ -6,6 +6,7 @@
 struct TextureResult {
     QImage original;
     QImage output;
+    QImage materialMap;
     QByteArray png;
     QString report;
     double psnr = 0;
@@ -26,5 +27,6 @@ private:
     static QImage auditRepair(const QImage &, const QImage &, int strength, int &correctedPixels);
     static QImage guardCandidate(const QImage &, const QImage &, int rgbGuard, int chromaGuard);
     static QImage areaDownsample(const QImage &, const QSize &);
+    static QImage analyzeMaterials(const QImage &, QString &summary);
     static void measure(const QImage &, const QImage &, double &, double &, int &);
 };

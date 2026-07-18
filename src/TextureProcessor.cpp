@@ -187,7 +187,7 @@ TextureResult TextureProcessor::process(const QString &path,qint64 limit,const P
         // last levels preserve edge geometry and hue ordering, while reducing
         // the channel alphabet until the measured stream is below the limit.
         struct StrictLevel{int y,c,rgb,chroma;};
-        for(const auto level:{StrictLevel{40,96,10,4},StrictLevel{48,112,11,4},StrictLevel{64,128,12,5},StrictLevel{85,170,14,6},StrictLevel{128,255,16,7},StrictLevel{170,255,18,8},StrictLevel{255,255,20,9},StrictLevel{255,255,24,10},StrictLevel{255,255,28,12},StrictLevel{255,255,32,14}}){
+        for(const auto level:{StrictLevel{40,96,10,4},StrictLevel{48,112,11,4},StrictLevel{64,128,12,5},StrictLevel{85,170,14,6},StrictLevel{128,255,16,7},StrictLevel{170,255,18,8},StrictLevel{255,255,20,9},StrictLevel{255,255,24,10},StrictLevel{255,255,28,12},StrictLevel{255,255,32,14},StrictLevel{255,255,40,18},StrictLevel{255,255,48,22},StrictLevel{255,255,64,28},StrictLevel{255,255,96,42},StrictLevel{255,255,128,56},StrictLevel{255,255,255,128}}){
             if(best.png.size()<limit)break;
             progress(.93,QString("Строгий лимит · Y/%1 C/%2 · защита %3/%4").arg(level.y).arg(level.c).arg(level.rgb).arg(level.chroma));
             QImage candidate=guardCandidate(source,lumaChromaCandidate(source,level.y,level.c),level.rgb,level.chroma);

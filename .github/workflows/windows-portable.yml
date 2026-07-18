@@ -66,6 +66,22 @@ jobs:
           Get-ChildItem $env:DIST_DIR -Recurse | ForEach-Object {
             if ($_.FullName.Length -gt 240) { throw "Path is too long: $($_.FullName)" }
           }
+          $env:QT_QPA_PLATFORM = "offscreen"
+          $env:QT_QUICK_BACKEND = "software"
+          $stdout = "$pwd/dist/startup-stdout.log"
+          $stderr = "$pwd/dist/startup-stderr.log"
+          $process = Start-Process -FilePath $exe `
+            -WorkingDirectory $env:DIST_DIR `
+            -RedirectStandardOutput $stdout `
+            -RedirectStandardError $stderr `
+            -PassThru
+          Start-Sleep -Seconds 5
+          if ($process.HasExited) {
+            if (Test-Path $stdout) { Get-Content $stdout }
+            if (Test-Path $stderr) { Get-Content $stderr }
+            throw "Application exited during the real startup smoke-test with code $($process.ExitCode)"
+          }
+          Stop-Process -Id $process.Id -Force
 
       - name: Pack portable application
         shell: pwsh

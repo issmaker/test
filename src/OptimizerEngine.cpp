@@ -35,8 +35,15 @@ QString analyseAccent(const QImage &input) {
     for(const auto&bin:bins){const quint64 score=bin.count*bin.weight;if(score>bestScore){bestScore=score;best=&bin;}}
     if(!best||!best->weight)return "#ff641f";
     QColor colour(int(best->r/best->weight),int(best->g/best->weight),int(best->b/best->weight));
-    // Keep the interface readable when the source colour is very dark.
-    if(colour.lightness()<92)colour=colour.lighter(145);
+    // The texture controls only the hue of the UI.  Saturation and lightness
+    // are kept inside a safe range so a pale facade, snow or sand can never
+    // turn buttons white and destroy text contrast.
+    qreal hue=0.0,saturation=0.0,lightness=0.0,alpha=1.0;
+    colour.getHslF(&hue,&saturation,&lightness,&alpha);
+    if(hue<0.0)return "#ff641f";
+    saturation=qBound(0.50,saturation,0.86);
+    lightness=qBound(0.40,lightness,0.58);
+    colour.setHslF(hue,saturation,lightness,1.0);
     return colour.name(QColor::HexRgb);
 }
 

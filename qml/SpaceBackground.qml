@@ -65,7 +65,7 @@ Item {
             c.fillStyle=background;c.fillRect(0,0,w,h)
 
             const age=root.clock-root.burstStart
-            const burst=age>=0&&age<1500?Math.sin(Math.PI*age/1500):0
+            const burst=age>=0&&age<2200?Math.sin(Math.PI*Math.min(1,age/2200)):0
             const effect=Math.max(root.warp?.42+root.progress*.58:0,root.zoomPulse)
             const direction=root.warp?1:root.zoomDirection
             const cx=w*.70+root.pointerX*88,cy=h*.29+root.pointerY*62
@@ -155,6 +155,22 @@ Item {
             halo.addColorStop(1,root.tint(0))
             c.fillStyle=halo;c.fillRect(-outer,-outer,outer*2,outer*2)
 
+            // Slowly orbiting fragments make the black hole feel like a
+            // physical system rather than a static illustration.
+            for(let debris=0;debris<42;debris++){
+                const seed=root.hash(debris*13.7)
+                const angle=debris*.91+root.clock*(.000025+.000055*seed)
+                const radius=220+seed*235
+                const flatten=.18+.08*root.hash(debris+91)
+                const dx=Math.cos(angle)*radius
+                const dy=Math.sin(angle)*radius*flatten
+                const depth=.35+.65*(Math.sin(angle)*.5+.5)
+                c.fillStyle=debris%7===0?"rgba(245,249,255,"+(depth*.38)+")":root.tint(depth*.34)
+                c.save();c.translate(dx,dy);c.rotate(angle+.8)
+                c.fillRect(-1.2-depth*2,-.5,2.4+depth*4,1+depth)
+                c.restore()
+            }
+
             c.save();c.rotate(-.025+Math.sin(root.clock*.00015)*.008);c.scale(1,.20)
             for(let ring=0;ring<12;ring++){
                 const radius=172+ring*20
@@ -163,6 +179,18 @@ Item {
                 c.beginPath();c.arc(0,0,radius,0,6.283185);c.stroke()
             }
             c.restore()
+
+            // Photon orbit and polar lensing arcs.
+            const photonPulse=.62+.38*Math.sin(root.clock*.0022)
+            c.strokeStyle=root.tint(.44+.24*photonPulse+.18*effect)
+            c.lineWidth=1.2+photonPulse
+            c.setLineDash([3,8])
+            c.lineDashOffset=-root.clock*.025
+            c.beginPath();c.arc(0,0,164,0,6.283185);c.stroke()
+            c.setLineDash([])
+            c.strokeStyle=root.tint(.18+.18*effect)
+            c.lineWidth=2
+            c.beginPath();c.ellipse(0,0,182,285,-.04,Math.PI*1.17,Math.PI*1.83);c.stroke()
 
             c.save();c.scale(1,.56)
             for(let lens=0;lens<7;lens++){
@@ -180,7 +208,25 @@ Item {
             hole.addColorStop(0,"#000000");hole.addColorStop(.83,"#000000");hole.addColorStop(1,"rgba(0,0,0,.06)")
             c.fillStyle=hole;c.beginPath();c.arc(0,0,148,0,6.283185);c.fill()
             c.strokeStyle=root.tint(.50+.22*effect+.22*burst);c.lineWidth=2.2+effect*2;c.beginPath();c.arc(0,0,151,0,6.283185);c.stroke()
+
+            // A subtle rotating gravitational reticle becomes stronger while
+            // optimizing and when a meteor is caught.
+            c.save();c.rotate(root.clock*.000045)
+            c.strokeStyle=root.tint(.08+.14*effect+.20*burst);c.lineWidth=1
+            for(let ray=0;ray<16;ray++){
+                c.rotate(Math.PI/8)
+                c.beginPath();c.moveTo(485,0);c.lineTo(520+effect*80+burst*75,0);c.stroke()
+            }
             c.restore()
+            c.restore()
+
+            if(burst>.01){
+                const veil=c.createRadialGradient(root.burstX,root.burstY,1,root.burstX,root.burstY,260)
+                veil.addColorStop(0,`rgba(255,255,255,${burst*.13})`)
+                veil.addColorStop(.28,root.tint(burst*.10))
+                veil.addColorStop(1,root.tint(0))
+                c.fillStyle=veil;c.fillRect(0,0,w,h)
+            }
 
         }
     }

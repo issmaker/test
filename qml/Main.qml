@@ -33,6 +33,7 @@ ApplicationWindow {
     property real zoomDirection: 1
     property real lastSliderValue: .25
     property int caughtStars: 0
+    property bool wipeMode: false
     property color accentColor: optimizer.accentColor
     Behavior on accentColor{ColorAnimation{duration:750;easing.type:Easing.InOutCubic}}
     Behavior on parallaxX{NumberAnimation{duration:115;easing.type:Easing.OutCubic}}
@@ -139,7 +140,11 @@ ApplicationWindow {
                     Text{text:optimizer.status;color:"#f4fafb";font.pixelSize:13;font.weight:Font.DemiBold;elide:Text.ElideMiddle;Layout.fillWidth:true}
                     Sparkline{Layout.fillWidth:true;Layout.preferredHeight:38;values:optimizer.progressHistory;active:optimizer.busy;lineColor:win.accentColor;title:optimizer.busy?"LIVE PIPELINE":"СИСТЕМА ГОТОВА";valueText:Math.round(optimizer.progress*100)+"%";visible:optimizer.busy||optimizer.progress>0}
                 }
-                Column{spacing:3;Text{text:"ПРЕДЕЛ ФАЙЛА";color:"#738893";font.pixelSize:9;font.weight:Font.DemiBold}LimitSelector{value:win.targetMb;accentColor:win.accentColor;onValueChanged:win.targetMb=value}}
+                Column {
+                    spacing:3
+                    Text{text:"ПРЕДЕЛ ФАЙЛА";color:"#738893";font.pixelSize:9;font.weight:Font.DemiBold}
+                    LimitSelector{value:win.targetMb;accentColor:win.accentColor;onValueEdited:newValue=>win.targetMb=newValue}
+                }
                 AppButton{text:optimizer.busy?"Оптимизация…":"Оптимизировать";accent:win.accentColor;enabled:optimizer.sourceUrl&&!optimizer.busy&&!optimizer.previewBusy;tip:"Запустить AGR Adaptive RGB24 с обязательной проверкой размера и RGB24";onClicked:optimizer.optimize(win.targetMb,1)}
             }
         }
@@ -159,12 +164,21 @@ ApplicationWindow {
                 handle:Rectangle{x:scaleSlider.leftPadding+scaleSlider.visualPosition*(scaleSlider.availableWidth-width);y:scaleSlider.topPadding+scaleSlider.availableHeight/2-height/2;width:18;height:18;radius:9;color:"#eef8f8";border.width:4;border.color:win.accentColor}
             }
             MetricChip{text:Math.round(win.viewScale*100)+"%";accentColor:win.accentColor}
+            AppButton {
+                text:win.wipeMode?"Разделитель: ВКЛ":"Режим «Шторка»"
+                accent:win.wipeMode?win.accentColor:"#17232a"
+                implicitHeight:38
+                enabled:optimizer.resultUrl
+                tip:"Включить сравнение одним кадром. Тяните вертикальный разделитель мышью; панорамирование — правой кнопкой."
+                onClicked:win.wipeMode=!win.wipeMode
+            }
             Item{Layout.fillWidth:true}
             AppButton{text:"Папка исходника";accent:"#17232a";implicitHeight:38;enabled:optimizer.sourceUrl;tip:"Открыть папку исходной текстуры";onClicked:optimizer.openSourceFolder()}
             AppButton{text:"Папка результата";accent:win.accentColor;implicitHeight:38;enabled:optimizer.outputPath;tip:"Открыть папку compressed с готовым RGB24 PNG";onClicked:optimizer.openOutputFolder()}
         }
 
         RowLayout {
+            visible:!win.wipeMode
             Layout.fillWidth:true
             Layout.fillHeight:true
             spacing:16
@@ -191,6 +205,21 @@ ApplicationWindow {
                 onZoomPulse:direction=>win.triggerZoomWarp(direction)
                 onResetRequested:win.resetView()
             }
+        }
+        WipeCompare {
+            id:wipeCompare
+            visible:win.wipeMode
+            Layout.fillWidth:true
+            Layout.fillHeight:true
+            beforeSource:win.leftImage
+            afterSource:optimizer.resultUrl
+            sharedScale:win.viewScale;sharedPanX:win.panX;sharedPanY:win.panY
+            parallaxX:win.parallaxX*2.2;parallaxY:win.parallaxY*2.2
+            accentColor:win.accentColor
+            onViewChanged:(scale,x,y)=>win.updateView(scale,x,y)
+            onZoomPulse:direction=>win.triggerZoomWarp(direction)
+            onResetRequested:win.resetView()
+            onFitCalculated:scale=>{win.fitValue=scale;if(win.panX===0&&win.panY===0){win.viewScale=scale;win.lastSliderValue=scale}}
         }
 
         GlassCard {

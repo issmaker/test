@@ -89,11 +89,19 @@ Item {
             }
 
             const age=root.clock-root.burstStart
-            if(age>=0&&age<1750){
-                const t=age/1750,fade=1-t,particles=116
+            if(age>=0&&age<2400){
+                const t=age/2400,fade=Math.pow(1-t,1.35),particles=148
                 const flash=c.createRadialGradient(root.burstX,root.burstY,3,root.burstX,root.burstY,45+220*t)
                 flash.addColorStop(0,`rgba(255,255,255,${fade*.90})`);flash.addColorStop(.18,root.tint(fade*.72));flash.addColorStop(1,root.tint(0))
                 c.fillStyle=flash;c.fillRect(root.burstX-280,root.burstY-280,560,560)
+                for(let wave=0;wave<3;wave++){
+                    const wt=Math.max(0,Math.min(1,t*1.75-wave*.18))
+                    if(wt>0&&wt<1){
+                        c.strokeStyle=wave===0?`rgba(255,255,255,${(1-wt)*.72})`:root.tint((1-wt)*.58)
+                        c.lineWidth=1.5+(1-wt)*4
+                        c.beginPath();c.arc(root.burstX,root.burstY,26+wt*(260+wave*72),0,6.283185);c.stroke()
+                    }
+                }
                 c.save();c.globalAlpha=fade
                 for(let j=0;j<particles;j++){
                     const angle=j*2.399963+root.burstX*.0017
@@ -103,6 +111,33 @@ Item {
                     c.lineWidth=1+(j%6)*.38;c.beginPath();c.moveTo(x,y);c.lineTo(x-Math.cos(angle)*(12+34*fade),y-Math.sin(angle)*(12+34*fade));c.stroke()
                 }
                 c.restore()
+
+                // Six bright diffraction spikes and a short-lived captured
+                // star symbol make the successful interaction unmistakable.
+                c.save();c.translate(root.burstX,root.burstY);c.rotate(t*.9)
+                for(let spike=0;spike<6;spike++){
+                    c.rotate(Math.PI/3)
+                    const spikeGradient=c.createLinearGradient(0,0,150*fade,0)
+                    spikeGradient.addColorStop(0,`rgba(255,255,255,${fade})`)
+                    spikeGradient.addColorStop(.35,root.tint(fade*.75))
+                    spikeGradient.addColorStop(1,root.tint(0))
+                    c.strokeStyle=spikeGradient;c.lineWidth=2.4
+                    c.beginPath();c.moveTo(7,0);c.lineTo(155*fade,0);c.stroke()
+                }
+                c.restore()
+                if(t<.48){
+                    const pop=Math.sin(Math.PI*t/.48)
+                    c.save();c.translate(root.burstX,root.burstY);c.rotate(-.2+t*.35)
+                    c.fillStyle=`rgba(255,255,255,${pop*.92})`
+                    c.beginPath()
+                    for(let point=0;point<10;point++){
+                        const radius=(point%2===0?19:7)*(1+pop*.8)
+                        const angle=-Math.PI/2+point*Math.PI/5
+                        const px=Math.cos(angle)*radius,py=Math.sin(angle)*radius
+                        if(point===0)c.moveTo(px,py);else c.lineTo(px,py)
+                    }
+                    c.closePath();c.fill();c.restore()
+                }
             }
         }
     }

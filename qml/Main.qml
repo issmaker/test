@@ -34,6 +34,7 @@ ApplicationWindow {
     property real lastSliderValue: .25
     property int caughtStars: 0
     property bool wipeMode: false
+    property bool lightFx: false
     property color accentColor: optimizer.accentColor
     Behavior on accentColor{ColorAnimation{duration:750;easing.type:Easing.InOutCubic}}
     Behavior on parallaxX{NumberAnimation{duration:115;easing.type:Easing.OutCubic}}
@@ -58,6 +59,11 @@ ApplicationWindow {
         viewScale=1;lastSliderValue=viewScale;panX=0;panY=0
     }
     function updateView(scale,x,y) { viewScale=scale;lastSliderValue=scale;panX=x;panY=y }
+    function importTexture(url) {
+        wipeMode=false
+        optimizer.load(url)
+        resetView()
+    }
 
     SequentialAnimation {
         id: zoomFx
@@ -69,7 +75,7 @@ ApplicationWindow {
         id: picker
         title: "Выберите PNG-текстуру"
         nameFilters: ["PNG textures (*.png)"]
-        onAccepted: {optimizer.load(selectedFile);win.resetView()}
+        onAccepted: win.importTexture(selectedFile)
     }
     Shortcut{sequence:StandardKey.Open;onActivated:picker.open()}
     Shortcut{sequence:"Ctrl+0";onActivated:win.resetView()}
@@ -86,6 +92,7 @@ ApplicationWindow {
         zoomPulse: win.zoomWarp
         zoomDirection: win.zoomDirection
         accentColor: win.accentColor
+        lightFx: win.lightFx
     }
     Item {
         anchors.fill: parent
@@ -99,7 +106,7 @@ ApplicationWindow {
             }
         }
     }
-    DropArea{anchors.fill:parent;onDropped:drop=>{if(drop.hasUrls){optimizer.load(drop.urls[0]);win.resetView()}}}
+    DropArea{anchors.fill:parent;onDropped:drop=>{if(drop.hasUrls)win.importTexture(drop.urls[0])}}
 
     ColumnLayout {
         anchors.fill: parent
@@ -124,6 +131,15 @@ ApplicationWindow {
                 Text{text:"AGR Adaptive RGB24  •  perceptual colour budget  •  verified RGB24";color:"#8599a3";font.pixelSize:12}
             }
             StarCounter{count:win.caughtStars;accentColor:win.accentColor}
+            AppButton {
+                text:win.lightFx?"FX ECO":"FX MAX"
+                implicitWidth:84;implicitHeight:34
+                accent:win.lightFx?"#17232a":win.accentColor
+                tip:win.lightFx
+                    ?"Облегчённые эффекты включены. Нажмите для максимального космического оформления."
+                    :"Максимальные эффекты включены. Нажмите для режима слабых ПК."
+                onClicked:win.lightFx=!win.lightFx
+            }
             MetricChip{text:"v1.0";accentColor:win.accentColor}
             MetricChip{text:"AGR ADAPTIVE RGB24";accentColor:win.accentColor;checked:true}
         }
@@ -270,6 +286,7 @@ ApplicationWindow {
         cursorY: win.pointerNormY
         pointerActive: parallaxHover.hovered
         accentColor: win.accentColor
+        lightFx: win.lightFx
         onCaught:(x,y)=>{win.caughtStars++;cosmos.triggerBurst(x,y)}
     }
 }

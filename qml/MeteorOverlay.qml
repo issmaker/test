@@ -6,6 +6,7 @@ Item {
     property real cursorY: .5
     property bool pointerActive: false
     property color accentColor: "#ff641f"
+    property bool lightFx: false
     property real clock: 0
     property int caughtCycle: -1
     property real burstStart: -10000
@@ -34,7 +35,7 @@ Item {
     }
 
     Timer {
-        interval: 33
+        interval: root.lightFx?66:33
         running: root.visible
         repeat: true
         onTriggered: {
@@ -90,11 +91,11 @@ Item {
 
             const age=root.clock-root.burstStart
             if(age>=0&&age<2400){
-                const t=age/2400,fade=Math.pow(1-t,1.35),particles=148
+                const t=age/2400,fade=Math.pow(1-t,1.35),particles=root.lightFx?54:168
                 const flash=c.createRadialGradient(root.burstX,root.burstY,3,root.burstX,root.burstY,45+220*t)
                 flash.addColorStop(0,`rgba(255,255,255,${fade*.90})`);flash.addColorStop(.18,root.tint(fade*.72));flash.addColorStop(1,root.tint(0))
                 c.fillStyle=flash;c.fillRect(root.burstX-280,root.burstY-280,560,560)
-                for(let wave=0;wave<3;wave++){
+                for(let wave=0;wave<(root.lightFx?1:4);wave++){
                     const wt=Math.max(0,Math.min(1,t*1.75-wave*.18))
                     if(wt>0&&wt<1){
                         c.strokeStyle=wave===0?`rgba(255,255,255,${(1-wt)*.72})`:root.tint((1-wt)*.58)
@@ -115,8 +116,8 @@ Item {
                 // Six bright diffraction spikes and a short-lived captured
                 // star symbol make the successful interaction unmistakable.
                 c.save();c.translate(root.burstX,root.burstY);c.rotate(t*.9)
-                for(let spike=0;spike<6;spike++){
-                    c.rotate(Math.PI/3)
+                for(let spike=0;spike<(root.lightFx?4:8);spike++){
+                    c.rotate(root.lightFx?Math.PI/2:Math.PI/4)
                     const spikeGradient=c.createLinearGradient(0,0,150*fade,0)
                     spikeGradient.addColorStop(0,`rgba(255,255,255,${fade})`)
                     spikeGradient.addColorStop(.35,root.tint(fade*.75))

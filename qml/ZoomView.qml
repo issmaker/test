@@ -97,16 +97,6 @@ Item {
             Behavior on opacity { NumberAnimation{duration:360;easing.type:Easing.OutCubic} }
         }
 
-        Rectangle {
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.top: parent.top
-            height: 66
-            gradient: Gradient {
-                GradientStop{position:0;color:"#c9070c11"}
-                GradientStop{position:1;color:"#00070c11"}
-            }
-        }
         Text {
             x: 15;y: 12;z: 5
             text: root.title

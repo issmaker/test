@@ -35,7 +35,7 @@ Item {
     }
 
     Timer {
-        interval: root.lightFx?66:33
+        interval: 33
         running: root.visible
         repeat: true
         onTriggered: {

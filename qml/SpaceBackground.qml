@@ -39,7 +39,8 @@ Item {
     }
 
     Timer {
-        interval: root.lightFx?66:33
+        // ECO reduces geometry, not frame rate. Both modes remain smooth.
+        interval: 33
         running: root.visible
         repeat: true
         onTriggered: {
@@ -123,8 +124,89 @@ Item {
             const burst=age>=0&&age<2200?Math.sin(Math.PI*Math.min(1,age/2200)):0
             const effect=Math.max(root.warp?.42+root.progress*.58:0,root.zoomPulse)
             const direction=root.warp?1:root.zoomDirection
-            const cx=w*.70+root.pointerX*88,cy=h*.29+root.pointerY*62
+            const cameraYaw=root.pointerX*.78
+            const cameraPitch=root.pointerY*.52
+            const cx=w*.70+root.pointerX*155,cy=h*.29+root.pointerY*96
             const maxR=Math.sqrt(w*w+h*h)*.82
+
+            // Project a small 3D planetary system around the black hole. Mouse
+            // movement rotates the virtual camera, changing position, scale
+            // and draw order of every body.
+            const planetDefinitions=[
+                {orbit:310,tilt:95,size:18,speed:.000037,phase:.4,a:"#58c6d8",b:"#102c3a",ring:true},
+                {orbit:430,tilt:145,size:27,speed:-.000020,phase:2.2,a:"#d5a66e",b:"#4a241d",ring:false},
+                {orbit:540,tilt:188,size:13,speed:.000014,phase:4.8,a:"#a394e8",b:"#251d49",ring:true},
+                {orbit:655,tilt:220,size:34,speed:-.000009,phase:1.5,a:"#72a878",b:"#172d22",ring:false},
+                {orbit:760,tilt:270,size:10,speed:.000007,phase:3.6,a:"#d9e7e9",b:"#344451",ring:false}
+            ]
+            const planetCount=root.lightFx?3:planetDefinitions.length
+            const projectedPlanets=[]
+            const cosYaw=Math.cos(cameraYaw),sinYaw=Math.sin(cameraYaw)
+            const cosPitch=Math.cos(cameraPitch),sinPitch=Math.sin(cameraPitch)
+            for(let planetIndex=0;planetIndex<planetCount;planetIndex++){
+                const pd=planetDefinitions[planetIndex]
+                const angle=pd.phase+root.clock*pd.speed
+                const worldX=Math.cos(angle)*pd.orbit
+                const worldZ=Math.sin(angle)*pd.orbit
+                const worldY=Math.sin(angle*.73+pd.phase)*pd.tilt
+                const rotatedX=worldX*cosYaw-worldZ*sinYaw
+                const yawZ=worldX*sinYaw+worldZ*cosYaw
+                const rotatedY=worldY*cosPitch-yawZ*sinPitch
+                const rotatedZ=worldY*sinPitch+yawZ*cosPitch
+                const perspective=Math.max(.42,Math.min(2.1,720/(720+rotatedZ)))
+                projectedPlanets.push({
+                    x:cx+rotatedX*perspective,
+                    y:cy+rotatedY*perspective,
+                    z:rotatedZ,
+                    size:pd.size*perspective,
+                    a:pd.a,b:pd.b,ring:pd.ring,
+                    phase:angle
+                })
+            }
+            projectedPlanets.sort((a,b)=>b.z-a.z)
+            function drawProjectedPlanet(p,front) {
+                if((front&&p.z>0)||(!front&&p.z<=0))return
+                const alpha=front ? 0.96 : 0.58
+                const glowRadius=p.size*(front?3.4:2.6)
+                const bodyGlow=c.createRadialGradient(p.x,p.y,0,p.x,p.y,glowRadius)
+                bodyGlow.addColorStop(0,root.tint(alpha*.20))
+                bodyGlow.addColorStop(.34,root.tint(alpha*.07))
+                bodyGlow.addColorStop(1,root.tint(0))
+                c.fillStyle=bodyGlow
+                c.fillRect(p.x-glowRadius,p.y-glowRadius,glowRadius*2,glowRadius*2)
+                if(p.ring){
+                    c.save();c.translate(p.x,p.y);c.rotate(-.23+cameraYaw*.18)
+                    c.strokeStyle=front?root.tint(.52):root.tint(.21)
+                    c.lineWidth=Math.max(.7,p.size*.11)
+                    c.beginPath();c.ellipse(0,0,p.size*1.75,p.size*.40,0,0,6.283185);c.stroke()
+                    c.restore()
+                }
+                const body=c.createRadialGradient(p.x-p.size*.34,p.y-p.size*.38,p.size*.05,p.x,p.y,p.size)
+                body.addColorStop(0,p.a);body.addColorStop(.58,p.b);body.addColorStop(1,"#020508")
+                c.globalAlpha=alpha;c.fillStyle=body
+                c.beginPath();c.arc(p.x,p.y,p.size,0,6.283185);c.fill()
+                c.globalAlpha=1
+                c.fillStyle=`rgba(0,2,5,${front ? 0.34 : 0.52})`
+                c.beginPath();c.arc(p.x+p.size*.42,p.y+p.size*.10,p.size*.92,0,6.283185);c.fill()
+                if(front){
+                    c.strokeStyle="rgba(225,246,255,.24)";c.lineWidth=1
+                    c.beginPath();c.arc(p.x,p.y,p.size+.8,0,6.283185);c.stroke()
+                }
+            }
+
+            if(!root.lightFx){
+                c.save();c.translate(cx,cy);c.rotate(cameraYaw*.10)
+                c.strokeStyle=root.tint(.045);c.lineWidth=.7
+                for(let orbitLine=0;orbitLine<planetDefinitions.length;orbitLine++){
+                    const pd=planetDefinitions[orbitLine]
+                    c.beginPath()
+                    c.ellipse(0,0,pd.orbit,pd.tilt*.72+38,cameraPitch*.18,0,6.283185)
+                    c.stroke()
+                }
+                c.restore()
+            }
+            for(let farPlanet=0;farPlanet<projectedPlanets.length;farPlanet++)
+                drawProjectedPlanet(projectedPlanets[farPlanet],false)
 
             // A restrained star field. It stays at 30 FPS, but the expensive
             // blur filters are replaced by small vector strokes rendered on
@@ -265,7 +347,11 @@ Item {
             // Black hole inspired by gravitational-lensing photography: a
             // wide accretion disc, bright equatorial band and bent light arcs.
             const diskScale=1+effect*.055
-            c.save();c.translate(cx,cy);c.scale(diskScale,diskScale)
+            c.save();c.translate(cx,cy)
+            c.rotate(cameraYaw*.11)
+            c.transform(1,cameraPitch*.075,cameraYaw*.095,1,0,0)
+            c.scale(diskScale*(1+Math.abs(cameraYaw)*.035),
+                    diskScale*(1-Math.abs(cameraPitch)*.045))
             const outer=470
             const halo=c.createRadialGradient(0,0,70,0,0,outer)
             halo.addColorStop(0,"rgba(0,0,0,1)")
@@ -379,6 +465,9 @@ Item {
                 c.restore()
             }
             c.restore()
+
+            for(let nearPlanet=0;nearPlanet<projectedPlanets.length;nearPlanet++)
+                drawProjectedPlanet(projectedPlanets[nearPlanet],true)
 
             if(burst>.01){
                 const veil=c.createRadialGradient(root.burstX,root.burstY,1,root.burstX,root.burstY,260)

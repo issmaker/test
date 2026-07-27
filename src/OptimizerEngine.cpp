@@ -138,8 +138,11 @@ void OptimizerEngine::setProgress(double value,const QString &text){
 
 void OptimizerEngine::optimize(double maxMb,int){
     if(m_sourceUrl.isEmpty()||m_busy||m_previewBusy)return;m_busy=true;m_progress=0;m_progressHistory={0.0};m_activityHistory={.18};m_telemetryPhase=0;
-    emit busyChanged();emit progressChanged();emit telemetryChanged();m_telemetryTimer.start();const QString path=localPath();
-    m_watcher.setFuture(QtConcurrent::run([this,path,maxMb]{return TextureProcessor::process(path,qint64(maxMb*1000000.0),1,[this](double value,const QString&text){setProgress(value,text);});}));
+    const double requestedMb=qBound(.5,maxMb,20.0);
+    const qint64 requestedBytes=qint64(std::llround(requestedMb*1000000.0));
+    m_status=QString("Запуск с пределом %1 MB…").arg(requestedMb,0,'f',1);
+    emit busyChanged();emit progressChanged();emit telemetryChanged();emit statusChanged();m_telemetryTimer.start();const QString path=localPath();
+    m_watcher.setFuture(QtConcurrent::run([this,path,requestedBytes]{return TextureProcessor::process(path,requestedBytes,1,[this](double value,const QString&text){setProgress(value,text);});}));
 }
 
 void OptimizerEngine::toggleMasterView(){if(!sourceIsLarge())return;m_showingMaster=!m_showingMaster;emit showingMasterChanged();}

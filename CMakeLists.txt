@@ -36,6 +36,7 @@ qt_add_qml_module(AdaptiveTextureOptimizer
         qml/StarCounter.qml
         qml/LimitSelector.qml
         qml/ZoomView.qml
+        qml/WipeCompare.qml
         qml/Sparkline.qml
         qml/SpaceBackground.qml
         qml/MeteorOverlay.qml)

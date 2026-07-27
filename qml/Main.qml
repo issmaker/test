@@ -33,6 +33,8 @@ ApplicationWindow {
     property real zoomDirection: 1
     property real lastSliderValue: .25
     property int caughtStars: 0
+    property bool wipeMode: false
+    property bool lightFx: false
     property color accentColor: optimizer.accentColor
     Behavior on accentColor{ColorAnimation{duration:750;easing.type:Easing.InOutCubic}}
     Behavior on parallaxX{NumberAnimation{duration:115;easing.type:Easing.OutCubic}}
@@ -57,6 +59,11 @@ ApplicationWindow {
         viewScale=1;lastSliderValue=viewScale;panX=0;panY=0
     }
     function updateView(scale,x,y) { viewScale=scale;lastSliderValue=scale;panX=x;panY=y }
+    function importTexture(url) {
+        wipeMode=false
+        optimizer.load(url)
+        resetView()
+    }
 
     SequentialAnimation {
         id: zoomFx
@@ -68,7 +75,7 @@ ApplicationWindow {
         id: picker
         title: "Выберите PNG-текстуру"
         nameFilters: ["PNG textures (*.png)"]
-        onAccepted: {optimizer.load(selectedFile);win.resetView()}
+        onAccepted: win.importTexture(selectedFile)
     }
     Shortcut{sequence:StandardKey.Open;onActivated:picker.open()}
     Shortcut{sequence:"Ctrl+0";onActivated:win.resetView()}
@@ -85,6 +92,7 @@ ApplicationWindow {
         zoomPulse: win.zoomWarp
         zoomDirection: win.zoomDirection
         accentColor: win.accentColor
+        lightFx: win.lightFx
     }
     Item {
         anchors.fill: parent
@@ -98,7 +106,7 @@ ApplicationWindow {
             }
         }
     }
-    DropArea{anchors.fill:parent;onDropped:drop=>{if(drop.hasUrls){optimizer.load(drop.urls[0]);win.resetView()}}}
+    DropArea{anchors.fill:parent;onDropped:drop=>{if(drop.hasUrls)win.importTexture(drop.urls[0])}}
 
     ColumnLayout {
         anchors.fill: parent
@@ -123,6 +131,15 @@ ApplicationWindow {
                 Text{text:"AGR Adaptive RGB24  •  perceptual colour budget  •  verified RGB24";color:"#8599a3";font.pixelSize:12}
             }
             StarCounter{count:win.caughtStars;accentColor:win.accentColor}
+            AppButton {
+                text:win.lightFx?"FX ECO":"FX MAX"
+                implicitWidth:84;implicitHeight:34
+                accent:win.lightFx?"#17232a":win.accentColor
+                tip:win.lightFx
+                    ?"Облегчённые эффекты включены. Нажмите для максимального космического оформления."
+                    :"Максимальные эффекты включены. Нажмите для режима слабых ПК."
+                onClicked:win.lightFx=!win.lightFx
+            }
             MetricChip{text:"v1.0";accentColor:win.accentColor}
             MetricChip{text:"AGR ADAPTIVE RGB24";accentColor:win.accentColor;checked:true}
         }
@@ -139,7 +156,11 @@ ApplicationWindow {
                     Text{text:optimizer.status;color:"#f4fafb";font.pixelSize:13;font.weight:Font.DemiBold;elide:Text.ElideMiddle;Layout.fillWidth:true}
                     Sparkline{Layout.fillWidth:true;Layout.preferredHeight:38;values:optimizer.progressHistory;active:optimizer.busy;lineColor:win.accentColor;title:optimizer.busy?"LIVE PIPELINE":"СИСТЕМА ГОТОВА";valueText:Math.round(optimizer.progress*100)+"%";visible:optimizer.busy||optimizer.progress>0}
                 }
-                Column{spacing:3;Text{text:"ПРЕДЕЛ ФАЙЛА";color:"#738893";font.pixelSize:9;font.weight:Font.DemiBold}LimitSelector{value:win.targetMb;accentColor:win.accentColor;onValueChanged:win.targetMb=value}}
+                Column {
+                    spacing:3
+                    Text{text:"ПРЕДЕЛ ФАЙЛА";color:"#738893";font.pixelSize:9;font.weight:Font.DemiBold}
+                    LimitSelector{value:win.targetMb;accentColor:win.accentColor;onValueEdited:newValue=>win.targetMb=newValue}
+                }
                 AppButton{text:optimizer.busy?"Оптимизация…":"Оптимизировать";accent:win.accentColor;enabled:optimizer.sourceUrl&&!optimizer.busy&&!optimizer.previewBusy;tip:"Запустить AGR Adaptive RGB24 с обязательной проверкой размера и RGB24";onClicked:optimizer.optimize(win.targetMb,1)}
             }
         }
@@ -159,12 +180,21 @@ ApplicationWindow {
                 handle:Rectangle{x:scaleSlider.leftPadding+scaleSlider.visualPosition*(scaleSlider.availableWidth-width);y:scaleSlider.topPadding+scaleSlider.availableHeight/2-height/2;width:18;height:18;radius:9;color:"#eef8f8";border.width:4;border.color:win.accentColor}
             }
             MetricChip{text:Math.round(win.viewScale*100)+"%";accentColor:win.accentColor}
+            AppButton {
+                text:win.wipeMode?"Разделитель: ВКЛ":"Режим «Шторка»"
+                accent:win.wipeMode?win.accentColor:"#17232a"
+                implicitHeight:38
+                enabled:optimizer.resultUrl
+                tip:"Включить сравнение одним кадром. Тяните вертикальный разделитель мышью; панорамирование — правой кнопкой."
+                onClicked:win.wipeMode=!win.wipeMode
+            }
             Item{Layout.fillWidth:true}
             AppButton{text:"Папка исходника";accent:"#17232a";implicitHeight:38;enabled:optimizer.sourceUrl;tip:"Открыть папку исходной текстуры";onClicked:optimizer.openSourceFolder()}
             AppButton{text:"Папка результата";accent:win.accentColor;implicitHeight:38;enabled:optimizer.outputPath;tip:"Открыть папку compressed с готовым RGB24 PNG";onClicked:optimizer.openOutputFolder()}
         }
 
         RowLayout {
+            visible:!win.wipeMode
             Layout.fillWidth:true
             Layout.fillHeight:true
             spacing:16
@@ -191,6 +221,21 @@ ApplicationWindow {
                 onZoomPulse:direction=>win.triggerZoomWarp(direction)
                 onResetRequested:win.resetView()
             }
+        }
+        WipeCompare {
+            id:wipeCompare
+            visible:win.wipeMode
+            Layout.fillWidth:true
+            Layout.fillHeight:true
+            beforeSource:win.leftImage
+            afterSource:optimizer.resultUrl
+            sharedScale:win.viewScale;sharedPanX:win.panX;sharedPanY:win.panY
+            parallaxX:win.parallaxX*2.2;parallaxY:win.parallaxY*2.2
+            accentColor:win.accentColor
+            onViewChanged:(scale,x,y)=>win.updateView(scale,x,y)
+            onZoomPulse:direction=>win.triggerZoomWarp(direction)
+            onResetRequested:win.resetView()
+            onFitCalculated:scale=>{win.fitValue=scale;if(win.panX===0&&win.panY===0){win.viewScale=scale;win.lastSliderValue=scale}}
         }
 
         GlassCard {
@@ -241,6 +286,7 @@ ApplicationWindow {
         cursorY: win.pointerNormY
         pointerActive: parallaxHover.hovered
         accentColor: win.accentColor
+        lightFx: win.lightFx
         onCaught:(x,y)=>{win.caughtStars++;cosmos.triggerBurst(x,y)}
     }
 }

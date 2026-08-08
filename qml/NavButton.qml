@@ -2,27 +2,66 @@ import QtQuick
 import QtQuick.Controls
 
 Button {
-    id:root
-    property string kind:"home"
-    property bool selected:false
-    property color accentColor:"#29c7ad"
-    property string tip:""
-    implicitWidth:62;implicitHeight:62;padding:0
-    contentItem:NavIcon { width:25;height:25;anchors.centerIn:parent;kind:root.kind;iconColor:root.enabled?(root.selected?"white":"#a9a4af"):"#55515a" }
-    background:Rectangle {
-        radius:root.selected?22:18
-        color:root.selected?root.accentColor:(root.hovered?"#2bffffff":"#17161c")
-        border.width:1;border.color:root.selected?"#4affffff":"#16ffffff"
-        scale:root.down ? .94 : (root.hovered ? 1.06 : 1)
-        Rectangle { anchors.fill:parent;anchors.margins:-7;radius:parent.radius+7;color:"transparent";border.width:1;border.color:Qt.rgba(root.accentColor.r,root.accentColor.g,root.accentColor.b,root.selected ? .34 : 0);opacity:root.selected?1:0 }
-        Behavior on color{ColorAnimation{duration:180}} Behavior on scale{NumberAnimation{duration:150;easing.type:Easing.OutCubic}}
+    id: root
+    property string kind: "home"
+    property string label: "Главная"
+    property bool selected: false
+    property color accentColor: Theme.teal
+    property string tip: ""
+    implicitWidth: 184
+    implicitHeight: 46
+    padding: 0
+
+    contentItem: Item {
+        Row {
+            anchors.left: parent.left
+            anchors.leftMargin: 14
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 12
+            NavIcon {
+                width: 20; height: 20
+                anchors.verticalCenter: parent.verticalCenter
+                kind: root.kind
+                iconColor: !root.enabled ? Theme.textFaint : (root.selected ? root.accentColor : Theme.textMuted)
+            }
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: root.label
+                color: !root.enabled ? Theme.textFaint : (root.selected ? Theme.text : Theme.textMuted)
+                font.pixelSize: 12
+                font.weight: root.selected ? Font.DemiBold : Font.Medium
+            }
+        }
     }
+
+    background: Rectangle {
+        radius: Theme.radiusMedium
+        color: root.selected
+             ? Qt.rgba(root.accentColor.r, root.accentColor.g, root.accentColor.b, .11)
+             : (root.hovered ? Theme.surfaceHover : "transparent")
+        border.width: 1
+        border.color: root.selected
+                    ? Qt.rgba(root.accentColor.r, root.accentColor.g, root.accentColor.b, .26)
+                    : (root.hovered ? Theme.stroke : "transparent")
+        Rectangle {
+            visible: root.selected
+            anchors.left: parent.left
+            anchors.leftMargin: 4
+            anchors.verticalCenter: parent.verticalCenter
+            width: 3; height: 20; radius: 2
+            color: root.accentColor
+        }
+        scale: root.down ? .985 : 1
+        Behavior on color { ColorAnimation { duration: 140 } }
+        Behavior on scale { NumberAnimation { duration: 100; easing.type: Easing.OutCubic } }
+    }
+
     ToolTip {
-        visible:root.hovered&&root.tip.length>0
-        delay:280
-        x:root.width+12
-        y:8
-        contentItem:Text { text:root.tip;color:"white";font.pixelSize:11 }
-        background:Rectangle { radius:11;color:"#ee17151d";border.width:1;border.color:"#38ffffff" }
+        visible: root.hovered && root.tip.length > 0
+        delay: 420
+        x: root.width + 10
+        y: 5
+        contentItem: Text { text: root.tip; color: Theme.text; font.pixelSize: 11 }
+        background: Rectangle { radius: Theme.radiusSmall; color: "#f0131614"; border.width: 1; border.color: Theme.strokeStrong }
     }
 }

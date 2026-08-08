@@ -17,5 +17,12 @@ Button {
         Rectangle { anchors.fill:parent;anchors.margins:-7;radius:parent.radius+7;color:"transparent";border.width:1;border.color:Qt.rgba(root.accentColor.r,root.accentColor.g,root.accentColor.b,root.selected ? .34 : 0);opacity:root.selected?1:0 }
         Behavior on color{ColorAnimation{duration:180}} Behavior on scale{NumberAnimation{duration:150;easing.type:Easing.OutCubic}}
     }
-    ToolTip { visible:root.hovered&&root.tip.length>0;delay:280;x:root.width+12;y:8;contentItem:Text{text:root.tip;color:"white";font.pixelSize:11};background:Rectangle{radius:11;color:"#ee17151d";border.width:1;border.color:"#38ffffff"} }
+    ToolTip {
+        visible:root.hovered&&root.tip.length>0
+        delay:280
+        x:root.width+12
+        y:8
+        contentItem:Text { text:root.tip;color:"white";font.pixelSize:11 }
+        background:Rectangle { radius:11;color:"#ee17151d";border.width:1;border.color:"#38ffffff" }
+    }
 }

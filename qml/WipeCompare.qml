@@ -75,7 +75,7 @@ Item {
         anchors.margins: 6
         radius: 18
         clip: true
-        color: "#09000000"
+        color: "#d108030a"
         border.width: 1
         border.color: "#12ffffff"
         layer.enabled: true

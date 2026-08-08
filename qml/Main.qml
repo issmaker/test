@@ -27,6 +27,7 @@ ApplicationWindow {
     property int bubbleScore: 0
     property bool bubblesOn: true
     readonly property color brandContrastColor: AppTheme.contentPrimary
+    readonly property real brandContrastLuma: brandContrastColor.r*.2126 + brandContrastColor.g*.7152 + brandContrastColor.b*.0722
     readonly property var batchItem: batchIndex >= 0 && batchIndex < optimizer.batchItems.length
                                      ? optimizer.batchItems[batchIndex] : null
     property color uiAccent: screen === 1 ? "#ff74b2" : "#ff3f93"

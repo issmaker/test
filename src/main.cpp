@@ -67,7 +67,7 @@ int runSelfTest() {
     if (!directory.isValid()) return 2;
 
     QImage input(512, 512, QImage::Format_RGB888);
-    quint32 state = 0x33a6f19dU;
+    quint32 state = 0x34a6f19dU;
     for (int y = 0; y < input.height(); ++y) {
         uchar *line = input.scanLine(y);
         for (int x = 0; x < input.width(); ++x) {
@@ -107,7 +107,7 @@ int runSelfTest() {
 } // namespace
 
 int main(int argc,char**argv){
-    QGuiApplication app(argc,argv);app.setApplicationName("Adaptive Texture Optimizer");app.setApplicationVersion("33");
+    QGuiApplication app(argc,argv);app.setApplicationName("Adaptive Texture Optimizer");app.setApplicationVersion("34");
     app.setWindowIcon(QIcon(QStringLiteral(":/icons/liquid.svg")));
     g_startupLogPath = QCoreApplication::applicationDirPath()
         + QStringLiteral("/AdaptiveTextureOptimizer-startup.log");
@@ -115,7 +115,7 @@ int main(int argc,char**argv){
         QFile log(g_startupLogPath);
         if (log.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
             QTextStream out(&log);
-            out << "Adaptive Texture Optimizer 33 startup\n";
+            out << "Adaptive Texture Optimizer 34 startup\n";
             out << "Qt " << qVersion() << "\n";
         }
     }
@@ -143,6 +143,9 @@ int main(int argc,char**argv){
         if(!verify(1,"npmComparisonPanel",360.0))return 21;
         if(!verify(2,"batchListPanel",460.0))return 22;
         if(!verify(3,"batchComparisonPanel",460.0))return 23;
+        QObject *brand=root->findChild<QObject*>(QStringLiteral("brandText"));
+        const QColor brandColor=brand?brand->property("color").value<QColor>():QColor();
+        if(!brandColor.isValid()||brandColor.lightnessF()<.70)return 24;
         return 0;
     }
     if(argc>1)optimizer.load(QUrl::fromLocalFile(QString::fromLocal8Bit(argv[1])).toString());

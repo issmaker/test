@@ -143,8 +143,7 @@ int main(int argc,char**argv){
         if(!verify(1,"npmComparisonPanel",360.0))return 21;
         if(!verify(2,"batchListPanel",460.0))return 22;
         if(!verify(3,"batchComparisonPanel",460.0))return 23;
-        QObject *brand=root->findChild<QObject*>(QStringLiteral("brandText"));
-        const QColor brandColor=brand?brand->property("color").value<QColor>():QColor();
+        const QColor brandColor=root->property("brandContrastColor").value<QColor>();
         if(!brandColor.isValid()||brandColor.lightnessF()<.70)return 24;
         return 0;
     }

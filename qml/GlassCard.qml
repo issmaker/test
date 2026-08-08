@@ -2,23 +2,32 @@ import QtQuick
 
 Rectangle {
     id: root
-    property color accentColor: "#ff641f"
-    radius: 21
-    color: "#e90b1218"
-    border.color: Qt.rgba(accentColor.r,accentColor.g,accentColor.b,.22)
+    property color accentColor: "#ff7139"
+    property real glassOpacity: .76
+    radius: 24
+    color: Qt.rgba(.055, .055, .072, glassOpacity)
     border.width: 1
+    border.color: Qt.rgba(1, 1, 1, .105)
+
     Rectangle {
-        z: -2;anchors.fill:parent;anchors.margins:-6;radius:parent.radius+6
-        color:"transparent";border.width:1
-        border.color:Qt.rgba(root.accentColor.r,root.accentColor.g,root.accentColor.b,.09)
+        anchors.fill: parent
+        anchors.margins: 1
+        radius: root.radius - 1
+        color: "transparent"
+        border.width: 1
+        border.color: Qt.rgba(root.accentColor.r, root.accentColor.g, root.accentColor.b, .055)
     }
     Rectangle {
-        z: -1;anchors.fill:parent;anchors.margins:-2;radius:parent.radius+2
-        color:"transparent";border.width:1
-        border.color:Qt.rgba(root.accentColor.r,root.accentColor.g,root.accentColor.b,.16)
-    }
-    Rectangle {
-        anchors.fill:parent;anchors.margins:1;radius:parent.radius-1
-        color:"transparent";border.width:1;border.color:"#16ffffff"
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.margins: 1
+        height: Math.min(42, parent.height * .32)
+        radius: root.radius - 1
+        opacity: .7
+        gradient: Gradient {
+            GradientStop { position: 0; color: "#10ffffff" }
+            GradientStop { position: 1; color: "#00ffffff" }
+        }
     }
 }

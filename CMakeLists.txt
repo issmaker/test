@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(AGRAdaptiveTextureOptimizer VERSION 31.0.0 LANGUAGES CXX)
+project(AGRAdaptiveTextureOptimizer VERSION 32.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -19,6 +19,7 @@ FetchContent_Declare(libdeflate
 FetchContent_MakeAvailable(libdeflate)
 
 qt_standard_project_setup(REQUIRES 6.6)
+set_source_files_properties(qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 qt_add_executable(AdaptiveTextureOptimizer
     src/main.cpp
     src/OptimizerEngine.cpp
@@ -30,6 +31,7 @@ qt_add_qml_module(AdaptiveTextureOptimizer
     VERSION 1.0
     QML_FILES
         qml/Main.qml
+        qml/Theme.qml
         qml/AppButton.qml
         qml/GlassCard.qml
         qml/MetricChip.qml
@@ -45,7 +47,14 @@ qt_add_qml_module(AdaptiveTextureOptimizer
 qt_add_resources(AdaptiveTextureOptimizer app_icons
     PREFIX "/icons"
     BASE "assets"
-    FILES assets/liquid.svg)
+    FILES
+        assets/liquid.svg
+        assets/lucide/house.svg
+        assets/lucide/scan-line.svg
+        assets/lucide/images.svg
+        assets/lucide/columns-2.svg
+        assets/lucide/activity.svg
+        assets/lucide/log-out.svg)
 
 target_include_directories(AdaptiveTextureOptimizer PRIVATE src)
 target_link_libraries(AdaptiveTextureOptimizer PRIVATE

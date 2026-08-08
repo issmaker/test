@@ -18,7 +18,7 @@ jobs:
     env:
       QT_VERSION: 6.8.3
       BUILD_DIR: build
-      DIST_DIR: dist/AdaptiveTextureOptimizer-31-Windows
+      DIST_DIR: dist/AdaptiveTextureOptimizer-32-Windows
 
     steps:
       - name: Checkout
@@ -52,6 +52,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path $env:DIST_DIR | Out-Null
           Copy-Item "$env:BUILD_DIR/Release/AdaptiveTextureOptimizer.exe" $env:DIST_DIR
           Copy-Item "README.md" $env:DIST_DIR
+          Copy-Item "THIRD_PARTY_NOTICES.md" $env:DIST_DIR
           & "${env:QT_ROOT_DIR}/bin/windeployqt.exe" `
             --release `
             --compiler-runtime `
@@ -127,12 +128,12 @@ jobs:
 
       - name: Pack portable application
         shell: pwsh
-        run: Compress-Archive -Path "$env:DIST_DIR/*" -DestinationPath "dist/AdaptiveTextureOptimizer-31-Windows-Portable.zip" -CompressionLevel Optimal
+        run: Compress-Archive -Path "$env:DIST_DIR/*" -DestinationPath "dist/AdaptiveTextureOptimizer-32-Windows-Portable.zip" -CompressionLevel Optimal
 
       - name: Upload ready-to-run application
         uses: actions/upload-artifact@v7
         with:
-          name: AdaptiveTextureOptimizer-31-Windows-Portable
-          path: dist/AdaptiveTextureOptimizer-31-Windows-Portable.zip
+          name: AdaptiveTextureOptimizer-32-Windows-Portable
+          path: dist/AdaptiveTextureOptimizer-32-Windows-Portable.zip
           if-no-files-found: error
           retention-days: 30

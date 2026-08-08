@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { Environment, Float, Sparkles } from '@react-three/drei'
+import { Float, MeshTransmissionMaterial, Sparkles } from '@react-three/drei'
 import { Bloom, EffectComposer, Noise, Vignette } from '@react-three/postprocessing'
 import { BlendFunction } from 'postprocessing'
 import { gsap } from 'gsap'
@@ -76,7 +76,8 @@ function PointerPixels({ active }) {
   return <div className="pointer-pixels">{pixels.map(p=><i key={p.id} style={{left:p.x,top:p.y,width:p.s,height:p.s}} />)}</div>
 }
 
-function RibbonSculpture({ progress, light, compare }) {
+function RibbonSculpture({ progress, screen }) {
+  const compare=screen==='compare',accent=screen==='npm'?'#28d9ff':screen==='batch'?'#8d5cff':'#ff278f'
   const group = useRef()
   useFrame((s,dt) => {
     if (!group.current) return
@@ -87,10 +88,11 @@ function RibbonSculpture({ progress, light, compare }) {
     group.current.scale.setScalar(THREE.MathUtils.lerp(group.current.scale.x, Math.max(.72,target), .055))
     group.current.position.x = THREE.MathUtils.lerp(group.current.position.x, -progress*1.1+s.pointer.x*.18, .04)
   })
-  return <group ref={group} position={[compare?0:1.15,0,0]}>
+  const origin=screen==='npm'?[-3.9,2.2,-.8]:screen==='batch'?[4.2,1.8,-.9]:[compare?0:1.15,0,0]
+  return <group ref={group} position={origin}>
     {Array.from({length:7},(_,i)=><mesh key={i} rotation={[Math.PI/2,(i-3)*.13,(i-3)*.15]} position={[0,0,(i-3)*.22]}>
       <torusGeometry args={[1.8+i*.045,.16+i*.012,24,160,Math.PI*1.62]} />
-      <meshPhysicalMaterial color={i%2?'#a51e70':'#5f164d'} emissive={i===4?'#ff278f':'#31051f'} emissiveIntensity={i===4?1.3:.18}
+      <meshPhysicalMaterial color={screen==='npm'?(i%2?'#176b86':'#123b55'):screen==='batch'?(i%2?'#563296':'#291d59'):(i%2?'#a51e70':'#5f164d')} emissive={i===4?accent:'#21051b'} emissiveIntensity={i===4?1.3:.18}
         metalness={.45} roughness={.28} clearcoat={1} clearcoatRoughness={.14} />
     </mesh>)}
     <mesh rotation={[0,.18,0]}>
@@ -99,6 +101,19 @@ function RibbonSculpture({ progress, light, compare }) {
         roughness={.2} side={THREE.DoubleSide} depthWrite={false} />
     </mesh>
   </group>
+}
+
+function OrganicGlass({screen}) {
+  const pieces=screen==='home'?[[-4.8,2.5,-1,1.4,.8,1.15],[4.6,-2.5,-1.2,1.25,.75,1.5],[-4.4,-2.8,-1.5,.85,1.25,.8]]
+    :screen==='npm'?[[4.9,2.6,-1.2,1.1,.7,1.5],[5.5,-2.5,-1.6,.7,1.1,.7]]
+    :screen==='batch'?[[-5,2.6,-1.2,1.25,.72,1.4],[5.2,-2.7,-1.4,.9,1.25,.8]]:[]
+  const tint=screen==='npm'?'#7eeeff':screen==='batch'?'#ae89ff':'#ff8bc7'
+  return <>{pieces.map((p,i)=><Float key={i} speed={.65+i*.13} rotationIntensity={.34} floatIntensity={.28}>
+    <mesh position={p.slice(0,3)} scale={p.slice(3)} rotation={[i*.7,.6+i,.2]}>
+      <icosahedronGeometry args={[1.25,5]}/><MeshTransmissionMaterial color={tint} samples={6} resolution={512} transmission={1}
+        thickness={1.15} roughness={.12} chromaticAberration={.08} anisotropy={.25} distortion={.28} distortionScale={.35}
+        temporalDistortion={.08} clearcoat={1} backside backsideThickness={.5}/>
+    </mesh></Float>)}</>
 }
 
 function DecodeGrid({ active }) {
@@ -132,17 +147,17 @@ function CameraRig({ progress, screen }) {
 }
 
 function Scene({ progress, screen, decode }) {
-  const light=screen==='npm'||screen==='batch'
+  const bg=screen==='npm'?'#031019':screen==='batch'?'#090612':'#050105',accent=screen==='npm'?'#4be8ff':screen==='batch'?'#9a6cff':'#ff58ae'
   return <Canvas dpr={[1,1.75]} camera={{position:[0,0,7],fov:48}} gl={{antialias:true,powerPreference:'high-performance'}}>
-    <color attach="background" args={[light?'#e9eff7':'#050105']} />
-    <ambientLight intensity={light?1.6:.42}/><pointLight position={[4,3,5]} color="#ff58ae" intensity={45}/>
-    <pointLight position={[-4,-2,2]} color={light?'#6c8ed9':'#7c1ee0'} intensity={25}/>
-    <Float speed={1.2} rotationIntensity={.12} floatIntensity={.18}><RibbonSculpture progress={progress} light={light} compare={screen==='compare'}/></Float>
-    {!light&&<DecodeGrid active={decode}/>} {!light&&<Sparkles count={110} scale={[12,7,4]} size={1.3} speed={.18} color="#ff8bc7"/>}
+    <color attach="background" args={[bg]} />
+    <ambientLight intensity={.48}/><pointLight position={[4,3,5]} color={accent} intensity={48}/>
+    <pointLight position={[-4,-2,2]} color={screen==='npm'?'#176cff':'#7c1ee0'} intensity={28}/>
+    <OrganicGlass screen={screen}/><Float speed={1.2} rotationIntensity={.12} floatIntensity={.18}><RibbonSculpture progress={progress} screen={screen}/></Float>
+    <DecodeGrid active={decode}/><Sparkles count={screen==='home'?170:95} scale={[12,7,4]} size={1.3} speed={.18} color={accent}/>
     <CameraRig progress={progress} screen={screen}/>
     <EffectComposer multisampling={0}>
       <Bloom intensity={decode?2.25:1.1} luminanceThreshold={.22} luminanceSmoothing={.5} mipmapBlur />
-      <Noise opacity={light?.018:.035} blendFunction={BlendFunction.SOFT_LIGHT}/><Vignette darkness={light?.12:.65} offset={.2}/>
+      <Noise opacity={.035} blendFunction={BlendFunction.SOFT_LIGHT}/><Vignette darkness={.62} offset={.2}/>
     </EffectComposer>
   </Canvas>
 }
@@ -150,12 +165,12 @@ function Scene({ progress, screen, decode }) {
 const iconFor={home:House,npm:ScanLine,batch:Images,compare:Columns2}
 function Nav({screen,setScreen,state,setDecode,backend}) {
   return <header className="nav" data-no-hold>
-    <div className="brand"><span className="brand-mark"><Activity/></span><div><b>Adaptive Texture</b><small>VISUAL COMPUTE</small></div></div>
+    <div className="brand"><span className="brand-mark"><Activity/></span><div><b>Оптимизатор текстур</b><small className="creator">by issmaker</small></div></div>
     <nav>{[['home','Главная'],['npm','НПМ · 3 MB'],['batch','Текстуры'],['compare','Сравнение']].map(([id,label])=>{
       const I=iconFor[id]; const disabled=id==='compare'&&!state.batchItems?.some(x=>x.done)
       return <button key={id} className={screen===id?'active':''} disabled={disabled} onClick={()=>setScreen(id)}><I/><DecodeText onEnter={()=>setDecode(true)} onLeave={()=>setDecode(false)}>{label}</DecodeText></button>
     })}</nav>
-    <div className="nav-actions"><span>v36</span><button onClick={()=>window.qt?.webChannelTransport&&window.location.reload()}><Activity/></button><button onClick={()=>backend?.quitApp()}><X/></button></div>
+    <div className="nav-actions"><span>v37</span><button onClick={()=>window.qt?.webChannelTransport&&window.location.reload()}><Activity/></button><button onClick={()=>backend?.quitApp()}><X/></button></div>
   </header>
 }
 
@@ -170,7 +185,7 @@ function Sparkline({values=[],label,color='#ff3f93'}) {
 
 function Home({setScreen,hidden,setDecode}) {
   return <main className={`home ${hidden?'cinematic-hidden':''}`}>
-    <section className="hero-copy"><p>REAL-TIME / RGB24</p><h1><DecodeText onEnter={()=>setDecode(true)} onLeave={()=>setDecode(false)}>ОПТИМИЗАЦИЯ</DecodeText><br/>ТЕКСТУР,<br/><em>КОТОРАЯ РАБОТАЕТ</em><br/>ВМЕСТЕ С ВАМИ</h1></section>
+    <section className="hero-copy"><p>REAL-TIME / RGB24 / WEBGL</p><h1><DecodeText onEnter={()=>setDecode(true)} onLeave={()=>setDecode(false)}>ОПТИМИЗАТОР</DecodeText><br/><em>ТЕКСТУР</em></h1><div className="hero-line"><span>2K</span><span>4K</span><span>8K</span><b>AGR RGB24</b></div></section>
     <section className="hero-panel">
       <small>TEXTURE INFRASTRUCTURE</small><h2>Два готовых конвейера для production-текстур</h2>
       <p>НПМ до 3 MB или пакетная RGB24-оптимизация 2K, 4K и 8K без ручного лимита.</p>
@@ -179,6 +194,7 @@ function Home({setScreen,hidden,setDecode}) {
       <Button quiet onClick={()=>setScreen('batch')}>ОТКРЫТЬ ОПТИМИЗАТОР ТЕКСТУР</Button>
     </section>
     <p className="hold-hint">НАЖМИТЕ И УДЕРЖИВАЙТЕ В ЛЮБОМ МЕСТЕ</p>
+    <p className="signature">designed for texture flow · <b>by issmaker</b></p>
   </main>
 }
 
@@ -195,7 +211,7 @@ function Workspace({kind,state,backend,setScreen,setDecode}) {
   const batch=kind==='batch'; const [view,setView]=useState({s:1,x:0,y:0}); const items=state.batchItems||[]
   const before=state.referenceUrl||state.workingPreviewUrl||state.sourceUrl
   return <main className="workspace light-scene">
-    <div className="workspace-head"><Button quiet onClick={()=>setScreen('home')}>← ВЫБОР РЕЖИМА</Button><div><small>{batch?'TEXTURE SYSTEM / 02':'PIPELINE / 01'}</small><h1>{batch?'Оптимизация текстур':'Оптимизация для НПМ-текстур'}</h1></div>
+    <div className="workspace-head"><Button quiet onClick={()=>setScreen('home')}>← ВЫБОР РЕЖИМА</Button><div><small>{batch?'BATCH / AUTO QUALITY':'НПМ / TARGET ≤ 3 MB'}</small><h1>Оптимизатор текстур</h1></div>
       <div className="head-actions">{batch&&<Button quiet onClick={()=>backend?.clearBatch()}>ОЧИСТИТЬ</Button>}<Button onClick={()=>batch?backend?.chooseBatchFiles():backend?.chooseNpmFile()}>{batch?'ДОБАВИТЬ PNG':'ИМПОРТ PNG'}</Button></div></div>
     {batch?<>
       <section className="telemetry"><Metric label="FILES" value={items.length}/><Metric label="PROGRESS" value={`${Math.round((state.batchProgress||0)*100)}%`} accent/><Sparkline label="QUEUE PROGRESS" values={state.batchProgressHistory}/><Sparkline label="RGB24 ACTIVITY" values={state.batchActivityHistory} color="#7447df"/>

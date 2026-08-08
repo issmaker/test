@@ -7,79 +7,91 @@ ApplicationWindow {
     id: win
     width: 1560
     height: 960
-    minimumWidth: 1160
+    minimumWidth: 1180
     minimumHeight: 760
     visible: true
-    title: "Adaptive Texture Optimizer 27 — Mars"
+    title: "Adaptive Texture Optimizer 28"
     color: "#050507"
-    palette.window: "#050507"
-    palette.windowText: "#f5f3f7"
-    palette.base: "#121116"
-    palette.text: "#f5f3f7"
-    palette.button: "#1a191f"
-    palette.buttonText: "#f5f3f7"
-    palette.highlight: win.accentColor
 
-    property real targetMb: 3.0
+    // 0 — start, 1 — NPM, 2 — batch list, 3 — batch comparison
+    property int screen: 0
+    property int batchIndex: -1
+    property bool wipeMode: false
     property real fitValue: .25
     property real viewScale: fitValue
     property real panX: 0
     property real panY: 0
     property real pointerX: 0
     property real pointerY: 0
-    property real lastSliderValue: .25
-    property bool wipeMode: false
-    property color accentColor: optimizer.accentColor
-    property color warmAccent: Qt.tint("#ff6530", Qt.rgba(accentColor.r, accentColor.g, accentColor.b, .34))
-    readonly property url leftImage: optimizer.referenceUrl
-                                      ? optimizer.referenceUrl
-                                      : (optimizer.workingPreviewUrl
-                                         ? optimizer.workingPreviewUrl
-                                         : (optimizer.sourceIsLarge ? "" : optimizer.sourceUrl))
+    readonly property var batchItem: batchIndex >= 0 && batchIndex < optimizer.batchItems.length
+                                     ? optimizer.batchItems[batchIndex] : null
+    property color uiAccent: screen >= 2
+        ? (batchItem && batchItem.accent ? batchItem.accent : "#745cff")
+        : optimizer.accentColor
+    property color warmAccent: Qt.tint("#ff6530", Qt.rgba(uiAccent.r, uiAccent.g, uiAccent.b, .28))
+    readonly property url npmBefore: optimizer.referenceUrl ? optimizer.referenceUrl
+                                    : (optimizer.workingPreviewUrl ? optimizer.workingPreviewUrl
+                                       : (optimizer.sourceIsLarge ? "" : optimizer.sourceUrl))
 
-    Behavior on accentColor { ColorAnimation { duration: 700; easing.type: Easing.InOutCubic } }
+    palette.window: "#050507"
+    palette.windowText: "#f5f3f7"
+    palette.base: "#121116"
+    palette.text: "#f5f3f7"
+    palette.button: "#1a191f"
+    palette.buttonText: "#f5f3f7"
+    palette.highlight: uiAccent
+
+    Behavior on uiAccent { ColorAnimation { duration: 600; easing.type: Easing.InOutCubic } }
     Behavior on pointerX { NumberAnimation { duration: 100; easing.type: Easing.OutCubic } }
     Behavior on pointerY { NumberAnimation { duration: 100; easing.type: Easing.OutCubic } }
 
-    function resetView() {
-        viewScale = fitValue; lastSliderValue = viewScale; panX = 0; panY = 0
-    }
-    function actualPixels() {
-        viewScale = 1; lastSliderValue = viewScale; panX = 0; panY = 0
-    }
-    function updateView(scale, x, y) {
-        viewScale = scale; lastSliderValue = scale; panX = x; panY = y
-    }
-    function importTexture(url) {
-        wipeMode = false; optimizer.load(url); resetView()
-    }
-    function fileName() {
-        if (!optimizer.sourceUrl) return "Перетащите PNG в окно"
-        const raw = optimizer.sourceUrl.toString().split("/").pop()
+    function resetView() { viewScale = fitValue; panX = 0; panY = 0 }
+    function actualPixels() { viewScale = 1; panX = 0; panY = 0 }
+    function updateView(scale, x, y) { viewScale = scale; panX = x; panY = y }
+    function enterNpm() { screen = 1; wipeMode = false; resetView() }
+    function enterBatch() { screen = 2; wipeMode = false; batchIndex = -1; resetView() }
+    function compareBatch(index) { batchIndex = index; screen = 3; wipeMode = false; resetView() }
+    function fileName(url) {
+        if (!url) return "PNG не выбран"
+        const raw = url.toString().split("/").pop()
         try { return decodeURIComponent(raw) } catch (error) { return raw }
     }
-    function mb(value) { return value > 0 ? value.toFixed(2) + " MB" : "—" }
+    function mb(value) { return value > 0 ? Number(value).toFixed(2) + " MB" : "—" }
+    function addDropped(urls) {
+        const values=[]; for(let i=0;i<urls.length;++i)values.push(urls[i])
+        optimizer.addBatchFiles(values)
+    }
 
     FileDialog {
-        id: picker
-        title: "Выберите PNG-текстуру"
+        id: npmPicker
+        title: "Выберите NPM PNG-текстуру"
         nameFilters: ["PNG textures (*.png)"]
-        onAccepted: win.importTexture(selectedFile)
+        onAccepted: { optimizer.load(selectedFile); win.enterNpm() }
     }
-    Shortcut { sequence: StandardKey.Open; onActivated: picker.open() }
+    FileDialog {
+        id: batchPicker
+        title: "Добавьте PNG-текстуры"
+        fileMode: FileDialog.OpenFiles
+        nameFilters: ["PNG textures (*.png)"]
+        onAccepted: {
+            const values=[]; for(let i=0;i<selectedFiles.length;++i)values.push(selectedFiles[i])
+            optimizer.addBatchFiles(values)
+        }
+    }
+    Shortcut { sequence: StandardKey.Open; onActivated: win.screen === 1 ? npmPicker.open() : batchPicker.open() }
     Shortcut { sequence: "Ctrl+0"; onActivated: win.resetView() }
     Shortcut { sequence: "Ctrl+1"; onActivated: win.actualPixels() }
+    Shortcut { sequence: StandardKey.Cancel; enabled: !optimizer.busy && !optimizer.batchBusy; onActivated: { if(win.screen === 3)win.screen=2; else if(win.screen!==0)win.screen=0 } }
 
     MarsBackdrop {
         anchors.fill: parent
-        accentColor: win.warmAccent
+        accentColor: win.screen >= 2 ? win.uiAccent : win.warmAccent
         pointerX: win.pointerX
         pointerY: win.pointerY
-        activity: optimizer.busy ? optimizer.progress : 0
+        activity: optimizer.busy ? optimizer.progress : (optimizer.batchBusy ? optimizer.batchProgress : 0)
+        opacity: win.screen === 0 ? 1 : .78
     }
-
     HoverHandler {
-        id: hover
         onPointChanged: {
             win.pointerX = (point.position.x - win.width / 2) / win.width
             win.pointerY = (point.position.y - win.height / 2) / win.height
@@ -87,331 +99,322 @@ ApplicationWindow {
     }
     DropArea {
         anchors.fill: parent
-        onDropped: drop => { if (drop.hasUrls) win.importTexture(drop.urls[0]) }
+        onDropped: drop => {
+            if(!drop.hasUrls)return
+            if(win.screen === 1){ optimizer.load(drop.urls[0]); win.resetView() }
+            else if(win.screen === 2)win.addDropped(drop.urls)
+        }
     }
 
     Rectangle {
         anchors.fill: parent
         anchors.margins: 16
         radius: 32
-        color: "#09000000"
+        color: "#10000000"
         border.width: 1
-        border.color: "#14ffffff"
+        border.color: "#16ffffff"
 
-        RowLayout {
+        // START SCREEN
+        Item {
             anchors.fill: parent
-            anchors.margins: 14
-            spacing: 16
+            visible: win.screen === 0
 
-            GlassCard {
-                Layout.preferredWidth: 168
-                Layout.fillHeight: true
-                accentColor: win.warmAccent
-                glassOpacity: .70
+            ColumnLayout {
+                anchors.centerIn: parent
+                width: Math.min(1040, parent.width - 80)
+                spacing: 24
 
-                ColumnLayout {
-                    anchors.fill: parent
-                    anchors.margins: 14
-                    spacing: 10
-
-                    RowLayout {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 54
-                        Rectangle {
-                            width: 44; height: 44; radius: 15
-                            color: win.warmAccent
-                            Text { anchors.centerIn: parent; text: "A+"; color: "white"; font.bold: true; font.pixelSize: 16 }
-                        }
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            spacing: 0
-                            Text { text: "AGR"; color: "#ffffff"; font.pixelSize: 17; font.weight: Font.DemiBold }
-                            Text { text: "MARS  /  27"; color: "#77727e"; font.pixelSize: 9; font.letterSpacing: 1.2 }
-                        }
+                RowLayout {
+                    Layout.alignment: Qt.AlignHCenter
+                    spacing: 14
+                    Rectangle {
+                        width: 58; height: 58; radius: 19; color: win.warmAccent
+                        Text { anchors.centerIn: parent; text: "A+"; color: "white"; font.pixelSize: 20; font.bold: true }
                     }
+                    ColumnLayout {
+                        spacing: 1
+                        Text { text: "Adaptive Texture Optimizer"; color: "white"; font.pixelSize: 30; font.weight: Font.DemiBold }
+                        Text { text: "VERSION 28  /  ВЫБЕРИТЕ ЗАДАЧУ"; color: "#8b8691"; font.pixelSize: 10; font.letterSpacing: 1.4 }
+                    }
+                }
 
-                    Rectangle { Layout.fillWidth: true; height: 1; color: "#12ffffff" }
+                Text {
+                    Layout.alignment: Qt.AlignHCenter
+                    text: "Как будем оптимизировать текстуры?"
+                    color: "#f6f3f8"; font.pixelSize: 18
+                }
 
-                    Text { text: "РАБОЧЕЕ МЕСТО"; color: "#696570"; font.pixelSize: 9; font.weight: Font.DemiBold; font.letterSpacing: 1 }
-                    AppButton {
-                        Layout.fillWidth: true; text: "＋  Импорт PNG"; accent: win.warmAccent
-                        tip: "Открыть PNG — Ctrl+O"; onClicked: picker.open()
-                    }
-                    AppButton {
-                        Layout.fillWidth: true; text: "◫  Сравнение"; accent: win.accentColor; quiet: true
-                        enabled: optimizer.sourceUrl; onClicked: win.wipeMode = false
-                    }
-                    AppButton {
-                        Layout.fillWidth: true; text: "◐  Шторка"; accent: win.accentColor; quiet: !win.wipeMode
-                        enabled: optimizer.resultUrl; onClicked: win.wipeMode = true
-                    }
-
-                    Text { text: "МАСШТАБ"; color: "#696570"; font.pixelSize: 9; font.weight: Font.DemiBold; font.letterSpacing: 1; Layout.topMargin: 8 }
-                    AppButton {
-                        Layout.fillWidth: true; text: "Вписать"; quiet: true; accent: win.accentColor
-                        onClicked: win.resetView(); tip: "Показать текстуру целиком — Ctrl+0"
-                    }
-                    AppButton {
-                        Layout.fillWidth: true; text: "Пиксели 1:1"; quiet: true; accent: win.accentColor
-                        onClicked: win.actualPixels(); tip: "Один пиксель изображения равен пикселю экрана — Ctrl+1"
-                    }
-
-                    Item { Layout.fillHeight: true }
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 340
+                    spacing: 20
 
                     GlassCard {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 106
-                        accentColor: win.accentColor
-                        glassOpacity: .62
-                        Column {
-                            anchors.fill: parent; anchors.margins: 12; spacing: 5
-                            Text { text: "AGR ADAPTIVE"; color: "#ffffff"; font.pixelSize: 11; font.weight: Font.DemiBold }
-                            Text { text: "RGB24 / ONE MODE"; color: win.accentColor; font.pixelSize: 9; font.weight: Font.Bold }
-                            Text {
-                                width: parent.width
-                                text: "Адаптивный цветовой бюджет без смены режима."
-                                color: "#85808b"; font.pixelSize: 9; wrapMode: Text.Wrap
+                        Layout.fillWidth: true; Layout.fillHeight: true
+                        accentColor: win.warmAccent; glassOpacity: .84
+                        ColumnLayout {
+                            anchors.fill: parent; anchors.margins: 28; spacing: 14
+                            Rectangle {
+                                width: 50; height: 50; radius: 16; color: win.warmAccent
+                                Text { anchors.centerIn: parent; text: "≤3"; color: "white"; font.pixelSize: 16; font.bold: true }
                             }
+                            Text { text: "Оптимизация для\nNPM-текстур"; color: "white"; font.pixelSize: 26; font.weight: Font.DemiBold; lineHeight: .95 }
+                            Text {
+                                Layout.fillWidth: true
+                                text: "Одна текстура. Автоматический предел меньше 3 MB, рабочий размер до 2K и обязательный RGB24."
+                                color: "#9d98a3"; font.pixelSize: 12; wrapMode: Text.Wrap; lineHeight: 1.3
+                            }
+                            Item { Layout.fillHeight: true }
+                            Row { spacing: 8
+                                MetricChip { text: "≤ 3 MB"; checked: true; accentColor: win.warmAccent }
+                                MetricChip { text: "RGB24"; checked: true; accentColor: win.warmAccent }
+                                MetricChip { text: "1 FILE"; accentColor: win.warmAccent }
+                            }
+                            AppButton { Layout.fillWidth: true; text: "Открыть NPM-оптимизатор"; accent: win.warmAccent; implicitHeight: 50; onClicked: win.enterNpm() }
                         }
                     }
-                    Text { text: "by issmaker"; color: "#5d5963"; font.pixelSize: 9; Layout.alignment: Qt.AlignHCenter }
+
+                    GlassCard {
+                        Layout.fillWidth: true; Layout.fillHeight: true
+                        accentColor: "#745cff"; glassOpacity: .84
+                        ColumnLayout {
+                            anchors.fill: parent; anchors.margins: 28; spacing: 14
+                            Rectangle {
+                                width: 50; height: 50; radius: 16; color: "#745cff"
+                                Text { anchors.centerIn: parent; text: "∞"; color: "white"; font.pixelSize: 24; font.bold: true }
+                            }
+                            Text { text: "Оптимизация\nтекстур"; color: "white"; font.pixelSize: 26; font.weight: Font.DemiBold; lineHeight: .95 }
+                            Text {
+                                Layout.fillWidth: true
+                                text: "Много файлов 2K/4K. Без лимита MB: автоматический поиск лучшего уменьшения веса при безопасном качестве."
+                                color: "#9d98a3"; font.pixelSize: 12; wrapMode: Text.Wrap; lineHeight: 1.3
+                            }
+                            Item { Layout.fillHeight: true }
+                            Row { spacing: 8
+                                MetricChip { text: "AUTO QUALITY"; checked: true; accentColor: "#745cff" }
+                                MetricChip { text: "RGB24"; checked: true; accentColor: "#745cff" }
+                                MetricChip { text: "BATCH"; accentColor: "#745cff" }
+                            }
+                            AppButton { Layout.fillWidth: true; text: "Открыть оптимизатор текстур"; accent: "#745cff"; implicitHeight: 50; onClicked: win.enterBatch() }
+                        }
+                    }
+                }
+                Text { Layout.alignment: Qt.AlignHCenter; text: "Все результаты сохраняются рядом с исходниками в папке compressed"; color: "#68636e"; font.pixelSize: 10 }
+            }
+        }
+
+        // NPM WORKSPACE
+        ColumnLayout {
+            anchors.fill: parent
+            anchors.margins: 14
+            visible: win.screen === 1
+            spacing: 12
+
+            RowLayout {
+                Layout.fillWidth: true; Layout.minimumHeight: 54; Layout.maximumHeight: 54
+                AppButton { text: "← Выбор режима"; quiet: true; accent: win.uiAccent; enabled: !optimizer.busy; onClicked: win.screen = 0 }
+                ColumnLayout { Layout.fillWidth: true; spacing: 0
+                    Text { text: "Оптимизация для NPM-текстур"; color: "white"; font.pixelSize: 20; font.weight: Font.DemiBold }
+                    Text { text: "Фиксированный предел ≤ 3 MB  /  AGR ADAPTIVE RGB24"; color: "#817c87"; font.pixelSize: 9; font.letterSpacing: .8 }
+                }
+                AppButton { text: "Импорт PNG"; accent: win.warmAccent; enabled: !optimizer.busy; onClicked: npmPicker.open() }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true; Layout.minimumHeight: 82; Layout.maximumHeight: 82; spacing: 10
+                GlassCard { Layout.fillWidth: true; Layout.fillHeight: true; accentColor: win.uiAccent
+                    Column { anchors.fill: parent; anchors.margins: 13; spacing: 6
+                        Text { text: "SOURCE"; color: "#77727d"; font.pixelSize: 9; font.bold: true }
+                        Text { text: win.mb(optimizer.sourceFileMb); color: "white"; font.pixelSize: 19; font.weight: Font.DemiBold }
+                        Text { text: optimizer.sourceWidth > 0 ? optimizer.sourceWidth + " × " + optimizer.sourceHeight : "PNG не выбран"; color: "#8c8792"; font.pixelSize: 9 }
+                    }
+                }
+                GlassCard { Layout.fillWidth: true; Layout.fillHeight: true; accentColor: win.warmAccent
+                    Column { anchors.fill: parent; anchors.margins: 13; spacing: 6
+                        Text { text: "NPM TARGET"; color: "#77727d"; font.pixelSize: 9; font.bold: true }
+                        Text { text: "≤ 3.0 MB"; color: "white"; font.pixelSize: 19; font.weight: Font.DemiBold }
+                        Text { text: "фиксировано автоматически"; color: win.warmAccent; font.pixelSize: 9 }
+                    }
+                }
+                GlassCard { Layout.fillWidth: true; Layout.fillHeight: true; accentColor: win.uiAccent
+                    Column { anchors.fill: parent; anchors.margins: 13; spacing: 6
+                        Text { text: "OUTPUT"; color: "#77727d"; font.pixelSize: 9; font.bold: true }
+                        Text { text: win.mb(optimizer.outputFileMb); color: "white"; font.pixelSize: 19; font.weight: Font.DemiBold }
+                        Text { text: optimizer.resultUrl ? "verified RGB24" : "ожидание"; color: optimizer.resultUrl ? win.uiAccent : "#77727d"; font.pixelSize: 9 }
+                    }
+                }
+                GlassCard { Layout.preferredWidth: 290; Layout.fillHeight: true; accentColor: win.uiAccent
+                    Column { anchors.fill: parent; anchors.margins: 13; spacing: 7
+                        Text { text: optimizer.busy ? "PROCESSING  " + Math.round(optimizer.progress*100) + "%" : "SYSTEM READY"; color: optimizer.busy ? win.uiAccent : "#8f8a95"; font.pixelSize: 9; font.bold: true }
+                        Rectangle { width: parent.width; height: 7; radius: 4; color: "#29262e"
+                            Rectangle { width: parent.width*(optimizer.busy?optimizer.progress:(optimizer.resultUrl?1:.06)); height: parent.height; radius: 4; color: win.uiAccent; Behavior on width { NumberAnimation { duration: 200 } } }
+                        }
+                        Text { text: optimizer.status; width: parent.width; elide: Text.ElideRight; color: "#8c8792"; font.pixelSize: 9 }
+                    }
                 }
             }
 
-            ColumnLayout {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                spacing: 14
-
-                RowLayout {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 86
-                    spacing: 12
-
-                    GlassCard {
-                        Layout.fillWidth: true; Layout.fillHeight: true; accentColor: win.accentColor
-                        Column { anchors.fill: parent; anchors.margins: 14; spacing: 7
-                            Text { text: "SOURCE"; color: "#74707b"; font.pixelSize: 9; font.weight: Font.DemiBold; font.letterSpacing: 1 }
-                            Text { text: win.mb(optimizer.sourceFileMb); color: "#ffffff"; font.pixelSize: 20; font.weight: Font.DemiBold }
-                            Text { text: optimizer.workingWidth > 0 ? optimizer.workingWidth + " × " + optimizer.workingHeight : "PNG texture"; color: "#8e8994"; font.pixelSize: 9 }
+            GlassCard {
+                objectName: "npmComparisonPanel"
+                Layout.fillWidth: true; Layout.fillHeight: true; Layout.minimumHeight: 390
+                accentColor: win.uiAccent; glassOpacity: .84
+                ColumnLayout {
+                    anchors.fill: parent; anchors.margins: 12; spacing: 9
+                    RowLayout { Layout.fillWidth: true; Layout.minimumHeight: 38; Layout.maximumHeight: 38
+                        ColumnLayout { Layout.fillWidth: true; spacing: 0
+                            Text { text: "СРАВНИТЕЛЬНЫЙ АНАЛИЗ"; color: "white"; font.pixelSize: 13; font.weight: Font.DemiBold; font.letterSpacing: .6 }
+                            Text { text: win.wipeMode ? "интерактивная граница" : "два синхронных окна"; color: "#77727d"; font.pixelSize: 9 }
                         }
+                        AppButton { text: "Два окна"; quiet: win.wipeMode; accent: win.uiAccent; implicitHeight: 32; onClicked: win.wipeMode=false }
+                        AppButton { text: "Шторка"; quiet: !win.wipeMode; accent: win.uiAccent; implicitHeight: 32; enabled: optimizer.resultUrl; onClicked: win.wipeMode=true }
+                        MetricChip { text: Math.round(win.viewScale*100)+"%"; accentColor: win.uiAccent }
                     }
-                    GlassCard {
-                        Layout.fillWidth: true; Layout.fillHeight: true; accentColor: win.warmAccent
-                        Column { anchors.fill: parent; anchors.margins: 14; spacing: 7
-                            Text { text: "TARGET"; color: "#74707b"; font.pixelSize: 9; font.weight: Font.DemiBold; font.letterSpacing: 1 }
-                            Text { text: "≤ " + win.targetMb.toFixed(1) + " MB"; color: "#ffffff"; font.pixelSize: 20; font.weight: Font.DemiBold }
-                            Text { text: "editable budget"; color: win.warmAccent; font.pixelSize: 9 }
-                        }
+                    RowLayout { visible: !win.wipeMode; Layout.fillWidth: true; Layout.fillHeight: true; spacing: 10
+                        ZoomView { id:npmLeft; Layout.fillWidth:true; Layout.fillHeight:true; title:"BEFORE / ORIGINAL"; imageSource:win.npmBefore; sharedScale:win.viewScale; sharedPanX:win.panX; sharedPanY:win.panY; accentColor:win.uiAccent; onViewChanged:(s,x,y)=>win.updateView(s,x,y); onZoomPulse:d=>{}; onResetRequested:win.resetView(); onFitCalculated:s=>{win.fitValue=s;if(win.panX===0&&win.panY===0)win.viewScale=s} }
+                        ZoomView { Layout.fillWidth:true; Layout.fillHeight:true; title:"AFTER / AGR RGB24"; imageSource:optimizer.resultUrl; sharedScale:win.viewScale; sharedPanX:win.panX; sharedPanY:win.panY; accentColor:win.uiAccent; onViewChanged:(s,x,y)=>win.updateView(s,x,y); onZoomPulse:d=>{}; onResetRequested:win.resetView() }
                     }
-                    GlassCard {
-                        Layout.fillWidth: true; Layout.fillHeight: true; accentColor: win.accentColor
-                        Column { anchors.fill: parent; anchors.margins: 14; spacing: 7
-                            Text { text: "OUTPUT"; color: "#74707b"; font.pixelSize: 9; font.weight: Font.DemiBold; font.letterSpacing: 1 }
-                            Text { text: win.mb(optimizer.outputFileMb); color: "#ffffff"; font.pixelSize: 20; font.weight: Font.DemiBold }
-                            Text { text: optimizer.resultUrl ? "verified RGB24" : "waiting for result"; color: optimizer.resultUrl ? win.accentColor : "#77727d"; font.pixelSize: 9 }
-                        }
-                    }
-                    GlassCard {
-                        Layout.preferredWidth: 230; Layout.fillHeight: true; accentColor: win.accentColor
-                        Column { anchors.fill: parent; anchors.margins: 14; spacing: 7
-                            Row {
-                                width: parent.width; spacing: 8
-                                Text { text: optimizer.busy ? "PROCESSING" : "SYSTEM"; color: "#74707b"; font.pixelSize: 9; font.weight: Font.DemiBold; font.letterSpacing: 1 }
-                                Text { text: optimizer.busy ? Math.round(optimizer.progress * 100) + "%" : "READY"; color: win.accentColor; font.pixelSize: 9; font.weight: Font.Bold }
-                            }
-                            Rectangle {
-                                width: parent.width; height: 7; radius: 4; color: "#242129"
-                                Rectangle { width: parent.width * (optimizer.busy ? optimizer.progress : (optimizer.resultUrl ? 1 : .08)); height: parent.height; radius: 4; color: win.accentColor; Behavior on width { NumberAnimation { duration: 220 } } }
-                            }
-                            Text { text: optimizer.busy ? optimizer.status : "AGR engine online"; width: parent.width; elide: Text.ElideRight; color: "#8e8994"; font.pixelSize: 9 }
-                        }
+                    WipeCompare { visible:win.wipeMode; Layout.fillWidth:true; Layout.fillHeight:true; beforeSource:win.npmBefore; afterSource:optimizer.resultUrl; sharedScale:win.viewScale; sharedPanX:win.panX; sharedPanY:win.panY; accentColor:win.uiAccent; onViewChanged:(s,x,y)=>win.updateView(s,x,y); onZoomPulse:d=>{}; onResetRequested:win.resetView(); onFitCalculated:s=>{win.fitValue=s;if(win.panX===0&&win.panY===0)win.viewScale=s} }
+                    RowLayout { Layout.fillWidth:true; Layout.minimumHeight:36; Layout.maximumHeight:36
+                        AppButton { text:"Вписать"; quiet:true; accent:win.uiAccent; implicitHeight:32; onClicked:win.resetView() }
+                        AppButton { text:"1:1"; quiet:true; accent:win.uiAccent; implicitHeight:32; onClicked:win.actualPixels() }
+                        Slider { id:npmScale; Layout.fillWidth:true; from:.08; to:8; value:win.viewScale; onMoved:npmLeft.publish(value,win.panX,win.panY) }
                     }
                 }
+            }
 
-                RowLayout {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    spacing: 16
+            GlassCard {
+                Layout.fillWidth: true; Layout.minimumHeight: 76; Layout.maximumHeight: 76; accentColor: win.uiAccent
+                RowLayout { anchors.fill:parent; anchors.margins:11; spacing:12
+                    Text { Layout.fillWidth:true; text:optimizer.report||"Импортируйте PNG. Исходник и результат появятся в двух окнах выше."; color:optimizer.report?"#aaa5af":"#77727d"; font.pixelSize:9; wrapMode:Text.Wrap; maximumLineCount:3; elide:Text.ElideRight }
+                    AppButton { text:optimizer.busy?"Оптимизация…":"Оптимизировать до 3 MB"; accent:win.uiAccent; implicitWidth:210; enabled:optimizer.sourceUrl&&!optimizer.busy&&!optimizer.previewBusy; onClicked:optimizer.optimize(2.99) }
+                    AppButton { text:"Папка результата"; quiet:true; accent:win.uiAccent; enabled:optimizer.outputPath; onClicked:optimizer.openOutputFolder() }
+                }
+            }
+        }
 
-                    Item {
-                        Layout.preferredWidth: Math.max(270, win.width * .20)
-                        Layout.fillHeight: true
+        // BATCH LIST
+        ColumnLayout {
+            anchors.fill: parent; anchors.margins: 14
+            visible: win.screen === 2; spacing: 12
 
-                        Column {
-                            anchors.left: parent.left
-                            anchors.right: parent.right
-                            anchors.bottom: parent.bottom
-                            anchors.bottomMargin: 24
-                            spacing: 10
+            RowLayout {
+                Layout.fillWidth:true; Layout.minimumHeight:54; Layout.maximumHeight:54; spacing:10
+                AppButton { text:"← Выбор режима"; quiet:true; accent:win.uiAccent; enabled:!optimizer.batchBusy; onClicked:win.screen=0 }
+                ColumnLayout { Layout.fillWidth:true; spacing:0
+                    Text { text:"Оптимизация текстур"; color:"white"; font.pixelSize:20; font.weight:Font.DemiBold }
+                    Text { text:"ПАКЕТНЫЙ RGB24  /  AUTO QUALITY  /  БЕЗ ЛИМИТА MB"; color:"#85808e"; font.pixelSize:9; font.letterSpacing:.8 }
+                }
+                MetricChip { text:optimizer.batchItems.length+" FILES"; checked:optimizer.batchItems.length>0; accentColor:win.uiAccent }
+                AppButton { text:"Добавить PNG"; accent:win.uiAccent; enabled:!optimizer.batchBusy; onClicked:batchPicker.open() }
+                AppButton { text:"Очистить"; quiet:true; accent:win.uiAccent; enabled:!optimizer.batchBusy&&optimizer.batchItems.length>0; onClicked:optimizer.clearBatch() }
+                AppButton { text:optimizer.batchBusy?"Обработка…":"Оптимизировать все"; accent:"#745cff"; implicitWidth:180; enabled:!optimizer.batchBusy&&optimizer.batchItems.length>0; onClicked:optimizer.optimizeBatch() }
+            }
 
-                            MetricChip { text: "TEXTURE LAB  /  MARS"; checked: true; accentColor: win.warmAccent }
-                            Text {
-                                text: "Texture\nOptimizer"
-                                color: "#ffffff"
-                                font.pixelSize: Math.max(38, Math.min(64, win.width * .037))
-                                font.weight: Font.DemiBold
-                                lineHeight: .86
-                            }
-                            Text {
-                                width: parent.width
-                                text: win.fileName()
-                                color: "#aaa5ae"
-                                font.pixelSize: 12
-                                elide: Text.ElideMiddle
-                            }
-                            Text {
-                                width: parent.width
-                                text: "Один точный RGB24-конвейер. Интерфейс подхватывает характер загруженного изображения."
-                                color: "#77727d"
-                                font.pixelSize: 10
-                                wrapMode: Text.Wrap
-                                lineHeight: 1.25
-                            }
-                            Row {
-                                spacing: 8
-                                MetricChip { text: "SYNC ZOOM"; checked: true; accentColor: win.accentColor }
-                                MetricChip { text: "RGB24"; checked: optimizer.resultUrl; accentColor: win.accentColor }
-                            }
+            GlassCard {
+                Layout.fillWidth:true; Layout.minimumHeight:70; Layout.maximumHeight:70; accentColor:win.uiAccent
+                RowLayout { anchors.fill:parent; anchors.margins:12; spacing:14
+                    ColumnLayout { Layout.fillWidth:true; spacing:5
+                        RowLayout { Layout.fillWidth:true
+                            Text { text:optimizer.batchStatus; color:"#d3ced8"; font.pixelSize:11; font.weight:Font.DemiBold; Layout.fillWidth:true; elide:Text.ElideRight }
+                            Text { text:Math.round(optimizer.batchProgress*100)+"%"; color:win.uiAccent; font.pixelSize:11; font.bold:true }
+                        }
+                        Rectangle { Layout.fillWidth:true; height:7; radius:4; color:"#29262e"
+                            Rectangle { width:parent.width*optimizer.batchProgress; height:parent.height; radius:4; color:win.uiAccent; Behavior on width { NumberAnimation { duration:220 } } }
                         }
                     }
+                    Text { text:"Каждый файл обрабатывается отдельно. Ошибка одного PNG не остановит очередь."; color:"#77727d"; font.pixelSize:9; wrapMode:Text.Wrap; Layout.preferredWidth:330 }
+                }
+            }
 
-                    GlassCard {
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        Layout.minimumWidth: 590
-                        accentColor: win.accentColor
-                        glassOpacity: .82
+            GlassCard {
+                objectName: "batchListPanel"
+                Layout.fillWidth:true; Layout.fillHeight:true; Layout.minimumHeight:500
+                accentColor:win.uiAccent; glassOpacity:.86
 
-                        ColumnLayout {
-                            anchors.fill: parent
-                            anchors.margins: 12
-                            spacing: 10
-
-                            RowLayout {
-                                Layout.fillWidth: true
-                                Layout.preferredHeight: 42
-                                spacing: 8
-                                ColumnLayout {
-                                    Layout.fillWidth: true; spacing: 1
-                                    Text { text: "COMPARISON COCKPIT"; color: "#f5f3f7"; font.pixelSize: 13; font.weight: Font.DemiBold; font.letterSpacing: .7 }
-                                    Text { text: win.wipeMode ? "один кадр / интерактивная граница" : "два синхронных окна"; color: "#77727d"; font.pixelSize: 9 }
-                                }
-                                AppButton { text: "Два окна"; quiet: !win.wipeMode; accent: win.accentColor; implicitHeight: 34; onClicked: win.wipeMode = false }
-                                AppButton { text: "Шторка"; quiet: win.wipeMode; accent: win.accentColor; implicitHeight: 34; enabled: optimizer.resultUrl; onClicked: win.wipeMode = true }
-                                MetricChip { text: Math.round(win.viewScale * 100) + "%"; accentColor: win.accentColor }
+                Text {
+                    anchors.centerIn:parent; visible:optimizer.batchItems.length===0
+                    text:"Добавьте PNG-файлы\n\nЗдесь появится список с крупными превью «до» и «после»."
+                    color:"#76717c"; font.pixelSize:14; horizontalAlignment:Text.AlignHCenter; lineHeight:1.25
+                }
+                ListView {
+                    id:batchList
+                    anchors.fill:parent; anchors.margins:12; clip:true; spacing:10
+                    visible:optimizer.batchItems.length>0
+                    model:optimizer.batchItems
+                    ScrollBar.vertical:ScrollBar{}
+                    delegate: Rectangle {
+                        required property var modelData
+                        required property int index
+                        width:batchList.width-12
+                        height:190; radius:18; color:"#a5121117"; border.width:1; border.color:"#14ffffff"
+                        RowLayout { anchors.fill:parent; anchors.margins:10; spacing:12
+                            Rectangle { Layout.preferredWidth:250; Layout.fillHeight:true; radius:13; clip:true; color:"#0a090d"
+                                Image { anchors.fill:parent; anchors.margins:5; source:modelData.sourceUrl; asynchronous:true; cache:false; fillMode:Image.PreserveAspectFit; sourceSize:Qt.size(420,260) }
+                                MetricChip { anchors.left:parent.left; anchors.top:parent.top; anchors.margins:9; text:"BEFORE"; accentColor:modelData.accent }
                             }
-
-                            RowLayout {
-                                visible: !win.wipeMode
-                                Layout.fillWidth: true
-                                Layout.fillHeight: true
-                                spacing: 10
-                                ZoomView {
-                                    id: leftZoom
-                                    Layout.fillWidth: true; Layout.fillHeight: true
-                                    title: optimizer.sourceIsLarge ? "BEFORE  /  WORKING 2K" : "BEFORE  /  ORIGINAL"
-                                    imageSource: win.leftImage
-                                    sharedScale: win.viewScale; sharedPanX: win.panX; sharedPanY: win.panY
-                                    parallaxX: win.pointerX; parallaxY: win.pointerY; accentColor: win.accentColor
-                                    onViewChanged: (scale, x, y) => win.updateView(scale, x, y)
-                                    onZoomPulse: direction => {}
-                                    onResetRequested: win.resetView()
-                                    onFitCalculated: scale => { win.fitValue = scale; if (win.panX === 0 && win.panY === 0) { win.viewScale = scale; win.lastSliderValue = scale } }
-                                }
-                                ZoomView {
-                                    Layout.fillWidth: true; Layout.fillHeight: true
-                                    title: "AFTER  /  AGR RGB24"
-                                    imageSource: optimizer.resultUrl
-                                    sharedScale: win.viewScale; sharedPanX: win.panX; sharedPanY: win.panY
-                                    parallaxX: win.pointerX; parallaxY: win.pointerY; accentColor: win.accentColor
-                                    onViewChanged: (scale, x, y) => win.updateView(scale, x, y)
-                                    onZoomPulse: direction => {}
-                                    onResetRequested: win.resetView()
-                                }
+                            Rectangle { Layout.preferredWidth:250; Layout.fillHeight:true; radius:13; clip:true; color:"#0a090d"
+                                Image { anchors.fill:parent; anchors.margins:5; source:modelData.resultUrl; asynchronous:true; cache:false; fillMode:Image.PreserveAspectFit; sourceSize:Qt.size(420,260) }
+                                Text { anchors.centerIn:parent; visible:!modelData.resultUrl; text:modelData.failed?"Ошибка обработки":"AFTER\nожидает обработки"; color:modelData.failed?"#ef6c72":"#66616c"; font.pixelSize:11; horizontalAlignment:Text.AlignHCenter }
+                                MetricChip { anchors.left:parent.left; anchors.top:parent.top; anchors.margins:9; text:"AFTER"; checked:modelData.done; accentColor:modelData.accent }
                             }
-
-                            WipeCompare {
-                                visible: win.wipeMode
-                                Layout.fillWidth: true
-                                Layout.fillHeight: true
-                                beforeSource: win.leftImage
-                                afterSource: optimizer.resultUrl
-                                sharedScale: win.viewScale; sharedPanX: win.panX; sharedPanY: win.panY
-                                parallaxX: win.pointerX; parallaxY: win.pointerY; accentColor: win.accentColor
-                                onViewChanged: (scale, x, y) => win.updateView(scale, x, y)
-                                onZoomPulse: direction => {}
-                                onResetRequested: win.resetView()
-                                onFitCalculated: scale => { win.fitValue = scale; if (win.panX === 0 && win.panY === 0) { win.viewScale = scale; win.lastSliderValue = scale } }
-                            }
-
-                            RowLayout {
-                                Layout.fillWidth: true
-                                Layout.preferredHeight: 44
-                                spacing: 8
-                                AppButton { text: "Вписать"; quiet: true; accent: win.accentColor; implicitHeight: 34; onClicked: win.resetView() }
-                                AppButton { text: "1:1"; quiet: true; accent: win.accentColor; implicitHeight: 34; onClicked: win.actualPixels() }
-                                Slider {
-                                    id: scaleSlider
-                                    Layout.fillWidth: true
-                                    from: .08; to: 8; value: win.viewScale
-                                    onMoved: leftZoom.publish(value, win.panX, win.panY)
-                                    background: Rectangle {
-                                        x: scaleSlider.leftPadding; y: scaleSlider.topPadding + scaleSlider.availableHeight / 2 - height / 2
-                                        width: scaleSlider.availableWidth; height: 5; radius: 3; color: "#29262e"
-                                        Rectangle { width: scaleSlider.visualPosition * parent.width; height: parent.height; radius: 3; color: win.accentColor }
-                                    }
-                                    handle: Rectangle {
-                                        x: scaleSlider.leftPadding + scaleSlider.visualPosition * (scaleSlider.availableWidth - width)
-                                        y: scaleSlider.topPadding + scaleSlider.availableHeight / 2 - height / 2
-                                        width: 17; height: 17; radius: 9; color: "#ffffff"; border.width: 4; border.color: win.accentColor
-                                    }
+                            ColumnLayout { Layout.fillWidth:true; Layout.fillHeight:true; spacing:7
+                                Text { Layout.fillWidth:true; text:modelData.name; color:"white"; font.pixelSize:15; font.weight:Font.DemiBold; elide:Text.ElideMiddle }
+                                Text { text:modelData.width+" × "+modelData.height+"  •  "+win.mb(modelData.sourceMb)+(modelData.done?"  →  "+win.mb(modelData.outputMb):""); color:"#99949f"; font.pixelSize:10 }
+                                Rectangle { Layout.fillWidth:true; height:6; radius:3; color:"#29262e"
+                                    Rectangle { width:parent.width*modelData.progress; height:parent.height; radius:3; color:modelData.failed?"#ef6c72":modelData.accent }
+                                }
+                                Text { Layout.fillWidth:true; Layout.fillHeight:true; text:modelData.report||modelData.status; color:modelData.failed?"#ef8b90":"#817c87"; font.pixelSize:9; wrapMode:Text.Wrap; maximumLineCount:4; elide:Text.ElideRight }
+                                RowLayout { Layout.fillWidth:true
+                                    AppButton { text:"Сравнительный анализ"; accent:modelData.accent; enabled:modelData.done; implicitHeight:34; onClicked:win.compareBatch(index) }
+                                    AppButton { text:"Папка"; quiet:true; accent:modelData.accent; enabled:modelData.done; implicitHeight:34; onClicked:optimizer.openBatchOutput(index) }
+                                    Item { Layout.fillWidth:true }
+                                    MetricChip { text:modelData.failed?"ERROR":(modelData.done?"READY":"QUEUE"); checked:modelData.done; accentColor:modelData.failed?"#ef6c72":modelData.accent }
                                 }
                             }
                         }
                     }
                 }
+            }
+        }
 
-                GlassCard {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 102
-                    accentColor: win.accentColor
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.margins: 12
-                        spacing: 12
+        // BATCH COMPARISON
+        ColumnLayout {
+            anchors.fill:parent; anchors.margins:14
+            visible:win.screen===3; spacing:12
 
-                        ColumnLayout {
-                            Layout.preferredWidth: 210; spacing: 3
-                            Text { text: "OUTPUT BUDGET"; color: "#74707b"; font.pixelSize: 9; font.weight: Font.DemiBold; font.letterSpacing: 1 }
-                            LimitSelector { value: win.targetMb; accentColor: win.accentColor; onValueEdited: newValue => win.targetMb = newValue }
-                        }
-                        Rectangle { width: 1; Layout.fillHeight: true; color: "#12ffffff" }
-                        Sparkline {
-                            Layout.fillWidth: true; Layout.fillHeight: true
-                            values: optimizer.progressHistory; active: optimizer.busy; lineColor: win.accentColor
-                            title: optimizer.busy ? "LIVE PIPELINE" : "PROCESS HISTORY"
-                            valueText: Math.round(optimizer.progress * 100) + "%"
-                        }
-                        ColumnLayout {
-                            Layout.preferredWidth: 330; Layout.fillHeight: true; spacing: 5
-                            Text { text: "STATUS"; color: "#74707b"; font.pixelSize: 9; font.weight: Font.DemiBold; font.letterSpacing: 1 }
-                            Text { text: optimizer.report || optimizer.status; color: "#aaa6b0"; font.pixelSize: 9; wrapMode: Text.Wrap; elide: Text.ElideRight; maximumLineCount: 3; Layout.fillWidth: true; Layout.fillHeight: true }
-                        }
-                        AppButton {
-                            text: optimizer.busy ? "Оптимизация…" : "Оптимизировать"
-                            accent: win.accentColor; implicitWidth: 170; implicitHeight: 48
-                            enabled: optimizer.sourceUrl && !optimizer.busy && !optimizer.previewBusy
-                            tip: "Запустить AGR Adaptive RGB24 с проверкой размера и RGB24"
-                            onClicked: optimizer.optimize(win.targetMb)
-                        }
-                        ColumnLayout {
-                            spacing: 5
-                            AppButton { text: "Исходник"; quiet: true; accent: win.accentColor; implicitHeight: 32; enabled: optimizer.sourceUrl; onClicked: optimizer.openSourceFolder() }
-                            AppButton { text: "Результат"; quiet: true; accent: win.accentColor; implicitHeight: 32; enabled: optimizer.outputPath; onClicked: optimizer.openOutputFolder() }
-                        }
+            RowLayout { Layout.fillWidth:true; Layout.minimumHeight:54; Layout.maximumHeight:54
+                AppButton { text:"← Вернуться к списку"; quiet:true; accent:win.uiAccent; onClicked:win.screen=2 }
+                ColumnLayout { Layout.fillWidth:true; spacing:0
+                    Text { text:win.batchItem?win.batchItem.name:"Файл недоступен"; color:"white"; font.pixelSize:19; font.weight:Font.DemiBold; elide:Text.ElideMiddle; Layout.fillWidth:true }
+                    Text { text:win.batchItem?win.batchItem.width+" × "+win.batchItem.height+"  •  "+win.mb(win.batchItem.sourceMb)+" → "+win.mb(win.batchItem.outputMb):""; color:"#8b8691"; font.pixelSize:9 }
+                }
+                AppButton { text:"Два окна"; quiet:win.wipeMode; accent:win.uiAccent; onClicked:win.wipeMode=false }
+                AppButton { text:"Шторка"; quiet:!win.wipeMode; accent:win.uiAccent; onClicked:win.wipeMode=true }
+            }
+
+            GlassCard {
+                objectName: "batchComparisonPanel"
+                Layout.fillWidth:true; Layout.fillHeight:true; Layout.minimumHeight:500; accentColor:win.uiAccent; glassOpacity:.86
+                ColumnLayout { anchors.fill:parent; anchors.margins:12; spacing:9
+                    RowLayout { Layout.fillWidth:true; Layout.minimumHeight:34; Layout.maximumHeight:34
+                        Text { text:"СРАВНИТЕЛЬНЫЙ АНАЛИЗ / AUTO QUALITY RGB24"; color:"white"; font.pixelSize:12; font.weight:Font.DemiBold; Layout.fillWidth:true }
+                        MetricChip { text:Math.round(win.viewScale*100)+"%"; accentColor:win.uiAccent }
+                    }
+                    RowLayout { visible:!win.wipeMode; Layout.fillWidth:true; Layout.fillHeight:true; spacing:10
+                        ZoomView { id:batchLeft; Layout.fillWidth:true; Layout.fillHeight:true; title:"BEFORE / ORIGINAL"; imageSource:win.batchItem?win.batchItem.sourceUrl:""; sharedScale:win.viewScale; sharedPanX:win.panX; sharedPanY:win.panY; accentColor:win.uiAccent; onViewChanged:(s,x,y)=>win.updateView(s,x,y); onZoomPulse:d=>{}; onResetRequested:win.resetView(); onFitCalculated:s=>{win.fitValue=s;if(win.panX===0&&win.panY===0)win.viewScale=s} }
+                        ZoomView { Layout.fillWidth:true; Layout.fillHeight:true; title:"AFTER / AUTO RGB24"; imageSource:win.batchItem?win.batchItem.resultUrl:""; sharedScale:win.viewScale; sharedPanX:win.panX; sharedPanY:win.panY; accentColor:win.uiAccent; onViewChanged:(s,x,y)=>win.updateView(s,x,y); onZoomPulse:d=>{}; onResetRequested:win.resetView() }
+                    }
+                    WipeCompare { visible:win.wipeMode; Layout.fillWidth:true; Layout.fillHeight:true; beforeSource:win.batchItem?win.batchItem.sourceUrl:""; afterSource:win.batchItem?win.batchItem.resultUrl:""; sharedScale:win.viewScale; sharedPanX:win.panX; sharedPanY:win.panY; accentColor:win.uiAccent; onViewChanged:(s,x,y)=>win.updateView(s,x,y); onZoomPulse:d=>{}; onResetRequested:win.resetView(); onFitCalculated:s=>{win.fitValue=s;if(win.panX===0&&win.panY===0)win.viewScale=s} }
+                    RowLayout { Layout.fillWidth:true; Layout.minimumHeight:38; Layout.maximumHeight:38
+                        AppButton { text:"Вписать"; quiet:true; accent:win.uiAccent; implicitHeight:32; onClicked:win.resetView() }
+                        AppButton { text:"1:1"; quiet:true; accent:win.uiAccent; implicitHeight:32; onClicked:win.actualPixels() }
+                        Slider { Layout.fillWidth:true; from:.08; to:8; value:win.viewScale; onMoved:batchLeft.publish(value,win.panX,win.panY) }
+                        AppButton { text:"Открыть папку"; quiet:true; accent:win.uiAccent; implicitHeight:32; onClicked:optimizer.openBatchOutput(win.batchIndex) }
                     }
                 }
+            }
+            GlassCard { Layout.fillWidth:true; Layout.minimumHeight:68; Layout.maximumHeight:68; accentColor:win.uiAccent
+                Text { anchors.fill:parent; anchors.margins:12; text:win.batchItem?win.batchItem.report:"Выбранный элемент больше недоступен. Вернитесь к списку."; color:"#aaa5af"; font.pixelSize:9; wrapMode:Text.Wrap; maximumLineCount:3; elide:Text.ElideRight }
             }
         }
     }

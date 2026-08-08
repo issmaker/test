@@ -2,12 +2,12 @@ import QtQuick
 
 Rectangle {
     id: root
-    property color accentColor: Theme.teal
+    property color accentColor: AppTheme.teal
     property real glassOpacity: .76
-    radius: Theme.radiusLarge
+    radius: AppTheme.radiusLarge
     color: Qt.rgba(.067, .039, .063, glassOpacity*.90)
     border.width: 1
-    border.color: Theme.stroke
+    border.color: AppTheme.stroke
 
     Rectangle {
         z:-2;anchors.fill:parent;anchors.margins:-4;radius:root.radius+4;color:"transparent";border.width:1

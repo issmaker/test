@@ -12,24 +12,28 @@ $graphics.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
 $graphics.Clear([System.Drawing.Color]::Transparent)
 
 $background = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(255, 8, 2, 6))
-$edge = [System.Drawing.Pen]::new([System.Drawing.Color]::FromArgb(255, 105, 35, 78), 6)
-$cyanGlow = [System.Drawing.Pen]::new([System.Drawing.Color]::FromArgb(72, 255, 63, 147), 24)
-$purpleGlow = [System.Drawing.Pen]::new([System.Drawing.Color]::FromArgb(58, 195, 76, 255), 20)
-$cyan = [System.Drawing.Pen]::new([System.Drawing.Color]::FromArgb(255, 255, 63, 147), 8)
-$purple = [System.Drawing.Pen]::new([System.Drawing.Color]::FromArgb(225, 255, 182, 218), 5)
-$white = [System.Drawing.Pen]::new([System.Drawing.Color]::FromArgb(190, 255, 255, 255), 3)
-$orb = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(235, 210, 38, 126))
-$shine = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(175, 255, 255, 255))
+$edge = [System.Drawing.Pen]::new([System.Drawing.Color]::FromArgb(72, 255, 255, 255), 4)
+$flowGlow = [System.Drawing.Pen]::new([System.Drawing.Color]::FromArgb(62, 255, 51, 143), 28)
+$flow = [System.Drawing.Pen]::new([System.Drawing.Color]::FromArgb(255, 255, 61, 151), 9)
+$violet = [System.Drawing.Pen]::new([System.Drawing.Color]::FromArgb(235, 137, 91, 255), 5)
+$white = [System.Drawing.Pen]::new([System.Drawing.Color]::FromArgb(220, 255, 255, 255), 5)
+$core = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(255, 10, 6, 13))
 
 $graphics.FillRectangle($background, 8, 8, 240, 240)
 $graphics.DrawRectangle($edge, 9, 9, 238, 238)
-$graphics.DrawArc($cyanGlow, -20, 46, 290, 132, 192, 158)
-$graphics.DrawArc($cyan, -20, 46, 290, 132, 192, 158)
-$graphics.DrawArc($purpleGlow, -14, 108, 284, 120, 190, 160)
-$graphics.DrawArc($purple, -14, 108, 284, 120, 190, 160)
-$graphics.FillEllipse($orb, 84, 75, 88, 88)
-$graphics.DrawEllipse($white, 84, 75, 88, 88)
-$graphics.FillEllipse($shine, 101, 91, 23, 12)
+$graphics.DrawBezier($flowGlow, 48, 158, 68, 69, 122, 49, 204, 68)
+$graphics.DrawBezier($flow, 48, 158, 68, 69, 122, 49, 204, 68)
+$graphics.DrawBezier($violet, 49, 158, 94, 184, 111, 145, 128, 116)
+$graphics.DrawBezier($violet, 128, 116, 143, 89, 165, 72, 204, 68)
+$diamond = [System.Drawing.Point[]]@(
+    [System.Drawing.Point]::new(128, 97), [System.Drawing.Point]::new(159, 128),
+    [System.Drawing.Point]::new(128, 159), [System.Drawing.Point]::new(97, 128)
+)
+$graphics.FillPolygon($core, $diamond)
+$graphics.DrawPolygon($flow, $diamond)
+$graphics.DrawLines($white, [System.Drawing.Point[]]@(
+    [System.Drawing.Point]::new(115, 128), [System.Drawing.Point]::new(126, 139), [System.Drawing.Point]::new(145, 116)
+))
 
 $pngStream = [System.IO.MemoryStream]::new()
 $bitmap.Save($pngStream, [System.Drawing.Imaging.ImageFormat]::Png)
@@ -43,6 +47,6 @@ $writer.Write([Byte]0); $writer.Write([Byte]0); $writer.Write([Byte]0); $writer.
 $writer.Write([UInt16]1); $writer.Write([UInt16]32)
 $writer.Write([UInt32]$png.Length); $writer.Write([UInt32]22); $writer.Write($png)
 $writer.Dispose(); $file.Dispose(); $pngStream.Dispose(); $graphics.Dispose(); $bitmap.Dispose()
-$background.Dispose(); $edge.Dispose(); $cyanGlow.Dispose(); $purpleGlow.Dispose()
-$cyan.Dispose(); $purple.Dispose(); $white.Dispose(); $orb.Dispose(); $shine.Dispose()
-Write-Host "Created Windows Magenta Infrastructure icon: $fullPath"
+$background.Dispose(); $edge.Dispose(); $flowGlow.Dispose(); $flow.Dispose()
+$violet.Dispose(); $white.Dispose(); $core.Dispose()
+Write-Host "Created Windows Flow Geometry icon: $fullPath"

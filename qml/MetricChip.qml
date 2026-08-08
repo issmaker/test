@@ -3,16 +3,16 @@ import QtQuick
 Rectangle {
     id: root
     property alias text: label.text
-    property color accentColor: Theme.teal
+    property color accentColor: AppTheme.teal
     property bool checked: false
     implicitHeight: 28
     implicitWidth: content.implicitWidth + 22
-    radius: Theme.radiusSmall
-    color: Theme.surfaceRaised
+    radius: AppTheme.radiusSmall
+    color: AppTheme.surfaceRaised
     border.width: 1
     border.color: checked
         ? Qt.rgba(accentColor.r, accentColor.g, accentColor.b, .48)
-        : Theme.stroke
+        : AppTheme.stroke
 
     Row {
         id: content
@@ -25,7 +25,7 @@ Rectangle {
         }
         Text {
             id: label
-            color: root.checked ? Theme.text : Theme.textMuted
+            color: root.checked ? AppTheme.contentPrimary : AppTheme.contentSecondary
             font.pixelSize: 10
             font.weight: Font.DemiBold
         }

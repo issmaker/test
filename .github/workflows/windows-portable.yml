@@ -18,11 +18,11 @@ jobs:
     env:
       QT_VERSION: 6.8.3
       BUILD_DIR: build
-      DIST_DIR: dist/AdaptiveTextureOptimizer-1.0-Windows
+      DIST_DIR: dist/AdaptiveTextureOptimizer-26-Windows
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
@@ -98,14 +98,22 @@ jobs:
             Stop-Process -Id $process.Id -Force
           }
 
+      - name: Test RGB24 optimization pipeline
+        shell: pwsh
+        run: |
+          $env:QT_QPA_PLATFORM = "offscreen"
+          $env:QT_QUICK_BACKEND = "software"
+          & "$env:DIST_DIR/AdaptiveTextureOptimizer.exe" --self-test
+          if ($LASTEXITCODE -ne 0) { throw "Optimizer self-test failed with code $LASTEXITCODE" }
+
       - name: Pack portable application
         shell: pwsh
-        run: Compress-Archive -Path "$env:DIST_DIR/*" -DestinationPath "dist/AdaptiveTextureOptimizer-1.0-Windows-Portable.zip" -CompressionLevel Optimal
+        run: Compress-Archive -Path "$env:DIST_DIR/*" -DestinationPath "dist/AdaptiveTextureOptimizer-26-Windows-Portable.zip" -CompressionLevel Optimal
 
       - name: Upload ready-to-run application
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
-          name: AdaptiveTextureOptimizer-1.0-Windows-Portable
-          path: dist/AdaptiveTextureOptimizer-1.0-Windows-Portable.zip
+          name: AdaptiveTextureOptimizer-26-Windows-Portable
+          path: dist/AdaptiveTextureOptimizer-26-Windows-Portable.zip
           if-no-files-found: error
           retention-days: 30

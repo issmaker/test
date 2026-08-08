@@ -11,7 +11,7 @@ ApplicationWindow {
     minimumHeight: 760
     visible: true
     visibility: Window.FullScreen
-    title: "Adaptive Texture Optimizer 30 — Liquid Glass"
+    title: "Adaptive Texture Optimizer 31 — Organic Flow"
     color: "#050507"
 
     // 0 — start, 1 — НПМ, 2 — batch list, 3 — batch comparison
@@ -28,8 +28,8 @@ ApplicationWindow {
     property bool bubblesOn: true
     readonly property var batchItem: batchIndex >= 0 && batchIndex < optimizer.batchItems.length
                                      ? optimizer.batchItems[batchIndex] : null
-    property color uiAccent: screen >= 2 ? "#8b4ed8" : "#ed6d32"
-    property color warmAccent: Qt.tint("#ff6530", Qt.rgba(uiAccent.r, uiAccent.g, uiAccent.b, .28))
+    property color uiAccent: screen >= 2 ? "#29c7ad" : "#f0a34b"
+    property color warmAccent: "#f0a34b"
     readonly property url npmBefore: optimizer.referenceUrl ? optimizer.referenceUrl
                                     : (optimizer.workingPreviewUrl ? optimizer.workingPreviewUrl
                                        : (optimizer.sourceIsLarge ? "" : optimizer.sourceUrl))
@@ -49,9 +49,10 @@ ApplicationWindow {
     function resetView() { viewScale = fitValue; panX = 0; panY = 0 }
     function actualPixels() { viewScale = 1; panX = 0; panY = 0 }
     function updateView(scale, x, y) { viewScale = scale; panX = x; panY = y }
-    function enterNpm() { screen = 1; wipeMode = false; resetView() }
+    function requestFit() { panX=0;panY=0;fitTimer.restart() }
+    function enterNpm() { screen = 1; wipeMode = false; requestFit() }
     function enterBatch() { screen = 2; wipeMode = false; batchIndex = -1; resetView() }
-    function compareBatch(index) { batchIndex = index; screen = 3; wipeMode = false; resetView() }
+    function compareBatch(index) { batchIndex = index; screen = 3; wipeMode = false; requestFit() }
     function fileName(url) {
         if (!url) return "PNG не выбран"
         const raw = url.toString().split("/").pop()
@@ -83,7 +84,8 @@ ApplicationWindow {
     Shortcut { sequence: "Ctrl+0"; onActivated: win.resetView() }
     Shortcut { sequence: "Ctrl+1"; onActivated: win.actualPixels() }
     Shortcut { sequence: StandardKey.Cancel; enabled: !optimizer.busy && !optimizer.batchBusy; onActivated: { if(win.screen === 3)win.screen=2; else if(win.screen!==0)win.screen=0 } }
-    Connections { target:optimizer; function onSourceUrlChanged(){win.panX=0;win.panY=0;Qt.callLater(win.resetView)} }
+    Timer { id:fitTimer;interval:180;repeat:false;onTriggered:{if(win.screen===1)npmLeft.calculateFit();else if(win.screen===3)batchLeft.calculateFit();win.resetView()} }
+    Connections { target:optimizer; function onSourceUrlChanged(){win.requestFit()} }
 
     LiquidBackdrop {
         anchors.fill: parent
@@ -128,16 +130,16 @@ ApplicationWindow {
             ColumnLayout {
                 anchors.fill: parent; anchors.margins: 11; spacing: 11
                 Rectangle { Layout.alignment:Qt.AlignHCenter; width:54;height:54;radius:19;color:win.uiAccent;border.width:1;border.color:"#55ffffff";Text{anchors.centerIn:parent;text:"A+";color:"white";font.pixelSize:16;font.bold:true} }
-                Text { Layout.alignment:Qt.AlignHCenter; text:"LIQUID"; color:"white"; font.pixelSize:10; font.weight:Font.DemiBold; font.letterSpacing:1 }
+                Text { Layout.alignment:Qt.AlignHCenter; text:"FLOW"; color:"white"; font.pixelSize:10; font.weight:Font.DemiBold; font.letterSpacing:1 }
                 Rectangle { Layout.fillWidth:true; height:1; color:"#14ffffff" }
                 NavButton { Layout.alignment:Qt.AlignHCenter;kind:"home";selected:false;accentColor:win.uiAccent;tip:"Главный экран и выбор режима";enabled:!optimizer.busy&&!optimizer.batchBusy;onClicked:win.screen=0 }
                 NavButton { Layout.alignment:Qt.AlignHCenter;kind:"npm";selected:win.screen===1;accentColor:win.uiAccent;tip:"Оптимизация НПМ-текстур до 3 MB";enabled:!optimizer.batchBusy;onClicked:win.enterNpm() }
                 NavButton { Layout.alignment:Qt.AlignHCenter;kind:"batch";selected:win.screen===2;accentColor:win.uiAccent;tip:"Список пакетной оптимизации";enabled:!optimizer.busy;onClicked:win.screen=2 }
                 NavButton { Layout.alignment:Qt.AlignHCenter;kind:"compare";selected:win.screen===3;accentColor:win.uiAccent;tip:"Сравнительный анализ";enabled:win.batchItem&&win.batchItem.done&&!optimizer.batchBusy;onClicked:win.screen=3 }
-                NavButton { Layout.alignment:Qt.AlignHCenter;kind:"play";selected:win.bubblesOn;accentColor:"#39c6df";tip:win.bubblesOn?"Выключить игру «Поймай каплю»":"Включить игру «Поймай каплю»";onClicked:win.bubblesOn=!win.bubblesOn }
+                NavButton { Layout.alignment:Qt.AlignHCenter;kind:"play";selected:win.bubblesOn;accentColor:"#29c7ad";tip:win.bubblesOn?"Выключить игру «Поймай импульс»":"Включить игру «Поймай импульс»";onClicked:win.bubblesOn=!win.bubblesOn }
                 Item { Layout.fillHeight:true }
-                MetricChip { Layout.alignment:Qt.AlignHCenter; text:"x "+win.bubbleScore; checked:win.bubbleScore>0; accentColor:"#39c6df" }
-                MetricChip { Layout.alignment:Qt.AlignHCenter; text:"v30"; checked:true; accentColor:win.uiAccent }
+                MetricChip { Layout.alignment:Qt.AlignHCenter; text:"x "+win.bubbleScore; checked:win.bubbleScore>0; accentColor:"#29c7ad" }
+                MetricChip { Layout.alignment:Qt.AlignHCenter; text:"v31"; checked:true; accentColor:win.uiAccent }
                 NavButton { Layout.alignment:Qt.AlignHCenter;kind:"exit";accentColor:"#d45563";tip:"Закрыть приложение";enabled:!optimizer.busy&&!optimizer.batchBusy;onClicked:Qt.quit() }
             }
         }
@@ -162,7 +164,7 @@ ApplicationWindow {
                     ColumnLayout {
                         spacing: 1
                         Text { text: "Adaptive Texture Optimizer"; color: "white"; font.pixelSize: 30; font.weight: Font.DemiBold }
-                        Text { text: "LIQUID GLASS  /  VERSION 30  /  ВЫБЕРИТЕ ЗАДАЧУ"; color: "#8b8691"; font.pixelSize: 10; font.letterSpacing: 1.4 }
+                        Text { text: "ORGANIC FLOW  /  VERSION 31  /  ВЫБЕРИТЕ ЗАДАЧУ"; color: "#8b9693"; font.pixelSize: 10; font.letterSpacing: 1.4 }
                     }
                 }
 
@@ -204,11 +206,11 @@ ApplicationWindow {
 
                     GlassCard {
                         Layout.fillWidth: true; Layout.fillHeight: true
-                        accentColor: "#745cff"; glassOpacity: .84
+                        accentColor: "#29c7ad"; glassOpacity: .84
                         ColumnLayout {
                             anchors.fill: parent; anchors.margins: 28; spacing: 14
                             Rectangle {
-                                width: 50; height: 50; radius: 16; color: "#745cff"
+                                width: 50; height: 50; radius: 16; color: "#29c7ad"
                                 Text { anchors.centerIn: parent; text: "∞"; color: "white"; font.pixelSize: 24; font.bold: true }
                             }
                             Text { text: "Оптимизация\nтекстур"; color: "white"; font.pixelSize: 26; font.weight: Font.DemiBold; lineHeight: .95 }
@@ -219,11 +221,11 @@ ApplicationWindow {
                             }
                             Item { Layout.fillHeight: true }
                             Row { spacing: 8
-                                MetricChip { text: "AUTO QUALITY"; checked: true; accentColor: "#745cff" }
-                                MetricChip { text: "RGB24"; checked: true; accentColor: "#745cff" }
-                                MetricChip { text: "BATCH"; accentColor: "#745cff" }
+                                MetricChip { text: "AUTO QUALITY"; checked: true; accentColor: "#29c7ad" }
+                                MetricChip { text: "RGB24"; checked: true; accentColor: "#29c7ad" }
+                                MetricChip { text: "BATCH"; accentColor: "#29c7ad" }
                             }
-                            AppButton { Layout.fillWidth: true; text: "Открыть оптимизатор текстур"; accent: "#745cff"; implicitHeight: 50; onClicked: win.enterBatch() }
+                            AppButton { Layout.fillWidth: true; text: "Открыть оптимизатор текстур"; accent: "#29c7ad"; implicitHeight: 50; onClicked: win.enterBatch() }
                         }
                     }
                 }
@@ -242,7 +244,7 @@ ApplicationWindow {
                 Layout.fillWidth: true; Layout.minimumHeight: 54; Layout.maximumHeight: 54
                 AppButton { text: "← Выбор режима"; quiet: true; accent: win.uiAccent; enabled: !optimizer.busy; onClicked: win.screen = 0 }
                 ColumnLayout { Layout.fillWidth: true; spacing: 0
-                    Text { text: "AGR Liquid  /  Оптимизация для НПМ-текстур"; color: "white"; font.pixelSize: 20; font.weight: Font.DemiBold }
+                    Text { text: "AGR Flow  /  Оптимизация для НПМ-текстур"; color: "white"; font.pixelSize: 20; font.weight: Font.DemiBold }
                     Text { text: "Фиксированный предел ≤ 3 MB  /  AGR ADAPTIVE RGB24"; color: "#817c87"; font.pixelSize: 9; font.letterSpacing: .8 }
                 }
                 AppButton { text: "Импорт PNG"; accent: win.warmAccent; enabled: !optimizer.busy; onClicked: npmPicker.open() }
@@ -298,12 +300,12 @@ ApplicationWindow {
                         MetricChip { text: Math.round(win.viewScale*100)+"%"; accentColor: win.uiAccent }
                     }
                     RowLayout { visible: !win.wipeMode; Layout.fillWidth: true; Layout.fillHeight: true; spacing: 10
-                        ZoomView { id:npmLeft; Layout.fillWidth:true; Layout.fillHeight:true; title:"BEFORE / ORIGINAL"; imageSource:win.npmBefore; sharedScale:win.viewScale; sharedPanX:win.panX; sharedPanY:win.panY; accentColor:win.uiAccent; onViewChanged:(s,x,y)=>win.updateView(s,x,y); onZoomPulse:d=>{}; onResetRequested:win.resetView(); onFitCalculated:s=>{win.fitValue=s;if(win.panX===0&&win.panY===0)win.viewScale=s} }
+                        ZoomView { id:npmLeft; Layout.fillWidth:true; Layout.fillHeight:true; title:"BEFORE / ORIGINAL"; imageSource:win.npmBefore; sharedScale:win.viewScale; sharedPanX:win.panX; sharedPanY:win.panY; accentColor:win.uiAccent; onViewChanged:(s,x,y)=>win.updateView(s,x,y); onZoomPulse:d=>{}; onResetRequested:win.requestFit(); onFitCalculated:s=>{win.fitValue=s;if(win.panX===0&&win.panY===0)win.viewScale=s} }
                         ZoomView { Layout.fillWidth:true; Layout.fillHeight:true; title:"AFTER / AGR RGB24"; imageSource:optimizer.resultUrl; sharedScale:win.viewScale; sharedPanX:win.panX; sharedPanY:win.panY; accentColor:win.uiAccent; onViewChanged:(s,x,y)=>win.updateView(s,x,y); onZoomPulse:d=>{}; onResetRequested:win.resetView() }
                     }
-                    WipeCompare { visible:win.wipeMode; Layout.fillWidth:true; Layout.fillHeight:true; beforeSource:win.npmBefore; afterSource:optimizer.resultUrl; sharedScale:win.viewScale; sharedPanX:win.panX; sharedPanY:win.panY; accentColor:win.uiAccent; onViewChanged:(s,x,y)=>win.updateView(s,x,y); onZoomPulse:d=>{}; onResetRequested:win.resetView(); onFitCalculated:s=>{win.fitValue=s;if(win.panX===0&&win.panY===0)win.viewScale=s} }
+                    WipeCompare { visible:win.wipeMode; Layout.fillWidth:true; Layout.fillHeight:true; beforeSource:win.npmBefore; afterSource:optimizer.resultUrl; sharedScale:win.viewScale; sharedPanX:win.panX; sharedPanY:win.panY; accentColor:win.uiAccent; onViewChanged:(s,x,y)=>win.updateView(s,x,y); onZoomPulse:d=>{}; onResetRequested:win.requestFit(); onFitCalculated:s=>{win.fitValue=s;if(win.panX===0&&win.panY===0)win.viewScale=s} }
                     RowLayout { Layout.fillWidth:true; Layout.minimumHeight:36; Layout.maximumHeight:36
-                        AppButton { text:"Вписать"; quiet:true; accent:win.uiAccent; implicitHeight:32; onClicked:win.resetView() }
+                        AppButton { text:"Вписать"; quiet:true; accent:win.uiAccent; implicitHeight:32; onClicked:win.requestFit() }
                         AppButton { text:"1:1"; quiet:true; accent:win.uiAccent; implicitHeight:32; onClicked:win.actualPixels() }
                         Slider { id:npmScale; Layout.fillWidth:true; from:.01; to:8; value:win.viewScale; onMoved:npmLeft.publish(value,win.panX,win.panY) }
                     }
@@ -314,10 +316,10 @@ ApplicationWindow {
                 Layout.fillWidth: true; Layout.minimumHeight: 108; Layout.maximumHeight: 108; accentColor: win.uiAccent
                 RowLayout { anchors.fill:parent; anchors.margins:11; spacing:12
                     Text { Layout.preferredWidth:280; text:optimizer.report||"Импортируйте PNG. Исходник и результат появятся в двух окнах выше."; color:optimizer.report?"#aaa5af":"#77727d"; font.pixelSize:9; wrapMode:Text.Wrap; maximumLineCount:4; elide:Text.ElideRight }
-                    Sparkline { Layout.fillWidth:true; Layout.fillHeight:true; values:optimizer.progressHistory; active:optimizer.busy; lineColor:"#ba3d93"; title:"RGB24 PIPELINE"; valueText:Math.round(optimizer.progress*100)+"%" }
-                    Sparkline { Layout.fillWidth:true; Layout.fillHeight:true; values:optimizer.activityHistory; active:optimizer.busy; lineColor:"#4678ce"; title:"ANALYSIS LOAD"; valueText:optimizer.busy?"LIVE":"IDLE" }
-                    RadialGauge { Layout.preferredWidth:82; Layout.fillHeight:true; value:optimizer.progress; accentColor:"#ba3d93"; label:"ENCODE" }
-                    RadialGauge { Layout.preferredWidth:82; Layout.fillHeight:true; value:optimizer.busy ? .72 : (optimizer.resultUrl ? 1 : 0); accentColor:"#4678ce"; label:"RGB24" }
+                    Sparkline { Layout.fillWidth:true; Layout.fillHeight:true; values:optimizer.progressHistory; active:optimizer.busy; lineColor:"#f0a34b"; title:"RGB24 PIPELINE"; valueText:Math.round(optimizer.progress*100)+"%" }
+                    Sparkline { Layout.fillWidth:true; Layout.fillHeight:true; values:optimizer.activityHistory; active:optimizer.busy; lineColor:"#d86550"; title:"ANALYSIS LOAD"; valueText:optimizer.busy?"LIVE":"IDLE" }
+                    RadialGauge { Layout.preferredWidth:82; Layout.fillHeight:true; value:optimizer.progress; accentColor:"#f0a34b"; label:"ENCODE" }
+                    RadialGauge { Layout.preferredWidth:82; Layout.fillHeight:true; value:optimizer.busy ? .72 : (optimizer.resultUrl ? 1 : 0); accentColor:"#d86550"; label:"RGB24" }
                     AppButton { text:optimizer.busy?"Остановить":"Оптимизировать до 3 MB"; accent:optimizer.busy?"#d45563":win.uiAccent; implicitWidth:210; enabled:optimizer.busy||(optimizer.sourceUrl&&!optimizer.previewBusy); tip:optimizer.busy?"Безопасно остановить текущую обработку":"Запустить НПМ-оптимизацию"; onClicked:optimizer.busy?optimizer.stopCurrent():optimizer.optimize(2.99) }
                     AppButton { text:"Папка результата"; quiet:true; accent:win.uiAccent; enabled:optimizer.outputPath; onClicked:optimizer.openOutputFolder() }
                 }
@@ -333,13 +335,13 @@ ApplicationWindow {
                 Layout.fillWidth:true; Layout.minimumHeight:54; Layout.maximumHeight:54; spacing:10
                 AppButton { text:"← Выбор режима"; quiet:true; accent:win.uiAccent; enabled:!optimizer.batchBusy; onClicked:win.screen=0 }
                 ColumnLayout { Layout.fillWidth:true; spacing:0
-                    Text { text:"AGR Liquid  /  Оптимизация текстур"; color:"white"; font.pixelSize:20; font.weight:Font.DemiBold }
+                    Text { text:"AGR Flow  /  Оптимизация текстур"; color:"white"; font.pixelSize:20; font.weight:Font.DemiBold }
                     Text { text:"ПАКЕТНЫЙ RGB24  /  AUTO QUALITY  /  БЕЗ ЛИМИТА MB"; color:"#85808e"; font.pixelSize:9; font.letterSpacing:.8 }
                 }
                 MetricChip { text:optimizer.batchItems.length+" FILES"; checked:optimizer.batchItems.length>0; accentColor:win.uiAccent }
                 AppButton { text:"Добавить PNG"; accent:win.uiAccent; enabled:!optimizer.batchBusy; onClicked:batchPicker.open() }
                 AppButton { text:"Очистить"; quiet:true; accent:win.uiAccent; enabled:!optimizer.batchBusy&&optimizer.batchItems.length>0; onClicked:optimizer.clearBatch() }
-                AppButton { text:optimizer.batchBusy?"Остановить":"Оптимизировать все"; accent:optimizer.batchBusy?"#d45563":"#8b4ed8"; implicitWidth:180; enabled:optimizer.batchBusy||optimizer.batchItems.length>0; tip:optimizer.batchBusy?"Остановить очередь после безопасного шага":"Запустить быструю пакетную оптимизацию"; onClicked:optimizer.batchBusy?optimizer.stopBatch():optimizer.optimizeBatch() }
+                AppButton { text:optimizer.batchBusy?"Остановить":"Оптимизировать все"; accent:optimizer.batchBusy?"#d45563":"#29c7ad"; implicitWidth:180; enabled:optimizer.batchBusy||optimizer.batchItems.length>0; tip:optimizer.batchBusy?"Остановить очередь после безопасного шага":"Запустить быструю пакетную оптимизацию"; onClicked:optimizer.batchBusy?optimizer.stopBatch():optimizer.optimizeBatch() }
             }
 
             GlassCard {
@@ -354,10 +356,10 @@ ApplicationWindow {
                             Rectangle { width:parent.width*optimizer.batchProgress; height:parent.height; radius:4; color:win.uiAccent; Behavior on width { NumberAnimation { duration:220 } } }
                         }
                     }
-                    Sparkline { Layout.preferredWidth:240; Layout.fillHeight:true; values:optimizer.batchProgressHistory; active:optimizer.batchBusy; lineColor:"#ba3d93"; title:"QUEUE PROGRESS"; valueText:Math.round(optimizer.batchProgress*100)+"%" }
-                    Sparkline { Layout.preferredWidth:240; Layout.fillHeight:true; values:optimizer.batchActivityHistory; active:optimizer.batchBusy; lineColor:"#4678ce"; title:"PALETTE ACTIVITY"; valueText:optimizer.batchBusy?"LIVE":"IDLE" }
-                    RadialGauge { Layout.preferredWidth:82; Layout.fillHeight:true; value:optimizer.batchProgress; accentColor:"#ba3d93"; label:"BATCH" }
-                    RadialGauge { Layout.preferredWidth:82; Layout.fillHeight:true; value:optimizer.batchBusy ? .76 : (optimizer.batchProgress >= 1 ? 1 : 0); accentColor:"#4678ce"; label:"RGB24" }
+                    Sparkline { Layout.preferredWidth:240; Layout.fillHeight:true; values:optimizer.batchProgressHistory; active:optimizer.batchBusy; lineColor:"#29c7ad"; title:"QUEUE PROGRESS"; valueText:Math.round(optimizer.batchProgress*100)+"%" }
+                    Sparkline { Layout.preferredWidth:240; Layout.fillHeight:true; values:optimizer.batchActivityHistory; active:optimizer.batchBusy; lineColor:"#78dbc8"; title:"PALETTE ACTIVITY"; valueText:optimizer.batchBusy?"LIVE":"IDLE" }
+                    RadialGauge { Layout.preferredWidth:82; Layout.fillHeight:true; value:optimizer.batchProgress; accentColor:"#29c7ad"; label:"BATCH" }
+                    RadialGauge { Layout.preferredWidth:82; Layout.fillHeight:true; value:optimizer.batchBusy ? .76 : (optimizer.batchProgress >= 1 ? 1 : 0); accentColor:"#78dbc8"; label:"RGB24" }
                 }
             }
 
@@ -384,11 +386,11 @@ ApplicationWindow {
                         height:190; radius:18; color:"#a5121117"; border.width:1; border.color:"#14ffffff"
                         RowLayout { anchors.fill:parent; anchors.margins:10; spacing:12
                             Rectangle { Layout.preferredWidth:250; Layout.fillHeight:true; radius:13; clip:true; color:"#0a090d"
-                                Image { anchors.fill:parent; anchors.margins:5; source:modelData.sourceUrl; asynchronous:true; cache:false; fillMode:Image.PreserveAspectFit; sourceSize:Qt.size(420,260) }
+                                Image { anchors.fill:parent; anchors.margins:5; source:modelData.comparisonSourceUrl||modelData.sourceUrl; asynchronous:true; cache:false; fillMode:Image.PreserveAspectFit; sourceSize:Qt.size(420,260) }
                                 MetricChip { anchors.left:parent.left; anchors.top:parent.top; anchors.margins:9; text:"BEFORE"; accentColor:win.uiAccent }
                             }
                             Rectangle { Layout.preferredWidth:250; Layout.fillHeight:true; radius:13; clip:true; color:"#0a090d"
-                                Image { anchors.fill:parent; anchors.margins:5; source:modelData.resultUrl; asynchronous:true; cache:false; fillMode:Image.PreserveAspectFit; sourceSize:Qt.size(420,260) }
+                                Image { anchors.fill:parent; anchors.margins:5; source:modelData.comparisonResultUrl||modelData.resultUrl; asynchronous:true; cache:false; fillMode:Image.PreserveAspectFit; sourceSize:Qt.size(420,260) }
                                 Text { anchors.centerIn:parent; visible:!modelData.resultUrl; text:modelData.failed?"Ошибка обработки":"AFTER\nожидает обработки"; color:modelData.failed?"#ef6c72":"#66616c"; font.pixelSize:11; horizontalAlignment:Text.AlignHCenter }
                                 MetricChip { anchors.left:parent.left; anchors.top:parent.top; anchors.margins:9; text:"AFTER"; checked:modelData.done; accentColor:win.uiAccent }
                             }
@@ -436,12 +438,12 @@ ApplicationWindow {
                         MetricChip { text:Math.round(win.viewScale*100)+"%"; accentColor:win.uiAccent }
                     }
                     RowLayout { visible:!win.wipeMode; Layout.fillWidth:true; Layout.fillHeight:true; spacing:10
-                        ZoomView { id:batchLeft; Layout.fillWidth:true; Layout.fillHeight:true; title:"BEFORE / ORIGINAL"; imageSource:win.batchItem?win.batchItem.sourceUrl:""; sharedScale:win.viewScale; sharedPanX:win.panX; sharedPanY:win.panY; accentColor:win.uiAccent; onViewChanged:(s,x,y)=>win.updateView(s,x,y); onZoomPulse:d=>{}; onResetRequested:win.resetView(); onFitCalculated:s=>{win.fitValue=s;if(win.panX===0&&win.panY===0)win.viewScale=s} }
-                        ZoomView { Layout.fillWidth:true; Layout.fillHeight:true; title:"AFTER / AUTO RGB24"; imageSource:win.batchItem?win.batchItem.resultUrl:""; sharedScale:win.viewScale; sharedPanX:win.panX; sharedPanY:win.panY; accentColor:win.uiAccent; onViewChanged:(s,x,y)=>win.updateView(s,x,y); onZoomPulse:d=>{}; onResetRequested:win.resetView() }
+                        ZoomView { id:batchLeft; Layout.fillWidth:true; Layout.fillHeight:true; title:"BEFORE / ORIGINAL"; imageSource:win.batchItem?(win.batchItem.comparisonSourceUrl||win.batchItem.sourceUrl):""; sharedScale:win.viewScale; sharedPanX:win.panX; sharedPanY:win.panY; accentColor:win.uiAccent; onViewChanged:(s,x,y)=>win.updateView(s,x,y); onZoomPulse:d=>{}; onResetRequested:win.requestFit(); onFitCalculated:s=>{win.fitValue=s;if(win.panX===0&&win.panY===0)win.viewScale=s} }
+                        ZoomView { Layout.fillWidth:true; Layout.fillHeight:true; title:"AFTER / AUTO RGB24"; imageSource:win.batchItem?(win.batchItem.comparisonResultUrl||win.batchItem.resultUrl):""; sharedScale:win.viewScale; sharedPanX:win.panX; sharedPanY:win.panY; accentColor:win.uiAccent; onViewChanged:(s,x,y)=>win.updateView(s,x,y); onZoomPulse:d=>{}; onResetRequested:win.requestFit() }
                     }
-                    WipeCompare { visible:win.wipeMode; Layout.fillWidth:true; Layout.fillHeight:true; beforeSource:win.batchItem?win.batchItem.sourceUrl:""; afterSource:win.batchItem?win.batchItem.resultUrl:""; sharedScale:win.viewScale; sharedPanX:win.panX; sharedPanY:win.panY; accentColor:win.uiAccent; onViewChanged:(s,x,y)=>win.updateView(s,x,y); onZoomPulse:d=>{}; onResetRequested:win.resetView(); onFitCalculated:s=>{win.fitValue=s;if(win.panX===0&&win.panY===0)win.viewScale=s} }
+                    WipeCompare { visible:win.wipeMode; Layout.fillWidth:true; Layout.fillHeight:true; beforeSource:win.batchItem?(win.batchItem.comparisonSourceUrl||win.batchItem.sourceUrl):""; afterSource:win.batchItem?(win.batchItem.comparisonResultUrl||win.batchItem.resultUrl):""; sharedScale:win.viewScale; sharedPanX:win.panX; sharedPanY:win.panY; accentColor:win.uiAccent; onViewChanged:(s,x,y)=>win.updateView(s,x,y); onZoomPulse:d=>{}; onResetRequested:win.requestFit(); onFitCalculated:s=>{win.fitValue=s;if(win.panX===0&&win.panY===0)win.viewScale=s} }
                     RowLayout { Layout.fillWidth:true; Layout.minimumHeight:38; Layout.maximumHeight:38
-                        AppButton { text:"Вписать"; quiet:true; accent:win.uiAccent; implicitHeight:32; onClicked:win.resetView() }
+                        AppButton { text:"Вписать"; quiet:true; accent:win.uiAccent; implicitHeight:32; onClicked:win.requestFit() }
                         AppButton { text:"1:1"; quiet:true; accent:win.uiAccent; implicitHeight:32; onClicked:win.actualPixels() }
                         Slider { Layout.fillWidth:true; from:.01; to:8; value:win.viewScale; onMoved:batchLeft.publish(value,win.panX,win.panY) }
                         AppButton { text:"Открыть папку"; quiet:true; accent:win.uiAccent; implicitHeight:32; onClicked:optimizer.openBatchOutput(win.batchIndex) }
@@ -456,7 +458,7 @@ ApplicationWindow {
 
     BubbleCatch {
         z:80;anchors.fill:parent;running:win.bubblesOn&&win.screen!==0&&!optimizer.busy&&!optimizer.batchBusy
-        accentColor:win.screen===1?"#ff805b":"#60d8ef"
+        accentColor:win.screen===1?"#f0a34b":"#29c7ad"
         onCaught:(x,y)=>win.bubbleScore++
     }
 }

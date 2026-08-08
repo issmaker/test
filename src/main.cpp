@@ -139,7 +139,8 @@ int main(int argc,char**argv){
         if(!ok)startupMessageHandler(QtCriticalMsg,QMessageLogContext(),QStringLiteral("Web interface failed to load"));
     });
     window.setWindowTitle(QStringLiteral("Adaptive Texture Optimizer 36 — WebGL Interface"));window.setCentralWidget(view);
-    view->setUrl(QUrl(QStringLiteral("qrc:/web/index.html")));window.showFullScreen();
+    const bool startupTest=!qEnvironmentVariableIsEmpty("AGR_STARTUP_TEST");
+    view->setUrl(QUrl(startupTest?QStringLiteral("qrc:/web/index.html?headless-test=1"):QStringLiteral("qrc:/web/index.html")));window.showFullScreen();
     if(argc>1)optimizer.load(QUrl::fromLocalFile(QString::fromLocal8Bit(argv[1])).toString());
     return app.exec();
 }

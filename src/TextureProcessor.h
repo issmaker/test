@@ -20,10 +20,11 @@ struct TextureResult {
 class TextureProcessor final {
 public:
     using Progress = std::function<void(double, const QString &)>;
-    static TextureResult process(const QString &path, qint64 limitBytes, const Progress &progress);
-    static TextureResult processAutomatic(const QString &path, const Progress &progress);
+    using Cancel = std::function<bool()>;
+    static TextureResult process(const QString &path, qint64 limitBytes, const Progress &progress, const Cancel &cancel={});
+    static TextureResult processAutomatic(const QString &path, const Progress &progress, const Cancel &cancel={});
 private:
-    static QImage perceptualPaletteCandidate(const QImage &, int colors, int model, int orderedStrength);
+    static QImage perceptualPaletteCandidate(const QImage &, int colors, int model, int orderedStrength, const Cancel &cancel={});
     static QImage areaDownsample(const QImage &, const QSize &);
     static void measure(const QImage &, const QImage &, double &, double &, int &);
 };

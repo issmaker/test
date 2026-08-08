@@ -2,6 +2,7 @@
 #include "PngEncoder.h"
 #include <algorithm>
 #include <QImageReader>
+#include <QFileInfo>
 #include <QElapsedTimer>
 #include <array>
 #include <cmath>
@@ -141,5 +142,54 @@ TextureResult TextureProcessor::process(const QString &path,qint64 limit,const P
         .arg(best.png.size()/1000000.0,0,'f',3).arg(std::isinf(best.psnr)?QString("∞"):QString::number(best.psnr,'f',1)).arg(best.meanError,0,'f',2).arg(best.maxError)
         .arg(best.tested).arg(timer.elapsed()/1000.0,0,'f',1);
     best.report+=QString("\nФинальная проверка: PNG color type 2 · bit depth 8 · запас %1 KB").arg(qMax<qint64>(0,limit-best.png.size())/1000.0,0,'f',1);
+    progress(1.0,"Готово");return best;
+}
+
+TextureResult TextureProcessor::processAutomatic(const QString &path,const Progress &progress) {
+    QElapsedTimer timer;timer.start();
+    QImageReader reader(path,"PNG");reader.setAutoTransform(true);
+    const QImage source=reader.read().convertToFormat(QImage::Format_RGB888);
+    if(source.isNull())throw std::runtime_error("PNG не удалось прочитать");
+
+    progress(.04,"Проверка lossless RGB24");
+    const auto exact=PngEncoder::encodeRgb24(source,10);
+    TextureResult best;best.original=source;best.output=source;best.png=exact.bytes;
+    best.lossless=true;best.tested=1;best.algorithmName="Lossless RGB24";
+    best.psnr=std::numeric_limits<double>::infinity();best.meanError=0;best.maxError=0;
+
+    // This workflow has no byte target. Instead it finds the smallest RGB24
+    // candidate that stays inside a conservative visual-quality envelope.
+    // The threshold prevents an arbitrary file-size win from destroying
+    // gradients, normal-map direction or fine surface details.
+    static constexpr double minimumPsnr=38.0;
+    static constexpr double maximumMeanError=3.0;
+    static constexpr int maximumChannelError=72;
+    const std::array<int,7> counts={{256,224,192,160,128,112,96}};
+    int tested=1;
+    for(int i=0;i<int(counts.size());++i){
+        const int colors=counts[size_t(i)];
+        progress(.10+.78*double(i)/counts.size(),QString("Авто-качество · %1 цветов").arg(colors));
+        const QImage candidate=perceptualPaletteCandidate(source,colors,0,0);
+        const auto encoded=PngEncoder::encodeRgb24(candidate,10);
+        double mean=0,psnr=0;int maximum=0;measure(source,candidate,mean,psnr,maximum);++tested;
+        const bool safe=psnr>=minimumPsnr&&mean<=maximumMeanError&&maximum<=maximumChannelError;
+        if(safe&&encoded.bytes.size()<best.png.size()){
+            best.output=candidate;best.png=encoded.bytes;best.lossless=false;
+            best.paletteColors=colors;best.algorithmName="AGR Auto Quality RGB24";
+            best.psnr=psnr;best.meanError=mean;best.maxError=maximum;
+        }
+        if(!safe&&i>1)break;
+    }
+
+    if(!PngEncoder::verifyRgb24(best.png,best.output))throw std::runtime_error("RGB24-проверка не пройдена");
+    measure(source,best.output,best.meanError,best.psnr,best.maxError);best.tested=tested;
+    const qint64 inputBytes=QFileInfo(path).size();
+    const double saved=inputBytes>0?qMax(0.0,100.0-double(best.png.size())*100.0/inputBytes):0.0;
+    best.report=QString("%1 × %2 · RGB24 · АВТО-КАЧЕСТВО\nАлгоритм: %3%4\n%5 MB · экономия %6% · PSNR %7 dB · mean ΔRGB %8 · max %9\nПроверено вариантов: %10 · время: %11 с")
+        .arg(source.width()).arg(source.height()).arg(best.algorithmName)
+        .arg(best.paletteColors?QString(" · %1 цветов").arg(best.paletteColors):QString())
+        .arg(best.png.size()/1000000.0,0,'f',3).arg(saved,0,'f',1)
+        .arg(std::isinf(best.psnr)?QString("∞"):QString::number(best.psnr,'f',1))
+        .arg(best.meanError,0,'f',2).arg(best.maxError).arg(best.tested).arg(timer.elapsed()/1000.0,0,'f',1);
     progress(1.0,"Готово");return best;
 }

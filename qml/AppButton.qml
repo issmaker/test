@@ -15,7 +15,8 @@ Button {
 
     contentItem: Text {
         text: root.text
-        color: root.enabled ? Theme.text : Theme.textFaint
+        color: !root.enabled ? Theme.textFaint
+             : (!root.quiet && root.accentLuma > .30 ? "#13020c" : Theme.text)
         font.pixelSize: 12
         font.weight: Font.DemiBold
         horizontalAlignment: Text.AlignHCenter

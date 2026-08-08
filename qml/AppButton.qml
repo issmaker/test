@@ -5,6 +5,7 @@ Button {
     id: root
     property color accent: "#ff7139"
     property string tip: ""
+    property bool tipRight: false
     property bool quiet: false
     property real accentLuma: accent.r*.2126 + accent.g*.7152 + accent.b*.0722
     property color safeAccent: accentLuma > .58 ? Qt.darker(accent, 1.45) : accent
@@ -39,7 +40,8 @@ Button {
         visible: root.hovered && root.tip.length > 0
         delay: 360
         timeout: 7000
-        y: root.height + 8
+        x: root.tipRight ? root.width + 10 : 0
+        y: root.tipRight ? 0 : root.height + 8
         contentItem: Text {
             text: root.tip
             color: "#e9e7ee"

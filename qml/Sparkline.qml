@@ -3,7 +3,7 @@ import QtQuick
 Item {
     id: root
     property var values: []
-    property color lineColor: Theme.teal
+    property color lineColor: AppTheme.teal
     property string title: ""
     property string valueText: ""
     property bool active: false

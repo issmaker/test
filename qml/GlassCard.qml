@@ -5,9 +5,13 @@ Rectangle {
     property color accentColor: AppTheme.teal
     property real glassOpacity: .76
     radius: AppTheme.radiusLarge
-    color: Qt.rgba(.067, .039, .063, glassOpacity*.90)
+    color: AppTheme.lightMode
+           ? Qt.rgba(.965, .98, 1, Math.min(.96, glassOpacity + .08))
+           : Qt.rgba(.067, .039, .063, glassOpacity*.90)
     border.width: 1
     border.color: AppTheme.stroke
+    Behavior on color { ColorAnimation { duration: 420; easing.type: Easing.InOutCubic } }
+    Behavior on border.color { ColorAnimation { duration: 420; easing.type: Easing.InOutCubic } }
 
     Rectangle {
         z:-2;anchors.fill:parent;anchors.margins:-4;radius:root.radius+4;color:"transparent";border.width:1

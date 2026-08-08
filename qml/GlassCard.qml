@@ -2,16 +2,16 @@ import QtQuick
 
 Rectangle {
     id: root
-    property color accentColor: "#29c7ad"
+    property color accentColor: Theme.teal
     property real glassOpacity: .76
-    radius: 26
-    color: Qt.rgba(.075, .078, .086, glassOpacity*.88)
+    radius: Theme.radiusLarge
+    color: Qt.rgba(.067, .078, .071, glassOpacity*.90)
     border.width: 1
-    border.color: Qt.rgba(1, 1, 1, .12)
+    border.color: Theme.stroke
 
     Rectangle {
-        z:-2;anchors.fill:parent;anchors.margins:-5;radius:root.radius+5;color:"transparent";border.width:2
-        border.color:Qt.rgba(root.accentColor.r,root.accentColor.g,root.accentColor.b,.12)
+        z:-2;anchors.fill:parent;anchors.margins:-4;radius:root.radius+4;color:"transparent";border.width:1
+        border.color:Qt.rgba(root.accentColor.r,root.accentColor.g,root.accentColor.b,.08)
     }
 
     Rectangle {
@@ -27,9 +27,9 @@ Rectangle {
         anchors.right: parent.right
         anchors.top: parent.top
         anchors.margins: 1
-        height: Math.min(42, parent.height * .32)
+        height: Math.min(34, parent.height * .28)
         radius: root.radius - 1
-        opacity: .9
+        opacity: .72
         gradient: Gradient {
             GradientStop { position: 0; color: "#18ffffff" }
             GradientStop { position: 1; color: "#00ffffff" }

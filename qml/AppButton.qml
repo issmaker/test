@@ -26,11 +26,11 @@ Button {
         color: !root.enabled ? "#18171c"
              : root.down ? Qt.darker(root.safeAccent, 1.2)
              : root.hovered ? Qt.lighter(root.safeAccent, 1.08)
-             : root.quiet ? "#aa1a191f" : root.safeAccent
+             : root.quiet ? "#6e29262f" : root.safeAccent
         border.width: 1
         border.color: root.hovered
             ? Qt.rgba(root.accent.r, root.accent.g, root.accent.b, .82)
-            : (root.quiet ? "#18ffffff" : Qt.rgba(1, 1, 1, .16))
+            : (root.quiet ? "#28ffffff" : Qt.rgba(1, 1, 1, .24))
         scale: root.down ? .975 : (root.hovered ? 1.018 : 1)
         Behavior on color { ColorAnimation { duration: 160 } }
         Behavior on scale { NumberAnimation { duration: 130; easing.type: Easing.OutCubic } }

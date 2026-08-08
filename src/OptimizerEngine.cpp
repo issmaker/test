@@ -113,6 +113,27 @@ OptimizerEngine::OptimizerEngine(QObject *parent):QObject(parent) {
         catch(...){m_status="Ошибка обработки: неизвестный сбой";emit statusChanged();}
         m_telemetryTimer.stop();m_busy=false;emit busyChanged();
     });
+
+    connect(&m_batchWatcher,&QFutureWatcher<BatchRunResult>::finished,this,[this]{
+        const BatchRunResult run=m_batchWatcher.result();int succeeded=0,failed=0;
+        for(const BatchRunItem &item:run.items){
+            if(item.index<0||item.index>=m_batchEntries.size())continue;
+            BatchEntry &entry=m_batchEntries[item.index];entry.progress=1;
+            if(item.error.isEmpty()){
+                entry.resultUrl=item.resultUrl;entry.outputPath=item.outputPath;
+                entry.outputMb=item.outputMb;entry.report=item.report;
+                entry.status="Готово";entry.done=true;entry.failed=false;++succeeded;
+            }else{
+                entry.status="Ошибка: "+item.error;entry.report=item.error;
+                entry.done=false;entry.failed=true;++failed;
+            }
+        }
+        m_batchBusy=false;m_batchProgress=1;
+        m_batchStatus=failed
+            ?QString("Завершено: %1 готово, %2 с ошибкой").arg(succeeded).arg(failed)
+            :QString("Готово: обработано %1 файлов").arg(succeeded);
+        emit batchItemsChanged();emit batchBusyChanged();emit batchProgressChanged();emit batchStatusChanged();
+    });
 }
 
 QString OptimizerEngine::localPath()const{return QUrl(m_sourceUrl).toLocalFile();}
@@ -123,8 +144,17 @@ void OptimizerEngine::appendTelemetry(double progressValue,double activityValue)
 }
 
 void OptimizerEngine::load(const QString &value){
-    if(m_busy)return;const QUrl url(value);m_sourceUrl=url.isLocalFile()?url.toString():QUrl::fromLocalFile(value).toString();
-    const QString path=localPath();const QFileInfo info(path);QImageReader meta(path);const QSize size=meta.size();
+    if(m_busy)return;const QUrl url(value);const QString candidate=url.isLocalFile()?url.toLocalFile():value;
+    const QFileInfo candidateInfo(candidate);
+    if(!candidateInfo.exists()||candidateInfo.suffix().compare("png",Qt::CaseInsensitive)!=0){
+        m_status="Ошибка: выберите существующий PNG-файл";emit statusChanged();return;
+    }
+    m_sourceUrl=QUrl::fromLocalFile(candidate).toString();
+    const QString path=localPath();const QFileInfo info(path);QImageReader meta(path,"PNG");const QSize size=meta.size();
+    if(!size.isValid()){
+        m_sourceUrl.clear();m_status="Ошибка: PNG повреждён или не поддерживается";
+        emit sourceUrlChanged();emit statusChanged();return;
+    }
     m_sourceWidth=size.width();m_sourceHeight=size.height();m_workingWidth=qMin(2048,qMax(0,size.width()));m_workingHeight=qMin(2048,qMax(0,size.height()));
     if(size.isValid()&&qMax(size.width(),size.height())>2048){const double scale=2048.0/qMax(size.width(),size.height());m_workingWidth=qMax(1,int(std::lround(size.width()*scale)));m_workingHeight=qMax(1,int(std::lround(size.height()*scale)));}
     m_sourceFileMb=info.size()/1000000.0;m_outputFileMb=0;m_resultUrl={};m_referenceUrl={};m_workingPreviewUrl={};m_outputPath={};m_report={};m_showingMaster=false;
@@ -151,3 +181,90 @@ void OptimizerEngine::optimize(double maxMb){
 void OptimizerEngine::toggleMasterView(){if(!sourceIsLarge())return;m_showingMaster=!m_showingMaster;emit showingMasterChanged();}
 void OptimizerEngine::openSourceFolder(){const QFileInfo file(localPath());if(file.exists())QDesktopServices::openUrl(QUrl::fromLocalFile(file.absolutePath()));}
 void OptimizerEngine::openOutputFolder(){if(!m_outputPath.isEmpty())QDesktopServices::openUrl(QUrl::fromLocalFile(QFileInfo(m_outputPath).absolutePath()));}
+
+QVariantList OptimizerEngine::batchItems()const{
+    QVariantList result;result.reserve(m_batchEntries.size());
+    for(const BatchEntry &entry:m_batchEntries){
+        QVariantMap item;
+        item["sourceUrl"]=entry.sourceUrl;item["resultUrl"]=entry.resultUrl;
+        item["outputPath"]=entry.outputPath;item["name"]=entry.name;
+        item["status"]=entry.status;item["report"]=entry.report;item["accent"]=entry.accent;
+        item["sourceMb"]=entry.sourceMb;item["outputMb"]=entry.outputMb;
+        item["progress"]=entry.progress;item["width"]=entry.width;item["height"]=entry.height;
+        item["done"]=entry.done;item["failed"]=entry.failed;result.append(item);
+    }
+    return result;
+}
+
+void OptimizerEngine::addBatchFiles(const QVariantList &values){
+    if(m_batchBusy)return;int added=0,skipped=0;
+    for(const QVariant &value:values){
+        const QUrl url(value.toString());const QString path=url.isLocalFile()?url.toLocalFile():value.toString();
+        const QFileInfo info(path);if(!info.exists()||info.suffix().compare("png",Qt::CaseInsensitive)!=0){++skipped;continue;}
+        const QString canonical=info.canonicalFilePath();bool duplicate=false;
+        for(const BatchEntry &existing:m_batchEntries)if(QFileInfo(QUrl(existing.sourceUrl).toLocalFile()).canonicalFilePath()==canonical){duplicate=true;break;}
+        if(duplicate){++skipped;continue;}
+        QImageReader meta(path,"PNG");const QSize dimensions=meta.size();
+        if(!dimensions.isValid()){++skipped;continue;}
+        QImageReader accentReader(path,"PNG");accentReader.setAutoTransform(true);
+        const double scale=qMin(1.0,144.0/qMax(dimensions.width(),dimensions.height()));
+        accentReader.setScaledSize(QSize(qMax(1,int(dimensions.width()*scale)),qMax(1,int(dimensions.height()*scale))));
+        const QImage accentImage=accentReader.read();
+        BatchEntry entry;entry.sourceUrl=QUrl::fromLocalFile(path).toString();entry.name=info.fileName();
+        entry.status="Готов к обработке";entry.sourceMb=info.size()/1000000.0;
+        entry.width=dimensions.width();entry.height=dimensions.height();
+        if(!accentImage.isNull())entry.accent=analyseAccent(accentImage);m_batchEntries.append(entry);++added;
+    }
+    m_batchStatus=added?QString("Добавлено %1 файлов%2").arg(added).arg(skipped?QString(", пропущено %1").arg(skipped):QString())
+                       :QString("Новых корректных PNG нет%1").arg(skipped?QString(" — пропущено %1").arg(skipped):QString());
+    emit batchItemsChanged();emit batchStatusChanged();
+}
+
+void OptimizerEngine::clearBatch(){
+    if(m_batchBusy)return;m_batchEntries.clear();m_batchProgress=0;m_batchStatus="Добавьте PNG-файлы";
+    emit batchItemsChanged();emit batchProgressChanged();emit batchStatusChanged();
+}
+
+void OptimizerEngine::optimizeBatch(){
+    if(m_batchBusy||m_batchEntries.isEmpty())return;
+    QVector<QString> paths;paths.reserve(m_batchEntries.size());
+    for(BatchEntry &entry:m_batchEntries){
+        paths.append(QUrl(entry.sourceUrl).toLocalFile());entry.progress=0;entry.done=false;entry.failed=false;
+        entry.resultUrl.clear();entry.outputPath.clear();entry.outputMb=0;entry.report.clear();entry.status="В очереди";
+    }
+    m_batchBusy=true;m_batchProgress=0;m_batchStatus=QString("Обработка 0 из %1").arg(paths.size());
+    emit batchItemsChanged();emit batchBusyChanged();emit batchProgressChanged();emit batchStatusChanged();
+    m_batchWatcher.setFuture(QtConcurrent::run([this,paths]{
+        BatchRunResult run;const int total=paths.size();run.items.reserve(total);
+        for(int index=0;index<total;++index){
+            BatchRunItem summary;summary.index=index;
+            try{
+                const QString path=paths[index];
+                const TextureResult result=TextureProcessor::processAutomatic(path,[this,index,total](double value,const QString &text){
+                    QMetaObject::invokeMethod(this,[this,index,total,value,text]{
+                        if(index>=0&&index<m_batchEntries.size()){
+                            m_batchEntries[index].progress=value;m_batchEntries[index].status=text;
+                            m_batchProgress=(index+value)/qMax(1,total);
+                            m_batchStatus=QString("Обработка %1 из %2 · %3").arg(index+1).arg(total).arg(text);
+                            emit batchItemsChanged();emit batchProgressChanged();emit batchStatusChanged();
+                        }
+                    },Qt::QueuedConnection);
+                });
+                const QFileInfo source(path);QDir outputDir(source.absolutePath()+"/compressed");
+                if(!outputDir.exists()&&!QDir().mkpath(outputDir.absolutePath()))throw std::runtime_error("Не удалось создать папку compressed");
+                const QString out=outputDir.filePath(source.completeBaseName()+"_AGR_AUTO_RGB24.png");QFile file(out);
+                if(!file.open(QIODevice::WriteOnly|QIODevice::Truncate)||file.write(result.png)!=result.png.size())throw std::runtime_error("Не удалось записать результат");
+                file.close();summary.resultUrl=QUrl::fromLocalFile(out).toString();summary.outputPath=QDir::toNativeSeparators(out);
+                summary.outputMb=result.png.size()/1000000.0;summary.report=result.report;
+            }catch(const std::exception &error){summary.error=QString::fromUtf8(error.what());}
+            catch(...){summary.error="Неизвестный сбой обработки";}
+            run.items.append(summary);
+        }
+        return run;
+    }));
+}
+
+void OptimizerEngine::openBatchOutput(int index){
+    if(index<0||index>=m_batchEntries.size()||m_batchEntries[index].outputPath.isEmpty())return;
+    QDesktopServices::openUrl(QUrl::fromLocalFile(QFileInfo(m_batchEntries[index].outputPath).absolutePath()));
+}

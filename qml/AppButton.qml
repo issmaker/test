@@ -3,7 +3,7 @@ import QtQuick.Controls
 
 Button {
     id: root
-    property color accent: Theme.teal
+    property color accent: AppTheme.teal
     property string tip: ""
     property bool tipRight: false
     property bool quiet: false
@@ -15,23 +15,23 @@ Button {
 
     contentItem: Text {
         text: root.text
-        color: !root.enabled ? Theme.textFaint
-             : (!root.quiet && root.accentLuma > .30 ? "#13020c" : Theme.text)
+        color: !root.enabled ? AppTheme.contentTertiary
+             : (!root.quiet && root.accentLuma > .30 ? "#13020c" : AppTheme.contentPrimary)
         font.pixelSize: 12
         font.weight: Font.DemiBold
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter
     }
     background: Rectangle {
-        radius: Theme.radiusMedium
-        color: !root.enabled ? Theme.surface
+        radius: AppTheme.radiusMedium
+        color: !root.enabled ? AppTheme.surface
              : root.down ? Qt.darker(root.safeAccent, 1.2)
              : root.hovered ? Qt.lighter(root.safeAccent, 1.08)
-             : root.quiet ? Theme.surfaceRaised : root.safeAccent
+             : root.quiet ? AppTheme.surfaceRaised : root.safeAccent
         border.width: 1
         border.color: root.hovered
             ? Qt.rgba(root.accent.r, root.accent.g, root.accent.b, .82)
-            : (root.quiet ? Theme.stroke : Qt.rgba(1, 1, 1, .20))
+            : (root.quiet ? AppTheme.stroke : Qt.rgba(1, 1, 1, .20))
         scale: root.down ? .985 : 1
         Behavior on color { ColorAnimation { duration: 160 } }
         Behavior on scale { NumberAnimation { duration: 130; easing.type: Easing.OutCubic } }
@@ -45,13 +45,13 @@ Button {
         y: root.tipRight ? 0 : root.height + 8
         contentItem: Text {
             text: root.tip
-            color: Theme.text
+            color: AppTheme.contentPrimary
             font.pixelSize: 11
             wrapMode: Text.Wrap
             width: Math.min(300, Math.max(150, implicitContentWidth))
         }
         background: Rectangle {
-            radius: Theme.radiusMedium
+            radius: AppTheme.radiusMedium
             color: "#f0131614"
             border.width: 1
             border.color: Qt.rgba(root.accent.r, root.accent.g, root.accent.b, .45)

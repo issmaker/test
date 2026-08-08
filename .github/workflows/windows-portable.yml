@@ -18,11 +18,11 @@ jobs:
     env:
       QT_VERSION: 6.8.3
       BUILD_DIR: build
-      DIST_DIR: dist/AdaptiveTextureOptimizer-1.0-Windows
+      DIST_DIR: dist/AdaptiveTextureOptimizer-35-Windows
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
@@ -32,9 +32,9 @@ jobs:
           modules: qtshadertools
           cache: true
 
-      - name: Create Windows black-hole icon
+      - name: Create Windows cinematic interface icon
         shell: pwsh
-        run: ./tools/create_icon.ps1 -OutputPath ./assets/black-hole.ico
+        run: ./tools/create_icon.ps1 -OutputPath ./assets/liquid.ico
 
       - name: Configure release
         shell: pwsh
@@ -52,6 +52,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path $env:DIST_DIR | Out-Null
           Copy-Item "$env:BUILD_DIR/Release/AdaptiveTextureOptimizer.exe" $env:DIST_DIR
           Copy-Item "README.md" $env:DIST_DIR
+          Copy-Item "THIRD_PARTY_NOTICES.md" $env:DIST_DIR
           & "${env:QT_ROOT_DIR}/bin/windeployqt.exe" `
             --release `
             --compiler-runtime `
@@ -98,14 +99,41 @@ jobs:
             Stop-Process -Id $process.Id -Force
           }
 
+      - name: Test RGB24 optimization pipeline
+        shell: pwsh
+        run: |
+          $env:QT_QPA_PLATFORM = "offscreen"
+          $env:QT_QUICK_BACKEND = "software"
+          $selfTest = Start-Process `
+            -FilePath "$env:DIST_DIR/AdaptiveTextureOptimizer.exe" `
+            -ArgumentList "--self-test" `
+            -WorkingDirectory $env:DIST_DIR `
+            -Wait `
+            -PassThru
+          if ($selfTest.ExitCode -ne 0) { throw "Optimizer self-test failed with code $($selfTest.ExitCode)" }
+
+      - name: Test all UI layouts
+        shell: pwsh
+        run: |
+          $env:QT_QPA_PLATFORM = "offscreen"
+          $env:QT_QUICK_BACKEND = "software"
+          $env:AGR_STARTUP_TEST = "1"
+          $uiTest = Start-Process `
+            -FilePath "$env:DIST_DIR/AdaptiveTextureOptimizer.exe" `
+            -ArgumentList "--ui-layout-test" `
+            -WorkingDirectory $env:DIST_DIR `
+            -Wait `
+            -PassThru
+          if ($uiTest.ExitCode -ne 0) { throw "UI layout test failed with code $($uiTest.ExitCode)" }
+
       - name: Pack portable application
         shell: pwsh
-        run: Compress-Archive -Path "$env:DIST_DIR/*" -DestinationPath "dist/AdaptiveTextureOptimizer-1.0-Windows-Portable.zip" -CompressionLevel Optimal
+        run: Compress-Archive -Path "$env:DIST_DIR/*" -DestinationPath "dist/AdaptiveTextureOptimizer-35-Windows-Portable.zip" -CompressionLevel Optimal
 
       - name: Upload ready-to-run application
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
-          name: AdaptiveTextureOptimizer-1.0-Windows-Portable
-          path: dist/AdaptiveTextureOptimizer-1.0-Windows-Portable.zip
+          name: AdaptiveTextureOptimizer-35-Windows-Portable
+          path: dist/AdaptiveTextureOptimizer-35-Windows-Portable.zip
           if-no-files-found: error
           retention-days: 30

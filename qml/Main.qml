@@ -11,8 +11,8 @@ ApplicationWindow {
     minimumHeight: 760
     visible: true
     visibility: Window.FullScreen
-    title: "Adaptive Texture Optimizer 31 — Organic Flow"
-    color: "#050507"
+    title: "Adaptive Texture Optimizer 32 — Flow Studio"
+    color: Theme.canvas
 
     // 0 — start, 1 — НПМ, 2 — batch list, 3 — batch comparison
     property int screen: 0
@@ -34,12 +34,12 @@ ApplicationWindow {
                                     : (optimizer.workingPreviewUrl ? optimizer.workingPreviewUrl
                                        : (optimizer.sourceIsLarge ? "" : optimizer.sourceUrl))
 
-    palette.window: "#050507"
-    palette.windowText: "#f5f3f7"
-    palette.base: "#121116"
-    palette.text: "#f5f3f7"
-    palette.button: "#1a191f"
-    palette.buttonText: "#f5f3f7"
+    palette.window: Theme.canvas
+    palette.windowText: Theme.text
+    palette.base: Theme.surface
+    palette.text: Theme.text
+    palette.button: Theme.surfaceRaised
+    palette.buttonText: Theme.text
     palette.highlight: uiAccent
 
     Behavior on uiAccent { ColorAnimation { duration: 600; easing.type: Easing.InOutCubic } }
@@ -123,24 +123,31 @@ ApplicationWindow {
             visible: win.screen !== 0
             anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom
             anchors.margins: 14
-            width: 96
+            width: 212
             accentColor: win.uiAccent
             glassOpacity: .76
 
             ColumnLayout {
-                anchors.fill: parent; anchors.margins: 11; spacing: 11
-                Rectangle { Layout.alignment:Qt.AlignHCenter; width:54;height:54;radius:19;color:win.uiAccent;border.width:1;border.color:"#55ffffff";Text{anchors.centerIn:parent;text:"A+";color:"white";font.pixelSize:16;font.bold:true} }
-                Text { Layout.alignment:Qt.AlignHCenter; text:"FLOW"; color:"white"; font.pixelSize:10; font.weight:Font.DemiBold; font.letterSpacing:1 }
+                anchors.fill: parent; anchors.margins: 12; spacing: 8
+                RowLayout { Layout.fillWidth:true; Layout.preferredHeight:56; spacing:10
+                    Image { Layout.preferredWidth:40;Layout.preferredHeight:40;source:"qrc:/icons/liquid.svg";sourceSize:Qt.size(80,80);smooth:true }
+                    ColumnLayout { Layout.fillWidth:true;spacing:0
+                        Text { text:"FLOW STUDIO";color:Theme.text;font.pixelSize:12;font.weight:Font.DemiBold;letterSpacing:.7 }
+                        Text { text:"TEXTURE SYSTEM";color:Theme.textFaint;font.pixelSize:8;letterSpacing:.8 }
+                    }
+                }
                 Rectangle { Layout.fillWidth:true; height:1; color:"#14ffffff" }
-                NavButton { Layout.alignment:Qt.AlignHCenter;kind:"home";selected:false;accentColor:win.uiAccent;tip:"Главный экран и выбор режима";enabled:!optimizer.busy&&!optimizer.batchBusy;onClicked:win.screen=0 }
-                NavButton { Layout.alignment:Qt.AlignHCenter;kind:"npm";selected:win.screen===1;accentColor:win.uiAccent;tip:"Оптимизация НПМ-текстур до 3 MB";enabled:!optimizer.batchBusy;onClicked:win.enterNpm() }
-                NavButton { Layout.alignment:Qt.AlignHCenter;kind:"batch";selected:win.screen===2;accentColor:win.uiAccent;tip:"Список пакетной оптимизации";enabled:!optimizer.busy;onClicked:win.screen=2 }
-                NavButton { Layout.alignment:Qt.AlignHCenter;kind:"compare";selected:win.screen===3;accentColor:win.uiAccent;tip:"Сравнительный анализ";enabled:win.batchItem&&win.batchItem.done&&!optimizer.batchBusy;onClicked:win.screen=3 }
-                NavButton { Layout.alignment:Qt.AlignHCenter;kind:"play";selected:win.bubblesOn;accentColor:"#29c7ad";tip:win.bubblesOn?"Выключить игру «Поймай импульс»":"Включить игру «Поймай импульс»";onClicked:win.bubblesOn=!win.bubblesOn }
+                Text { Layout.leftMargin:12;Layout.topMargin:8;text:"РАБОЧАЯ ОБЛАСТЬ";color:Theme.textFaint;font.pixelSize:8;font.weight:Font.DemiBold;letterSpacing:1.1 }
+                NavButton { kind:"home";label:"Главная";selected:false;accentColor:win.uiAccent;tip:"Главный экран и выбор режима";enabled:!optimizer.busy&&!optimizer.batchBusy;onClicked:win.screen=0 }
+                NavButton { kind:"npm";label:"НПМ · до 3 MB";selected:win.screen===1;accentColor:win.uiAccent;tip:"Оптимизация НПМ-текстур до 3 MB";enabled:!optimizer.batchBusy;onClicked:win.enterNpm() }
+                NavButton { kind:"batch";label:"Все текстуры";selected:win.screen===2;accentColor:win.uiAccent;tip:"Список пакетной оптимизации";enabled:!optimizer.busy;onClicked:win.screen=2 }
+                NavButton { kind:"compare";label:"Сравнение";selected:win.screen===3;accentColor:win.uiAccent;tip:"Сравнительный анализ";enabled:win.batchItem&&win.batchItem.done&&!optimizer.batchBusy;onClicked:win.screen=3 }
+                Text { Layout.leftMargin:12;Layout.topMargin:10;text:"ИНСТРУМЕНТЫ";color:Theme.textFaint;font.pixelSize:8;font.weight:Font.DemiBold;letterSpacing:1.1 }
+                NavButton { kind:"play";label:"Поймай импульс";selected:win.bubblesOn;accentColor:"#29c7ad";tip:win.bubblesOn?"Выключить игру «Поймай импульс»":"Включить игру «Поймай импульс»";onClicked:win.bubblesOn=!win.bubblesOn }
                 Item { Layout.fillHeight:true }
-                MetricChip { Layout.alignment:Qt.AlignHCenter; text:"x "+win.bubbleScore; checked:win.bubbleScore>0; accentColor:"#29c7ad" }
-                MetricChip { Layout.alignment:Qt.AlignHCenter; text:"v31"; checked:true; accentColor:win.uiAccent }
-                NavButton { Layout.alignment:Qt.AlignHCenter;kind:"exit";accentColor:"#d45563";tip:"Закрыть приложение";enabled:!optimizer.busy&&!optimizer.batchBusy;onClicked:Qt.quit() }
+                RowLayout { Layout.fillWidth:true;MetricChip { text:"IMPULSE  "+win.bubbleScore; checked:win.bubbleScore>0; accentColor:"#29c7ad" } Item{Layout.fillWidth:true} MetricChip{text:"v32";checked:true;accentColor:win.uiAccent} }
+                Rectangle { Layout.fillWidth:true;height:1;color:"#14ffffff" }
+                NavButton { kind:"exit";label:"Закрыть приложение";accentColor:Theme.danger;tip:"Закрыть приложение";enabled:!optimizer.busy&&!optimizer.batchBusy;onClicked:Qt.quit() }
             }
         }
 
@@ -157,14 +164,11 @@ ApplicationWindow {
                 RowLayout {
                     Layout.alignment: Qt.AlignHCenter
                     spacing: 14
-                    Rectangle {
-                        width: 58; height: 58; radius: 19; color: win.warmAccent
-                        Text { anchors.centerIn: parent; text: "A+"; color: "white"; font.pixelSize: 20; font.bold: true }
-                    }
+                    Image { width:58;height:58;source:"qrc:/icons/liquid.svg";sourceSize:Qt.size(116,116);smooth:true }
                     ColumnLayout {
                         spacing: 1
                         Text { text: "Adaptive Texture Optimizer"; color: "white"; font.pixelSize: 30; font.weight: Font.DemiBold }
-                        Text { text: "ORGANIC FLOW  /  VERSION 31  /  ВЫБЕРИТЕ ЗАДАЧУ"; color: "#8b9693"; font.pixelSize: 10; font.letterSpacing: 1.4 }
+                        Text { text: "FLOW STUDIO  /  VERSION 32  /  ВЫБЕРИТЕ ЗАДАЧУ"; color: "#8b9693"; font.pixelSize: 10; font.letterSpacing: 1.4 }
                     }
                 }
 
@@ -186,7 +190,7 @@ ApplicationWindow {
                             anchors.fill: parent; anchors.margins: 28; spacing: 14
                             Rectangle {
                                 width: 50; height: 50; radius: 16; color: win.warmAccent
-                                Text { anchors.centerIn: parent; text: "≤3"; color: "white"; font.pixelSize: 16; font.bold: true }
+                                NavIcon { anchors.centerIn:parent;width:24;height:24;kind:"npm";iconColor:"white" }
                             }
                             Text { text: "Оптимизация для\nНПМ-текстур"; color: "white"; font.pixelSize: 26; font.weight: Font.DemiBold; lineHeight: .95 }
                             Text {
@@ -211,7 +215,7 @@ ApplicationWindow {
                             anchors.fill: parent; anchors.margins: 28; spacing: 14
                             Rectangle {
                                 width: 50; height: 50; radius: 16; color: "#29c7ad"
-                                Text { anchors.centerIn: parent; text: "∞"; color: "white"; font.pixelSize: 24; font.bold: true }
+                                NavIcon { anchors.centerIn:parent;width:24;height:24;kind:"batch";iconColor:"white" }
                             }
                             Text { text: "Оптимизация\nтекстур"; color: "white"; font.pixelSize: 26; font.weight: Font.DemiBold; lineHeight: .95 }
                             Text {
@@ -236,7 +240,7 @@ ApplicationWindow {
         // НПМ WORKSPACE
         ColumnLayout {
             anchors.fill: parent
-            anchors.leftMargin: 124; anchors.rightMargin: 14; anchors.topMargin: 14; anchors.bottomMargin: 14
+            anchors.leftMargin: 240; anchors.rightMargin: 14; anchors.topMargin: 14; anchors.bottomMargin: 14
             visible: win.screen === 1
             spacing: 12
 
@@ -244,7 +248,7 @@ ApplicationWindow {
                 Layout.fillWidth: true; Layout.minimumHeight: 54; Layout.maximumHeight: 54
                 AppButton { text: "← Выбор режима"; quiet: true; accent: win.uiAccent; enabled: !optimizer.busy; onClicked: win.screen = 0 }
                 ColumnLayout { Layout.fillWidth: true; spacing: 0
-                    Text { text: "AGR Flow  /  Оптимизация для НПМ-текстур"; color: "white"; font.pixelSize: 20; font.weight: Font.DemiBold }
+                    Text { text: "Flow Studio  /  Оптимизация для НПМ-текстур"; color: Theme.text; font.pixelSize: 20; font.weight: Font.DemiBold }
                     Text { text: "Фиксированный предел ≤ 3 MB  /  AGR ADAPTIVE RGB24"; color: "#817c87"; font.pixelSize: 9; font.letterSpacing: .8 }
                 }
                 AppButton { text: "Импорт PNG"; accent: win.warmAccent; enabled: !optimizer.busy; onClicked: npmPicker.open() }
@@ -276,7 +280,7 @@ ApplicationWindow {
                 GlassCard { Layout.preferredWidth: 290; Layout.fillHeight: true; accentColor: win.uiAccent
                     Column { anchors.fill: parent; anchors.margins: 13; spacing: 7
                         Text { text: optimizer.busy ? "PROCESSING  " + Math.round(optimizer.progress*100) + "%" : "SYSTEM READY"; color: optimizer.busy ? win.uiAccent : "#8f8a95"; font.pixelSize: 9; font.bold: true }
-                        Rectangle { width: parent.width; height: 7; radius: 4; color: "#29262e"
+                        Rectangle { width: parent.width; height: 7; radius: 4; color: Theme.surfaceRaised
                             Rectangle { width: parent.width*(optimizer.busy?optimizer.progress:(optimizer.resultUrl?1:.06)); height: parent.height; radius: 4; color: win.uiAccent; Behavior on width { NumberAnimation { duration: 200 } } }
                         }
                         Text { text: optimizer.status; width: parent.width; elide: Text.ElideRight; color: "#8c8792"; font.pixelSize: 9 }
@@ -328,14 +332,14 @@ ApplicationWindow {
 
         // BATCH LIST
         ColumnLayout {
-            anchors.fill: parent; anchors.leftMargin:124; anchors.rightMargin:14; anchors.topMargin:14; anchors.bottomMargin:14
+            anchors.fill: parent; anchors.leftMargin:240; anchors.rightMargin:14; anchors.topMargin:14; anchors.bottomMargin:14
             visible: win.screen === 2; spacing: 12
 
             RowLayout {
                 Layout.fillWidth:true; Layout.minimumHeight:54; Layout.maximumHeight:54; spacing:10
                 AppButton { text:"← Выбор режима"; quiet:true; accent:win.uiAccent; enabled:!optimizer.batchBusy; onClicked:win.screen=0 }
                 ColumnLayout { Layout.fillWidth:true; spacing:0
-                    Text { text:"AGR Flow  /  Оптимизация текстур"; color:"white"; font.pixelSize:20; font.weight:Font.DemiBold }
+                    Text { text:"Flow Studio  /  Оптимизация текстур"; color:Theme.text; font.pixelSize:20; font.weight:Font.DemiBold }
                     Text { text:"ПАКЕТНЫЙ RGB24  /  AUTO QUALITY  /  БЕЗ ЛИМИТА MB"; color:"#85808e"; font.pixelSize:9; font.letterSpacing:.8 }
                 }
                 MetricChip { text:optimizer.batchItems.length+" FILES"; checked:optimizer.batchItems.length>0; accentColor:win.uiAccent }
@@ -352,7 +356,7 @@ ApplicationWindow {
                             Text { text:optimizer.batchStatus; color:"#d3ced8"; font.pixelSize:11; font.weight:Font.DemiBold; Layout.fillWidth:true; elide:Text.ElideRight }
                             Text { text:Math.round(optimizer.batchProgress*100)+"%"; color:win.uiAccent; font.pixelSize:11; font.bold:true }
                         }
-                        Rectangle { Layout.fillWidth:true; height:7; radius:4; color:"#29262e"
+                        Rectangle { Layout.fillWidth:true; height:7; radius:4; color:Theme.surfaceRaised
                             Rectangle { width:parent.width*optimizer.batchProgress; height:parent.height; radius:4; color:win.uiAccent; Behavior on width { NumberAnimation { duration:220 } } }
                         }
                     }
@@ -383,13 +387,13 @@ ApplicationWindow {
                         required property var modelData
                         required property int index
                         width:batchList.width-12
-                        height:190; radius:18; color:"#a5121117"; border.width:1; border.color:"#14ffffff"
+                        height:190; radius:Theme.radiusLarge; color:Theme.surface; border.width:1; border.color:Theme.stroke
                         RowLayout { anchors.fill:parent; anchors.margins:10; spacing:12
-                            Rectangle { Layout.preferredWidth:250; Layout.fillHeight:true; radius:13; clip:true; color:"#0a090d"
+                            Rectangle { Layout.preferredWidth:250; Layout.fillHeight:true; radius:Theme.radiusMedium; clip:true; color:"#070908"
                                 Image { anchors.fill:parent; anchors.margins:5; source:modelData.comparisonSourceUrl||modelData.sourceUrl; asynchronous:true; cache:false; fillMode:Image.PreserveAspectFit; sourceSize:Qt.size(420,260) }
                                 MetricChip { anchors.left:parent.left; anchors.top:parent.top; anchors.margins:9; text:"BEFORE"; accentColor:win.uiAccent }
                             }
-                            Rectangle { Layout.preferredWidth:250; Layout.fillHeight:true; radius:13; clip:true; color:"#0a090d"
+                            Rectangle { Layout.preferredWidth:250; Layout.fillHeight:true; radius:Theme.radiusMedium; clip:true; color:"#070908"
                                 Image { anchors.fill:parent; anchors.margins:5; source:modelData.comparisonResultUrl||modelData.resultUrl; asynchronous:true; cache:false; fillMode:Image.PreserveAspectFit; sourceSize:Qt.size(420,260) }
                                 Text { anchors.centerIn:parent; visible:!modelData.resultUrl; text:modelData.failed?"Ошибка обработки":"AFTER\nожидает обработки"; color:modelData.failed?"#ef6c72":"#66616c"; font.pixelSize:11; horizontalAlignment:Text.AlignHCenter }
                                 MetricChip { anchors.left:parent.left; anchors.top:parent.top; anchors.margins:9; text:"AFTER"; checked:modelData.done; accentColor:win.uiAccent }
@@ -397,7 +401,7 @@ ApplicationWindow {
                             ColumnLayout { Layout.fillWidth:true; Layout.fillHeight:true; spacing:7
                                 Text { Layout.fillWidth:true; text:modelData.name; color:"white"; font.pixelSize:15; font.weight:Font.DemiBold; elide:Text.ElideMiddle }
                                 Text { text:modelData.width+" × "+modelData.height+"  •  "+win.mb(modelData.sourceMb)+(modelData.done?"  →  "+win.mb(modelData.outputMb):""); color:"#99949f"; font.pixelSize:10 }
-                                Rectangle { Layout.fillWidth:true; height:6; radius:3; color:"#29262e"
+                                Rectangle { Layout.fillWidth:true; height:6; radius:3; color:Theme.surfaceRaised
                                     Rectangle { width:parent.width*modelData.progress; height:parent.height; radius:3; color:modelData.failed?"#ef6c72":win.uiAccent }
                                 }
                                 Text { Layout.fillWidth:true; Layout.fillHeight:true; text:modelData.report||modelData.status; color:modelData.failed?"#ef8b90":"#817c87"; font.pixelSize:9; wrapMode:Text.Wrap; maximumLineCount:4; elide:Text.ElideRight }
@@ -416,7 +420,7 @@ ApplicationWindow {
 
         // BATCH COMPARISON
         ColumnLayout {
-            anchors.fill:parent; anchors.leftMargin:124; anchors.rightMargin:14; anchors.topMargin:14; anchors.bottomMargin:14
+            anchors.fill:parent; anchors.leftMargin:240; anchors.rightMargin:14; anchors.topMargin:14; anchors.bottomMargin:14
             visible:win.screen===3; spacing:12
 
             RowLayout { Layout.fillWidth:true; Layout.minimumHeight:54; Layout.maximumHeight:54

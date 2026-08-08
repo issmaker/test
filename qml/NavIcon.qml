@@ -4,7 +4,7 @@ import QtQuick.Effects
 Item {
     id: root
     property string kind: "home"
-    property color iconColor: Theme.text
+    property color iconColor: AppTheme.contentPrimary
     readonly property string iconName: kind === "home" ? "house"
                                        : kind === "npm" ? "scan-line"
                                        : kind === "batch" ? "images"

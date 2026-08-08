@@ -10,7 +10,7 @@ ApplicationWindow {
     minimumWidth: 1120
     minimumHeight: 790
     visible: true
-    title: "Adaptive Texture Optimizer 1.0"
+    title: "Adaptive Texture Optimizer 26"
     color: "#05090d"
     palette.window: "#05090d"
     palette.windowText: "#f4fafb"
@@ -140,7 +140,7 @@ ApplicationWindow {
                     :"Максимальные эффекты включены. Нажмите для режима слабых ПК."
                 onClicked:win.lightFx=!win.lightFx
             }
-            MetricChip{text:"v1.0";accentColor:win.accentColor}
+            MetricChip{text:"v26";accentColor:win.accentColor}
             MetricChip{text:"AGR ADAPTIVE RGB24";accentColor:win.accentColor;checked:true}
         }
 
@@ -161,7 +161,7 @@ ApplicationWindow {
                     Text{text:"ПРЕДЕЛ ФАЙЛА";color:"#738893";font.pixelSize:9;font.weight:Font.DemiBold}
                     LimitSelector{value:win.targetMb;accentColor:win.accentColor;onValueEdited:newValue=>win.targetMb=newValue}
                 }
-                AppButton{text:optimizer.busy?"Оптимизация…":"Оптимизировать";accent:win.accentColor;enabled:optimizer.sourceUrl&&!optimizer.busy&&!optimizer.previewBusy;tip:"Запустить AGR Adaptive RGB24 с обязательной проверкой размера и RGB24";onClicked:optimizer.optimize(win.targetMb,1)}
+                AppButton{text:optimizer.busy?"Оптимизация…":"Оптимизировать";accent:win.accentColor;enabled:optimizer.sourceUrl&&!optimizer.busy&&!optimizer.previewBusy;tip:"Запустить AGR Adaptive RGB24 с обязательной проверкой размера и RGB24";onClicked:optimizer.optimize(win.targetMb)}
             }
         }
 

@@ -11,7 +11,7 @@ ApplicationWindow {
     minimumHeight: 760
     visible: true
     visibility: Window.FullScreen
-    title: "Adaptive Texture Optimizer 29 — AGR Astro"
+    title: "Adaptive Texture Optimizer 30 — Liquid Glass"
     color: "#050507"
 
     // 0 — start, 1 — НПМ, 2 — batch list, 3 — batch comparison
@@ -24,6 +24,8 @@ ApplicationWindow {
     property real panY: 0
     property real pointerX: 0
     property real pointerY: 0
+    property int bubbleScore: 0
+    property bool bubblesOn: true
     readonly property var batchItem: batchIndex >= 0 && batchIndex < optimizer.batchItems.length
                                      ? optimizer.batchItems[batchIndex] : null
     property color uiAccent: screen >= 2 ? "#8b4ed8" : "#ed6d32"
@@ -65,7 +67,7 @@ ApplicationWindow {
         id: npmPicker
         title: "Выберите НПМ PNG-текстуру"
         nameFilters: ["PNG textures (*.png)"]
-        onAccepted: { optimizer.load(selectedFile); win.enterNpm() }
+        onAccepted: { win.enterNpm(); optimizer.load(selectedFile); Qt.callLater(win.resetView) }
     }
     FileDialog {
         id: batchPicker
@@ -81,14 +83,14 @@ ApplicationWindow {
     Shortcut { sequence: "Ctrl+0"; onActivated: win.resetView() }
     Shortcut { sequence: "Ctrl+1"; onActivated: win.actualPixels() }
     Shortcut { sequence: StandardKey.Cancel; enabled: !optimizer.busy && !optimizer.batchBusy; onActivated: { if(win.screen === 3)win.screen=2; else if(win.screen!==0)win.screen=0 } }
+    Connections { target:optimizer; function onSourceUrlChanged(){win.panX=0;win.panY=0;Qt.callLater(win.resetView)} }
 
-    MarsBackdrop {
+    LiquidBackdrop {
         anchors.fill: parent
-        accentColor: win.screen >= 2 ? "#8b4ed8" : "#ed6d32"
+        scene: win.screen === 1 ? 1 : (win.screen === 2 ? 2 : (win.screen === 3 ? 3 : 0))
         pointerX: win.pointerX
         pointerY: win.pointerY
         activity: optimizer.busy ? optimizer.progress : (optimizer.batchBusy ? optimizer.batchProgress : 0)
-        opacity: win.screen === 0 ? 1 : .78
     }
     HoverHandler {
         onPointChanged: {
@@ -100,7 +102,7 @@ ApplicationWindow {
         anchors.fill: parent
         onDropped: drop => {
             if(!drop.hasUrls)return
-            if(win.screen === 1){ optimizer.load(drop.urls[0]); win.resetView() }
+            if(win.screen === 1){ optimizer.load(drop.urls[0]); Qt.callLater(win.resetView) }
             else if(win.screen === 2)win.addDropped(drop.urls)
         }
     }
@@ -125,20 +127,18 @@ ApplicationWindow {
 
             ColumnLayout {
                 anchors.fill: parent; anchors.margins: 11; spacing: 11
-                Rectangle {
-                    Layout.alignment: Qt.AlignHCenter
-                    width: 54; height: 54; radius: 18; color: win.uiAccent
-                    Text { anchors.centerIn:parent; text:"A✦"; color:"white"; font.pixelSize:17; font.bold:true }
-                }
-                Text { Layout.alignment:Qt.AlignHCenter; text:"AGR+"; color:"white"; font.pixelSize:12; font.weight:Font.DemiBold }
+                Rectangle { Layout.alignment:Qt.AlignHCenter; width:54;height:54;radius:19;color:win.uiAccent;border.width:1;border.color:"#55ffffff";Text{anchors.centerIn:parent;text:"A+";color:"white";font.pixelSize:16;font.bold:true} }
+                Text { Layout.alignment:Qt.AlignHCenter; text:"LIQUID"; color:"white"; font.pixelSize:10; font.weight:Font.DemiBold; font.letterSpacing:1 }
                 Rectangle { Layout.fillWidth:true; height:1; color:"#14ffffff" }
-                AppButton { Layout.fillWidth:true; text:"⌂"; quiet:win.screen!==0; accent:win.uiAccent; leftPadding:0; rightPadding:0; tipRight:true; tip:"Главный экран и выбор режима"; enabled:!optimizer.busy&&!optimizer.batchBusy; onClicked:win.screen=0 }
-                AppButton { Layout.fillWidth:true; text:"НПМ"; quiet:win.screen!==1; accent:win.uiAccent; leftPadding:0; rightPadding:0; tipRight:true; tip:"Оптимизация НПМ-текстур до 3 MB"; enabled:!optimizer.batchBusy; onClicked:win.enterNpm() }
-                AppButton { Layout.fillWidth:true; text:"▦"; quiet:win.screen!==2; accent:win.uiAccent; leftPadding:0; rightPadding:0; tipRight:true; tip:"Список пакетной оптимизации текстур"; enabled:!optimizer.busy; onClicked:win.screen=2 }
-                AppButton { Layout.fillWidth:true; text:"◫"; quiet:win.screen!==3; accent:win.uiAccent; leftPadding:0; rightPadding:0; tipRight:true; tip:"Сравнительный анализ выбранной текстуры"; enabled:win.batchItem&&win.batchItem.done&&!optimizer.batchBusy; onClicked:win.screen=3 }
+                NavButton { Layout.alignment:Qt.AlignHCenter;kind:"home";selected:false;accentColor:win.uiAccent;tip:"Главный экран и выбор режима";enabled:!optimizer.busy&&!optimizer.batchBusy;onClicked:win.screen=0 }
+                NavButton { Layout.alignment:Qt.AlignHCenter;kind:"npm";selected:win.screen===1;accentColor:win.uiAccent;tip:"Оптимизация НПМ-текстур до 3 MB";enabled:!optimizer.batchBusy;onClicked:win.enterNpm() }
+                NavButton { Layout.alignment:Qt.AlignHCenter;kind:"batch";selected:win.screen===2;accentColor:win.uiAccent;tip:"Список пакетной оптимизации";enabled:!optimizer.busy;onClicked:win.screen=2 }
+                NavButton { Layout.alignment:Qt.AlignHCenter;kind:"compare";selected:win.screen===3;accentColor:win.uiAccent;tip:"Сравнительный анализ";enabled:win.batchItem&&win.batchItem.done&&!optimizer.batchBusy;onClicked:win.screen=3 }
+                NavButton { Layout.alignment:Qt.AlignHCenter;kind:"play";selected:win.bubblesOn;accentColor:"#39c6df";tip:win.bubblesOn?"Выключить игру «Поймай каплю»":"Включить игру «Поймай каплю»";onClicked:win.bubblesOn=!win.bubblesOn }
                 Item { Layout.fillHeight:true }
-                MetricChip { Layout.alignment:Qt.AlignHCenter; text:"v29"; checked:true; accentColor:win.uiAccent }
-                AppButton { Layout.fillWidth:true; text:"⏻"; quiet:true; accent:"#d45563"; leftPadding:0; rightPadding:0; tipRight:true; tip:"Закрыть приложение"; enabled:!optimizer.busy&&!optimizer.batchBusy; onClicked:Qt.quit() }
+                MetricChip { Layout.alignment:Qt.AlignHCenter; text:"x "+win.bubbleScore; checked:win.bubbleScore>0; accentColor:"#39c6df" }
+                MetricChip { Layout.alignment:Qt.AlignHCenter; text:"v30"; checked:true; accentColor:win.uiAccent }
+                NavButton { Layout.alignment:Qt.AlignHCenter;kind:"exit";accentColor:"#d45563";tip:"Закрыть приложение";enabled:!optimizer.busy&&!optimizer.batchBusy;onClicked:Qt.quit() }
             }
         }
 
@@ -162,7 +162,7 @@ ApplicationWindow {
                     ColumnLayout {
                         spacing: 1
                         Text { text: "Adaptive Texture Optimizer"; color: "white"; font.pixelSize: 30; font.weight: Font.DemiBold }
-                        Text { text: "AGR ASTRO  /  VERSION 29  /  ВЫБЕРИТЕ ЗАДАЧУ"; color: "#8b8691"; font.pixelSize: 10; font.letterSpacing: 1.4 }
+                        Text { text: "LIQUID GLASS  /  VERSION 30  /  ВЫБЕРИТЕ ЗАДАЧУ"; color: "#8b8691"; font.pixelSize: 10; font.letterSpacing: 1.4 }
                     }
                 }
 
@@ -242,7 +242,7 @@ ApplicationWindow {
                 Layout.fillWidth: true; Layout.minimumHeight: 54; Layout.maximumHeight: 54
                 AppButton { text: "← Выбор режима"; quiet: true; accent: win.uiAccent; enabled: !optimizer.busy; onClicked: win.screen = 0 }
                 ColumnLayout { Layout.fillWidth: true; spacing: 0
-                    Text { text: "AGR Astro ✦  /  Оптимизация для НПМ-текстур"; color: "white"; font.pixelSize: 20; font.weight: Font.DemiBold }
+                    Text { text: "AGR Liquid  /  Оптимизация для НПМ-текстур"; color: "white"; font.pixelSize: 20; font.weight: Font.DemiBold }
                     Text { text: "Фиксированный предел ≤ 3 MB  /  AGR ADAPTIVE RGB24"; color: "#817c87"; font.pixelSize: 9; font.letterSpacing: .8 }
                 }
                 AppButton { text: "Импорт PNG"; accent: win.warmAccent; enabled: !optimizer.busy; onClicked: npmPicker.open() }
@@ -333,7 +333,7 @@ ApplicationWindow {
                 Layout.fillWidth:true; Layout.minimumHeight:54; Layout.maximumHeight:54; spacing:10
                 AppButton { text:"← Выбор режима"; quiet:true; accent:win.uiAccent; enabled:!optimizer.batchBusy; onClicked:win.screen=0 }
                 ColumnLayout { Layout.fillWidth:true; spacing:0
-                    Text { text:"AGR Astro ✦  /  Оптимизация текстур"; color:"white"; font.pixelSize:20; font.weight:Font.DemiBold }
+                    Text { text:"AGR Liquid  /  Оптимизация текстур"; color:"white"; font.pixelSize:20; font.weight:Font.DemiBold }
                     Text { text:"ПАКЕТНЫЙ RGB24  /  AUTO QUALITY  /  БЕЗ ЛИМИТА MB"; color:"#85808e"; font.pixelSize:9; font.letterSpacing:.8 }
                 }
                 MetricChip { text:optimizer.batchItems.length+" FILES"; checked:optimizer.batchItems.length>0; accentColor:win.uiAccent }
@@ -452,5 +452,11 @@ ApplicationWindow {
                 Text { anchors.fill:parent; anchors.margins:12; text:win.batchItem?win.batchItem.report:"Выбранный элемент больше недоступен. Вернитесь к списку."; color:"#aaa5af"; font.pixelSize:9; wrapMode:Text.Wrap; maximumLineCount:3; elide:Text.ElideRight }
             }
         }
+    }
+
+    BubbleCatch {
+        z:80;anchors.fill:parent;running:win.bubblesOn&&win.screen!==0&&!optimizer.busy&&!optimizer.batchBusy
+        accentColor:win.screen===1?"#ff805b":"#60d8ef"
+        onCaught:(x,y)=>win.bubbleScore++
     }
 }

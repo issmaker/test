@@ -73,8 +73,8 @@ SourcePreview preparePreview(const QString &path,int generation,const QString &c
 
 QString prepareComparisonPreview(const QString &path,const QString &cacheKey){
     QImageReader meta(path,"PNG");const QSize native=meta.size();
-    if(!native.isValid()||qMax(native.width(),native.height())<=4096)return QUrl::fromLocalFile(path).toString();
-    const double scale=3072.0/qMax(native.width(),native.height());
+    if(!native.isValid()||qMax(native.width(),native.height())<=2048)return QUrl::fromLocalFile(path).toString();
+    const double scale=2048.0/qMax(native.width(),native.height());
     const QSize target(qMax(1,int(std::lround(native.width()*scale))),qMax(1,int(std::lround(native.height()*scale))));
     QImageReader reader(path,"PNG");reader.setAutoTransform(true);reader.setScaledSize(target);
     const QImage preview=reader.read().convertToFormat(QImage::Format_RGB888);if(preview.isNull())return {};
@@ -84,8 +84,8 @@ QString prepareComparisonPreview(const QString &path,const QString &cacheKey){
 }
 
 QString saveComparisonPreview(const QImage &image,const QString &cacheKey){
-    if(image.isNull()||qMax(image.width(),image.height())<=4096)return {};
-    const double scale=3072.0/qMax(image.width(),image.height());
+    if(image.isNull()||qMax(image.width(),image.height())<=2048)return {};
+    const double scale=2048.0/qMax(image.width(),image.height());
     const QSize target(qMax(1,int(std::lround(image.width()*scale))),qMax(1,int(std::lround(image.height()*scale))));
     const QImage preview=image.scaled(target,Qt::KeepAspectRatio,Qt::SmoothTransformation).convertToFormat(QImage::Format_RGB888);
     const QString directory=QStandardPaths::writableLocation(QStandardPaths::CacheLocation)+"/comparison-previews";

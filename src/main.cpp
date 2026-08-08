@@ -65,7 +65,7 @@ int runSelfTest() {
     if (!directory.isValid()) return 2;
 
     QImage input(512, 512, QImage::Format_RGB888);
-    quint32 state = 0x28a6f19dU;
+    quint32 state = 0x29a6f19dU;
     for (int y = 0; y < input.height(); ++y) {
         uchar *line = input.scanLine(y);
         for (int x = 0; x < input.width(); ++x) {
@@ -87,12 +87,16 @@ int runSelfTest() {
     if (automatic.png.isEmpty()) return 7;
     if (!PngEncoder::verifyRgb24(automatic.png, automatic.output)) return 8;
     if (automatic.output.size() != input.size()) return 9;
+    bool cancellationObserved=false;
+    try { TextureProcessor::processAutomatic(inputPath, [](double,const QString&){}, []{return true;}); }
+    catch(...) { cancellationObserved=true; }
+    if(!cancellationObserved)return 10;
     return 0;
 }
 } // namespace
 
 int main(int argc,char**argv){
-    QGuiApplication app(argc,argv);app.setApplicationName("Adaptive Texture Optimizer");app.setApplicationVersion("28");
+    QGuiApplication app(argc,argv);app.setApplicationName("Adaptive Texture Optimizer");app.setApplicationVersion("29");
     app.setWindowIcon(QIcon(QStringLiteral(":/icons/mars.svg")));
     g_startupLogPath = QCoreApplication::applicationDirPath()
         + QStringLiteral("/AdaptiveTextureOptimizer-startup.log");
@@ -100,7 +104,7 @@ int main(int argc,char**argv){
         QFile log(g_startupLogPath);
         if (log.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
             QTextStream out(&log);
-            out << "Adaptive Texture Optimizer 28 startup\n";
+            out << "Adaptive Texture Optimizer 29 startup\n";
             out << "Qt " << qVersion() << "\n";
         }
     }

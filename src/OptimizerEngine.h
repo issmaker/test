@@ -122,6 +122,10 @@ public:
     Q_INVOKABLE void openBatchOutput(int index);
     Q_INVOKABLE void stopCurrent();
     Q_INVOKABLE void stopBatch();
+    Q_INVOKABLE QVariantMap snapshot() const;
+    Q_INVOKABLE void chooseNpmFile();
+    Q_INVOKABLE void chooseBatchFiles();
+    Q_INVOKABLE void quitApp();
 
 signals:
     void sourceUrlChanged();

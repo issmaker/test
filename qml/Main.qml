@@ -11,7 +11,7 @@ ApplicationWindow {
     minimumHeight: 760
     visible: true
     visibility: Window.FullScreen
-    title: "Adaptive Texture Optimizer 32 — Flow Studio"
+    title: "Adaptive Texture Optimizer 33 — Magenta Infrastructure"
     color: Theme.canvas
 
     // 0 — start, 1 — НПМ, 2 — batch list, 3 — batch comparison
@@ -28,8 +28,8 @@ ApplicationWindow {
     property bool bubblesOn: true
     readonly property var batchItem: batchIndex >= 0 && batchIndex < optimizer.batchItems.length
                                      ? optimizer.batchItems[batchIndex] : null
-    property color uiAccent: screen >= 2 ? "#29c7ad" : "#f0a34b"
-    property color warmAccent: "#f0a34b"
+    property color uiAccent: screen === 1 ? "#ff74b2" : "#ff3f93"
+    property color warmAccent: "#ff4f9a"
     readonly property url npmBefore: optimizer.referenceUrl ? optimizer.referenceUrl
                                     : (optimizer.workingPreviewUrl ? optimizer.workingPreviewUrl
                                        : (optimizer.sourceIsLarge ? "" : optimizer.sourceUrl))
@@ -111,43 +111,42 @@ ApplicationWindow {
 
     Rectangle {
         anchors.fill: parent
-        anchors.margins: 16
-        radius: 32
-        color: "#10000000"
-        border.width: 1
-        border.color: "#16ffffff"
+        radius: 0
+        color: "transparent"
+        border.width: 0
 
-        GlassCard {
+        Item {
             id: sideRail
             z: 40
-            visible: win.screen !== 0
-            anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom
-            anchors.margins: 14
-            width: 212
-            accentColor: win.uiAccent
-            glassOpacity: .76
+            anchors.left:parent.left;anchors.right:parent.right;anchors.top:parent.top
+            anchors.leftMargin:36;anchors.rightMargin:36;anchors.topMargin:22
+            height:64
 
-            ColumnLayout {
-                anchors.fill: parent; anchors.margins: 12; spacing: 8
-                RowLayout { Layout.fillWidth:true; Layout.preferredHeight:56; spacing:10
-                    Image { Layout.preferredWidth:40;Layout.preferredHeight:40;source:"qrc:/icons/liquid.svg";sourceSize:Qt.size(80,80);smooth:true }
-                    ColumnLayout { Layout.fillWidth:true;spacing:0
-                        Text { text:"FLOW STUDIO";color:Theme.text;font.pixelSize:12;font.weight:Font.DemiBold;font.letterSpacing:.7 }
-                        Text { text:"TEXTURE SYSTEM";color:Theme.textFaint;font.pixelSize:8;font.letterSpacing:.8 }
+            RowLayout {
+                anchors.fill:parent;spacing:18
+                RowLayout { Layout.preferredWidth:245;spacing:12
+                    Image { Layout.preferredWidth:42;Layout.preferredHeight:42;source:"qrc:/icons/liquid.svg";sourceSize:Qt.size(84,84);smooth:true }
+                    ColumnLayout { spacing:0
+                        Text { text:"Adaptive Texture";color:Theme.text;font.pixelSize:15;font.weight:Font.DemiBold }
+                        Text { text:"FLOW INFRASTRUCTURE";color:Theme.textMuted;font.pixelSize:8;font.letterSpacing:1.1 }
                     }
                 }
-                Rectangle { Layout.fillWidth:true; height:1; color:"#14ffffff" }
-                Text { Layout.leftMargin:12;Layout.topMargin:8;text:"РАБОЧАЯ ОБЛАСТЬ";color:Theme.textFaint;font.pixelSize:8;font.weight:Font.DemiBold;font.letterSpacing:1.1 }
-                NavButton { kind:"home";label:"Главная";selected:false;accentColor:win.uiAccent;tip:"Главный экран и выбор режима";enabled:!optimizer.busy&&!optimizer.batchBusy;onClicked:win.screen=0 }
-                NavButton { kind:"npm";label:"НПМ · до 3 MB";selected:win.screen===1;accentColor:win.uiAccent;tip:"Оптимизация НПМ-текстур до 3 MB";enabled:!optimizer.batchBusy;onClicked:win.enterNpm() }
-                NavButton { kind:"batch";label:"Все текстуры";selected:win.screen===2;accentColor:win.uiAccent;tip:"Список пакетной оптимизации";enabled:!optimizer.busy;onClicked:win.screen=2 }
-                NavButton { kind:"compare";label:"Сравнение";selected:win.screen===3;accentColor:win.uiAccent;tip:"Сравнительный анализ";enabled:win.batchItem&&win.batchItem.done&&!optimizer.batchBusy;onClicked:win.screen=3 }
-                Text { Layout.leftMargin:12;Layout.topMargin:10;text:"ИНСТРУМЕНТЫ";color:Theme.textFaint;font.pixelSize:8;font.weight:Font.DemiBold;font.letterSpacing:1.1 }
-                NavButton { kind:"play";label:"Поймай импульс";selected:win.bubblesOn;accentColor:"#29c7ad";tip:win.bubblesOn?"Выключить игру «Поймай импульс»":"Включить игру «Поймай импульс»";onClicked:win.bubblesOn=!win.bubblesOn }
-                Item { Layout.fillHeight:true }
-                RowLayout { Layout.fillWidth:true;MetricChip { text:"IMPULSE  "+win.bubbleScore; checked:win.bubbleScore>0; accentColor:"#29c7ad" } Item{Layout.fillWidth:true} MetricChip{text:"v32";checked:true;accentColor:win.uiAccent} }
-                Rectangle { Layout.fillWidth:true;height:1;color:"#14ffffff" }
-                NavButton { kind:"exit";label:"Закрыть приложение";accentColor:Theme.danger;tip:"Закрыть приложение";enabled:!optimizer.busy&&!optimizer.batchBusy;onClicked:Qt.quit() }
+                Item { Layout.fillWidth:true }
+                GlassCard {
+                    Layout.preferredWidth:Math.min(1080,sideRail.width-275);Layout.fillHeight:true
+                    accentColor:win.uiAccent;glassOpacity:.96;radius:12
+                    RowLayout { anchors.fill:parent;anchors.margins:7;spacing:4
+                        NavButton { Layout.preferredWidth:116;kind:"home";label:"Главная";selected:win.screen===0;accentColor:win.uiAccent;enabled:!optimizer.busy&&!optimizer.batchBusy;onClicked:win.screen=0 }
+                        NavButton { Layout.preferredWidth:142;kind:"npm";label:"НПМ · 3 MB";selected:win.screen===1;accentColor:win.uiAccent;enabled:!optimizer.batchBusy;onClicked:win.enterNpm() }
+                        NavButton { Layout.preferredWidth:142;kind:"batch";label:"Текстуры";selected:win.screen===2;accentColor:win.uiAccent;enabled:!optimizer.busy;onClicked:win.screen=2 }
+                        NavButton { Layout.preferredWidth:142;kind:"compare";label:"Сравнение";selected:win.screen===3;accentColor:win.uiAccent;enabled:win.batchItem&&win.batchItem.done&&!optimizer.batchBusy;onClicked:win.screen=3 }
+                        Item { Layout.fillWidth:true }
+                        MetricChip { text:"SCORE "+win.bubbleScore;checked:win.bubbleScore>0;accentColor:win.uiAccent }
+                        MetricChip { text:"v33";checked:true;accentColor:win.uiAccent }
+                        NavButton { Layout.preferredWidth:112;kind:"play";label:"Импульс";selected:win.bubblesOn;accentColor:win.uiAccent;onClicked:win.bubblesOn=!win.bubblesOn }
+                        NavButton { Layout.preferredWidth:102;kind:"exit";label:"Выход";accentColor:Theme.danger;enabled:!optimizer.busy&&!optimizer.batchBusy;onClicked:Qt.quit() }
+                    }
+                }
             }
         }
 
@@ -156,91 +155,43 @@ ApplicationWindow {
             anchors.fill: parent
             visible: win.screen === 0
 
-            ColumnLayout {
-                anchors.centerIn: parent
-                width: Math.min(1040, parent.width - 80)
-                spacing: 24
+            Column {
+                anchors.left:parent.left;anchors.leftMargin:58
+                anchors.verticalCenter:parent.verticalCenter
+                anchors.verticalCenterOffset:70
+                width:parent.width*.58;spacing:-5
+                Text { text:"REAL-TIME";color:Theme.text;font.pixelSize:Math.min(78,win.width*.046);font.weight:Font.Light }
+                Text { text:"ОПТИМИЗАЦИЯ";color:Theme.text;font.pixelSize:Math.min(78,win.width*.046);font.weight:Font.Light }
+                Text { text:"ТЕКСТУР,";color:Theme.teal;font.pixelSize:Math.min(78,win.width*.046);font.weight:Font.Light }
+                Text { text:"КОТОРАЯ РАБОТАЕТ";color:Theme.text;font.pixelSize:Math.min(78,win.width*.046);font.weight:Font.Light }
+                Text { text:"ВМЕСТЕ С ВАМИ";color:Theme.text;font.pixelSize:Math.min(78,win.width*.046);font.weight:Font.Light }
+            }
 
-                RowLayout {
-                    Layout.alignment: Qt.AlignHCenter
-                    spacing: 14
-                    Image { width:58;height:58;source:"qrc:/icons/liquid.svg";sourceSize:Qt.size(116,116);smooth:true }
-                    ColumnLayout {
-                        spacing: 1
-                        Text { text: "Adaptive Texture Optimizer"; color: "white"; font.pixelSize: 30; font.weight: Font.DemiBold }
-                        Text { text: "FLOW STUDIO  /  VERSION 32  /  ВЫБЕРИТЕ ЗАДАЧУ"; color: "#8b9693"; font.pixelSize: 10; font.letterSpacing: 1.4 }
+            GlassCard {
+                anchors.right:parent.right;anchors.rightMargin:64
+                anchors.verticalCenter:parent.verticalCenter;anchors.verticalCenterOffset:82
+                width:420;height:380;radius:14;accentColor:Theme.teal;glassOpacity:.94
+                ColumnLayout { anchors.fill:parent;anchors.margins:26;spacing:16
+                    Text { text:"TEXTURE INFRASTRUCTURE";color:Theme.teal;font.pixelSize:9;font.weight:Font.DemiBold;font.letterSpacing:1.3 }
+                    Text { Layout.fillWidth:true;text:"Два готовых конвейера для production-текстур";color:Theme.text;font.pixelSize:24;font.weight:Font.Medium;wrapMode:Text.Wrap;lineHeight:1.05 }
+                    Text { Layout.fillWidth:true;text:"Один файл для НПМ до 3 MB или пакетная RGB24-оптимизация 2K, 4K и 8K без ручного лимита.";color:Theme.textMuted;font.pixelSize:12;wrapMode:Text.Wrap;lineHeight:1.35 }
+                    Item { Layout.fillHeight:true }
+                    Row { spacing:8
+                        MetricChip{text:"RGB24";checked:true;accentColor:Theme.teal}
+                        MetricChip{text:"8K READY";checked:true;accentColor:Theme.teal}
+                        MetricChip{text:"BATCH";accentColor:Theme.teal}
                     }
+                    AppButton { Layout.fillWidth:true;implicitHeight:52;text:"НПМ · ОПТИМИЗИРОВАТЬ ДО 3 MB";accent:Theme.teal;onClicked:win.enterNpm() }
+                    AppButton { Layout.fillWidth:true;implicitHeight:52;text:"ОТКРЫТЬ ОПТИМИЗАТОР ТЕКСТУР";accent:"#b52a77";quiet:true;onClicked:win.enterBatch() }
+                    Text { Layout.alignment:Qt.AlignHCenter;text:"Результаты сохраняются в папке compressed";color:Theme.textFaint;font.pixelSize:9 }
                 }
-
-                Text {
-                    Layout.alignment: Qt.AlignHCenter
-                    text: "Как будем оптимизировать текстуры?"
-                    color: "#f6f3f8"; font.pixelSize: 18
-                }
-
-                RowLayout {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 340
-                    spacing: 20
-
-                    GlassCard {
-                        Layout.fillWidth: true; Layout.fillHeight: true
-                        accentColor: win.warmAccent; glassOpacity: .84
-                        ColumnLayout {
-                            anchors.fill: parent; anchors.margins: 28; spacing: 14
-                            Rectangle {
-                                width: 50; height: 50; radius: 16; color: win.warmAccent
-                                NavIcon { anchors.centerIn:parent;width:24;height:24;kind:"npm";iconColor:"white" }
-                            }
-                            Text { text: "Оптимизация для\nНПМ-текстур"; color: "white"; font.pixelSize: 26; font.weight: Font.DemiBold; lineHeight: .95 }
-                            Text {
-                                Layout.fillWidth: true
-                                text: "Одна текстура. Автоматический предел меньше 3 MB, рабочий размер до 2K и обязательный RGB24."
-                                color: "#9d98a3"; font.pixelSize: 12; wrapMode: Text.Wrap; lineHeight: 1.3
-                            }
-                            Item { Layout.fillHeight: true }
-                            Row { spacing: 8
-                                MetricChip { text: "≤ 3 MB"; checked: true; accentColor: win.warmAccent }
-                                MetricChip { text: "RGB24"; checked: true; accentColor: win.warmAccent }
-                                MetricChip { text: "1 FILE"; accentColor: win.warmAccent }
-                            }
-                            AppButton { Layout.fillWidth: true; text: "Открыть НПМ-оптимизатор"; accent: win.warmAccent; implicitHeight: 50; tip:"Один PNG, автоматический предел меньше 3 MB"; onClicked: win.enterNpm() }
-                        }
-                    }
-
-                    GlassCard {
-                        Layout.fillWidth: true; Layout.fillHeight: true
-                        accentColor: "#29c7ad"; glassOpacity: .84
-                        ColumnLayout {
-                            anchors.fill: parent; anchors.margins: 28; spacing: 14
-                            Rectangle {
-                                width: 50; height: 50; radius: 16; color: "#29c7ad"
-                                NavIcon { anchors.centerIn:parent;width:24;height:24;kind:"batch";iconColor:"white" }
-                            }
-                            Text { text: "Оптимизация\nтекстур"; color: "white"; font.pixelSize: 26; font.weight: Font.DemiBold; lineHeight: .95 }
-                            Text {
-                                Layout.fillWidth: true
-                                text: "Много файлов 2K/4K. Без лимита MB: автоматический поиск лучшего уменьшения веса при безопасном качестве."
-                                color: "#9d98a3"; font.pixelSize: 12; wrapMode: Text.Wrap; lineHeight: 1.3
-                            }
-                            Item { Layout.fillHeight: true }
-                            Row { spacing: 8
-                                MetricChip { text: "AUTO QUALITY"; checked: true; accentColor: "#29c7ad" }
-                                MetricChip { text: "RGB24"; checked: true; accentColor: "#29c7ad" }
-                                MetricChip { text: "BATCH"; accentColor: "#29c7ad" }
-                            }
-                            AppButton { Layout.fillWidth: true; text: "Открыть оптимизатор текстур"; accent: "#29c7ad"; implicitHeight: 50; onClicked: win.enterBatch() }
-                        }
-                    }
-                }
-                Text { Layout.alignment: Qt.AlignHCenter; text: "Все результаты сохраняются рядом с исходниками в папке compressed"; color: "#68636e"; font.pixelSize: 10 }
             }
         }
 
         // НПМ WORKSPACE
         ColumnLayout {
             anchors.fill: parent
-            anchors.leftMargin: 240; anchors.rightMargin: 14; anchors.topMargin: 14; anchors.bottomMargin: 14
+            anchors.leftMargin: 28; anchors.rightMargin: 28; anchors.topMargin: 104; anchors.bottomMargin: 20
             visible: win.screen === 1
             spacing: 12
 
@@ -248,7 +199,7 @@ ApplicationWindow {
                 Layout.fillWidth: true; Layout.minimumHeight: 54; Layout.maximumHeight: 54
                 AppButton { text: "← Выбор режима"; quiet: true; accent: win.uiAccent; enabled: !optimizer.busy; onClicked: win.screen = 0 }
                 ColumnLayout { Layout.fillWidth: true; spacing: 0
-                    Text { text: "Flow Studio  /  Оптимизация для НПМ-текстур"; color: Theme.text; font.pixelSize: 20; font.weight: Font.DemiBold }
+                    Text { text: "Magenta Infrastructure  /  Оптимизация для НПМ-текстур"; color: Theme.text; font.pixelSize: 20; font.weight: Font.DemiBold }
                     Text { text: "Фиксированный предел ≤ 3 MB  /  AGR ADAPTIVE RGB24"; color: "#817c87"; font.pixelSize: 9; font.letterSpacing: .8 }
                 }
                 AppButton { text: "Импорт PNG"; accent: win.warmAccent; enabled: !optimizer.busy; onClicked: npmPicker.open() }
@@ -320,10 +271,10 @@ ApplicationWindow {
                 Layout.fillWidth: true; Layout.minimumHeight: 108; Layout.maximumHeight: 108; accentColor: win.uiAccent
                 RowLayout { anchors.fill:parent; anchors.margins:11; spacing:12
                     Text { Layout.preferredWidth:280; text:optimizer.report||"Импортируйте PNG. Исходник и результат появятся в двух окнах выше."; color:optimizer.report?"#aaa5af":"#77727d"; font.pixelSize:9; wrapMode:Text.Wrap; maximumLineCount:4; elide:Text.ElideRight }
-                    Sparkline { Layout.fillWidth:true; Layout.fillHeight:true; values:optimizer.progressHistory; active:optimizer.busy; lineColor:"#f0a34b"; title:"RGB24 PIPELINE"; valueText:Math.round(optimizer.progress*100)+"%" }
-                    Sparkline { Layout.fillWidth:true; Layout.fillHeight:true; values:optimizer.activityHistory; active:optimizer.busy; lineColor:"#d86550"; title:"ANALYSIS LOAD"; valueText:optimizer.busy?"LIVE":"IDLE" }
-                    RadialGauge { Layout.preferredWidth:82; Layout.fillHeight:true; value:optimizer.progress; accentColor:"#f0a34b"; label:"ENCODE" }
-                    RadialGauge { Layout.preferredWidth:82; Layout.fillHeight:true; value:optimizer.busy ? .72 : (optimizer.resultUrl ? 1 : 0); accentColor:"#d86550"; label:"RGB24" }
+                    Sparkline { Layout.fillWidth:true; Layout.fillHeight:true; values:optimizer.progressHistory; active:optimizer.busy; lineColor:"#ff4f9a"; title:"RGB24 PIPELINE"; valueText:Math.round(optimizer.progress*100)+"%" }
+                    Sparkline { Layout.fillWidth:true; Layout.fillHeight:true; values:optimizer.activityHistory; active:optimizer.busy; lineColor:"#c34cff"; title:"ANALYSIS LOAD"; valueText:optimizer.busy?"LIVE":"IDLE" }
+                    RadialGauge { Layout.preferredWidth:82; Layout.fillHeight:true; value:optimizer.progress; accentColor:"#ff4f9a"; label:"ENCODE" }
+                    RadialGauge { Layout.preferredWidth:82; Layout.fillHeight:true; value:optimizer.busy ? .72 : (optimizer.resultUrl ? 1 : 0); accentColor:"#c34cff"; label:"RGB24" }
                     AppButton { text:optimizer.busy?"Остановить":"Оптимизировать до 3 MB"; accent:optimizer.busy?"#d45563":win.uiAccent; implicitWidth:210; enabled:optimizer.busy||(optimizer.sourceUrl&&!optimizer.previewBusy); tip:optimizer.busy?"Безопасно остановить текущую обработку":"Запустить НПМ-оптимизацию"; onClicked:optimizer.busy?optimizer.stopCurrent():optimizer.optimize(2.99) }
                     AppButton { text:"Папка результата"; quiet:true; accent:win.uiAccent; enabled:optimizer.outputPath; onClicked:optimizer.openOutputFolder() }
                 }
@@ -332,20 +283,20 @@ ApplicationWindow {
 
         // BATCH LIST
         ColumnLayout {
-            anchors.fill: parent; anchors.leftMargin:240; anchors.rightMargin:14; anchors.topMargin:14; anchors.bottomMargin:14
+            anchors.fill: parent; anchors.leftMargin:28; anchors.rightMargin:28; anchors.topMargin:104; anchors.bottomMargin:20
             visible: win.screen === 2; spacing: 12
 
             RowLayout {
                 Layout.fillWidth:true; Layout.minimumHeight:54; Layout.maximumHeight:54; spacing:10
                 AppButton { text:"← Выбор режима"; quiet:true; accent:win.uiAccent; enabled:!optimizer.batchBusy; onClicked:win.screen=0 }
                 ColumnLayout { Layout.fillWidth:true; spacing:0
-                    Text { text:"Flow Studio  /  Оптимизация текстур"; color:Theme.text; font.pixelSize:20; font.weight:Font.DemiBold }
+                    Text { text:"Magenta Infrastructure  /  Оптимизация текстур"; color:Theme.text; font.pixelSize:20; font.weight:Font.DemiBold }
                     Text { text:"ПАКЕТНЫЙ RGB24  /  AUTO QUALITY  /  БЕЗ ЛИМИТА MB"; color:"#85808e"; font.pixelSize:9; font.letterSpacing:.8 }
                 }
                 MetricChip { text:optimizer.batchItems.length+" FILES"; checked:optimizer.batchItems.length>0; accentColor:win.uiAccent }
                 AppButton { text:"Добавить PNG"; accent:win.uiAccent; enabled:!optimizer.batchBusy; onClicked:batchPicker.open() }
                 AppButton { text:"Очистить"; quiet:true; accent:win.uiAccent; enabled:!optimizer.batchBusy&&optimizer.batchItems.length>0; onClicked:optimizer.clearBatch() }
-                AppButton { text:optimizer.batchBusy?"Остановить":"Оптимизировать все"; accent:optimizer.batchBusy?"#d45563":"#29c7ad"; implicitWidth:180; enabled:optimizer.batchBusy||optimizer.batchItems.length>0; tip:optimizer.batchBusy?"Остановить очередь после безопасного шага":"Запустить быструю пакетную оптимизацию"; onClicked:optimizer.batchBusy?optimizer.stopBatch():optimizer.optimizeBatch() }
+                AppButton { text:optimizer.batchBusy?"Остановить":"Оптимизировать все"; accent:optimizer.batchBusy?"#d45563":"#ff3f93"; implicitWidth:180; enabled:optimizer.batchBusy||optimizer.batchItems.length>0; tip:optimizer.batchBusy?"Остановить очередь после безопасного шага":"Запустить быструю пакетную оптимизацию"; onClicked:optimizer.batchBusy?optimizer.stopBatch():optimizer.optimizeBatch() }
             }
 
             GlassCard {
@@ -360,10 +311,10 @@ ApplicationWindow {
                             Rectangle { width:parent.width*optimizer.batchProgress; height:parent.height; radius:4; color:win.uiAccent; Behavior on width { NumberAnimation { duration:220 } } }
                         }
                     }
-                    Sparkline { Layout.preferredWidth:240; Layout.fillHeight:true; values:optimizer.batchProgressHistory; active:optimizer.batchBusy; lineColor:"#29c7ad"; title:"QUEUE PROGRESS"; valueText:Math.round(optimizer.batchProgress*100)+"%" }
-                    Sparkline { Layout.preferredWidth:240; Layout.fillHeight:true; values:optimizer.batchActivityHistory; active:optimizer.batchBusy; lineColor:"#78dbc8"; title:"PALETTE ACTIVITY"; valueText:optimizer.batchBusy?"LIVE":"IDLE" }
-                    RadialGauge { Layout.preferredWidth:82; Layout.fillHeight:true; value:optimizer.batchProgress; accentColor:"#29c7ad"; label:"BATCH" }
-                    RadialGauge { Layout.preferredWidth:82; Layout.fillHeight:true; value:optimizer.batchBusy ? .76 : (optimizer.batchProgress >= 1 ? 1 : 0); accentColor:"#78dbc8"; label:"RGB24" }
+                    Sparkline { Layout.preferredWidth:240; Layout.fillHeight:true; values:optimizer.batchProgressHistory; active:optimizer.batchBusy; lineColor:"#ff3f93"; title:"QUEUE PROGRESS"; valueText:Math.round(optimizer.batchProgress*100)+"%" }
+                    Sparkline { Layout.preferredWidth:240; Layout.fillHeight:true; values:optimizer.batchActivityHistory; active:optimizer.batchBusy; lineColor:"#c34cff"; title:"PALETTE ACTIVITY"; valueText:optimizer.batchBusy?"LIVE":"IDLE" }
+                    RadialGauge { Layout.preferredWidth:82; Layout.fillHeight:true; value:optimizer.batchProgress; accentColor:"#ff3f93"; label:"BATCH" }
+                    RadialGauge { Layout.preferredWidth:82; Layout.fillHeight:true; value:optimizer.batchBusy ? .76 : (optimizer.batchProgress >= 1 ? 1 : 0); accentColor:"#c34cff"; label:"RGB24" }
                 }
             }
 
@@ -420,7 +371,7 @@ ApplicationWindow {
 
         // BATCH COMPARISON
         ColumnLayout {
-            anchors.fill:parent; anchors.leftMargin:240; anchors.rightMargin:14; anchors.topMargin:14; anchors.bottomMargin:14
+            anchors.fill:parent; anchors.leftMargin:28; anchors.rightMargin:28; anchors.topMargin:104; anchors.bottomMargin:20
             visible:win.screen===3; spacing:12
 
             RowLayout { Layout.fillWidth:true; Layout.minimumHeight:54; Layout.maximumHeight:54
@@ -462,7 +413,7 @@ ApplicationWindow {
 
     BubbleCatch {
         z:80;anchors.fill:parent;running:win.bubblesOn&&win.screen!==0&&!optimizer.busy&&!optimizer.batchBusy
-        accentColor:win.screen===1?"#f0a34b":"#29c7ad"
+        accentColor:win.screen===1?"#ff74b2":"#ff3f93"
         onCaught:(x,y)=>win.bubbleScore++
     }
 }

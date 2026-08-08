@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 
 Item {
     id: root
@@ -10,6 +11,7 @@ Item {
     property real parallaxX: 0
     property real parallaxY: 0
     property color accentColor: "#ff641f"
+    property real fitScale: .08
     signal viewChanged(real scale, real panX, real panY)
     signal resetRequested()
     signal fitCalculated(real scale)
@@ -26,16 +28,18 @@ Item {
         return Math.max(-edge,Math.min(edge,value))
     }
     function publish(scaleValue,xValue,yValue) {
-        const safeScale=Math.max(.08,Math.min(16,scaleValue))
+        const safeScale=Math.max(root.fitScale*.72,Math.min(16,scaleValue))
         root.viewChanged(safeScale,limitX(xValue,safeScale),limitY(yValue,safeScale))
     }
     function calculateFit() {
-        if(picture.status===Image.Ready&&picture.sourceSize.width>0)
-            fitCalculated(Math.min((viewport.width-26)/picture.sourceSize.width,(viewport.height-26)/picture.sourceSize.height))
+        if(picture.status===Image.Ready&&picture.sourceSize.width>0){
+            root.fitScale=Math.max(.01,Math.min((viewport.width-22)/picture.sourceSize.width,(viewport.height-22)/picture.sourceSize.height))
+            fitCalculated(root.fitScale)
+        }
     }
     function zoomAt(scaleValue,screenX,screenY) {
         const old=Math.max(.0001,root.sharedScale)
-        const next=Math.max(.08,Math.min(16,scaleValue))
+        const next=Math.max(root.fitScale*.72,Math.min(16,scaleValue))
         const localX=screenX-(viewport.x+viewport.width/2)
         const localY=screenY-(viewport.y+viewport.height/2)
         const ratio=next/old
@@ -46,39 +50,38 @@ Item {
     onWidthChanged: calculateFit()
     onHeightChanged: calculateFit()
 
-    // Only this decorative plate follows the cursor.  Image coordinates stay
-    // fixed, so parallax can no longer fight wheel zoom and synchronized pan.
     Rectangle {
         id: outerGlow
         anchors.fill: viewport
-        anchors.margins: -7
-        radius: 22
+        anchors.margins: -3
+        radius: 20
         color: "transparent"
         border.width: 1
-        border.color: Qt.rgba(root.accentColor.r,root.accentColor.g,root.accentColor.b,.30)
+        border.color: Qt.rgba(root.accentColor.r,root.accentColor.g,root.accentColor.b,.19)
         transform: Translate {
-            x: root.parallaxX*5
-            y: root.parallaxY*4
+            x: root.parallaxX*3
+            y: root.parallaxY*3
             Behavior on x { NumberAnimation{duration:210;easing.type:Easing.OutCubic} }
             Behavior on y { NumberAnimation{duration:210;easing.type:Easing.OutCubic} }
-        }
-        Rectangle {
-            anchors.fill:parent
-            anchors.margins:4
-            radius:parent.radius-4
-            color:"transparent"
-            border.width:1
-            border.color:Qt.rgba(root.accentColor.r,root.accentColor.g,root.accentColor.b,.13)
         }
     }
 
     Rectangle {
         id: viewport
         anchors.fill: parent
-        anchors.margins: 10
-        radius: 16
+        anchors.margins: 6
+        radius: 18
         clip: true
-        color: "transparent"
+        color: "#d108030a"
+        border.width: 1
+        border.color: "#12ffffff"
+        layer.enabled: true
+        layer.samples: 4
+        layer.effect: MultiEffect {
+            maskEnabled: true
+            maskSource: roundedMask
+            shadowEnabled: false
+        }
 
         Image {
             id: picture
@@ -98,38 +101,39 @@ Item {
         }
 
         Rectangle {
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.top: parent.top
-            height: 66
-            gradient: Gradient {
-                GradientStop{position:0;color:"#c9070c11"}
-                GradientStop{position:1;color:"#00070c11"}
+            x: 12; y: 12; z: 5
+            width: titleText.width + 20; height: 28; radius: 10
+            color: "#d416151b"
+            border.width: 1
+            border.color: Qt.rgba(root.accentColor.r, root.accentColor.g, root.accentColor.b, .28)
+            Text {
+                id: titleText; anchors.centerIn: parent; text: root.title
+                color: "#f3f1f5"; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: .6
             }
-        }
-        Text {
-            x: 15;y: 12;z: 5
-            text: root.title
-            color: "#edf6fb"
-            font.pixelSize: 13
-            font.weight: Font.DemiBold
         }
         Text {
             anchors.centerIn: parent
             visible: !root.imageSource
-            text: "Выберите или перетащите PNG"
-            color: "#60717d"
+            text: root.title.indexOf("AFTER") >= 0 ? "Здесь появится результат" : "Выберите или перетащите PNG"
+            color: "#625e68"
+            font.pixelSize: 11
         }
         Rectangle {
             anchors.right: parent.right
             anchors.bottom: parent.bottom
             anchors.margins: 12
-            width: scaleText.width+20;height: 28;radius: 9
-            color: "#d70a1219"
+            width: scaleText.width+20;height: 28;radius: 10
+            color: "#d416151b"
             border.width: 1
             border.color: Qt.rgba(root.accentColor.r,root.accentColor.g,root.accentColor.b,.30)
-            Text{id:scaleText;anchors.centerIn:parent;text:Math.round(root.sharedScale*100)+"%";color:"#b9d2df";font.pixelSize:11}
+            Text{id:scaleText;anchors.centerIn:parent;text:Math.round(root.sharedScale*100)+"%";color:"#d1ccd6";font.pixelSize:10;font.weight:Font.DemiBold}
         }
+    }
+
+    Rectangle {
+        id: roundedMask
+        width: viewport.width; height: viewport.height; radius: viewport.radius
+        visible: false; layer.enabled: true; color: "white"
     }
 
     WheelHandler {

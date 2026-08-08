@@ -68,6 +68,28 @@ SourcePreview preparePreview(const QString &path,int generation,const QString &c
     }
     return result;
 }
+
+QString prepareComparisonPreview(const QString &path,const QString &cacheKey){
+    QImageReader meta(path,"PNG");const QSize native=meta.size();
+    if(!native.isValid()||qMax(native.width(),native.height())<=4096)return QUrl::fromLocalFile(path).toString();
+    const double scale=3072.0/qMax(native.width(),native.height());
+    const QSize target(qMax(1,int(std::lround(native.width()*scale))),qMax(1,int(std::lround(native.height()*scale))));
+    QImageReader reader(path,"PNG");reader.setAutoTransform(true);reader.setScaledSize(target);
+    const QImage preview=reader.read().convertToFormat(QImage::Format_RGB888);if(preview.isNull())return {};
+    const QString directory=QStandardPaths::writableLocation(QStandardPaths::CacheLocation)+"/comparison-previews";
+    QDir().mkpath(directory);const QString output=directory+"/"+cacheKey+".png";
+    return preview.save(output,"PNG",1)?QUrl::fromLocalFile(output).toString():QString();
+}
+
+QString saveComparisonPreview(const QImage &image,const QString &cacheKey){
+    if(image.isNull()||qMax(image.width(),image.height())<=4096)return {};
+    const double scale=3072.0/qMax(image.width(),image.height());
+    const QSize target(qMax(1,int(std::lround(image.width()*scale))),qMax(1,int(std::lround(image.height()*scale))));
+    const QImage preview=image.scaled(target,Qt::KeepAspectRatio,Qt::SmoothTransformation).convertToFormat(QImage::Format_RGB888);
+    const QString directory=QStandardPaths::writableLocation(QStandardPaths::CacheLocation)+"/comparison-previews";
+    QDir().mkpath(directory);const QString output=directory+"/"+cacheKey+".png";
+    return preview.save(output,"PNG",1)?QUrl::fromLocalFile(output).toString():QString();
+}
 }
 
 OptimizerEngine::OptimizerEngine(QObject *parent):QObject(parent) {
@@ -120,7 +142,7 @@ OptimizerEngine::OptimizerEngine(QObject *parent):QObject(parent) {
             if(item.index<0||item.index>=m_batchEntries.size())continue;
             BatchEntry &entry=m_batchEntries[item.index];entry.progress=1;
             if(item.error.isEmpty()){
-                entry.resultUrl=item.resultUrl;entry.outputPath=item.outputPath;
+                entry.resultUrl=item.resultUrl;entry.comparisonResultUrl=item.comparisonResultUrl.isEmpty()?item.resultUrl:item.comparisonResultUrl;entry.outputPath=item.outputPath;
                 entry.outputMb=item.outputMb;entry.report=item.report;
                 entry.status="Готово";entry.done=true;entry.failed=false;++succeeded;
             }else if(run.cancelled&&item.error.contains("Остановлено",Qt::CaseInsensitive)){
@@ -193,6 +215,7 @@ QVariantList OptimizerEngine::batchItems()const{
     for(const BatchEntry &entry:m_batchEntries){
         QVariantMap item;
         item["sourceUrl"]=entry.sourceUrl;item["resultUrl"]=entry.resultUrl;
+        item["comparisonSourceUrl"]=entry.comparisonSourceUrl;item["comparisonResultUrl"]=entry.comparisonResultUrl;
         item["outputPath"]=entry.outputPath;item["name"]=entry.name;
         item["status"]=entry.status;item["report"]=entry.report;item["accent"]=entry.accent;
         item["sourceMb"]=entry.sourceMb;item["outputMb"]=entry.outputMb;
@@ -219,6 +242,9 @@ void OptimizerEngine::addBatchFiles(const QVariantList &values){
         BatchEntry entry;entry.sourceUrl=QUrl::fromLocalFile(path).toString();entry.name=info.fileName();
         entry.status="Готов к обработке";entry.sourceMb=info.size()/1000000.0;
         entry.width=dimensions.width();entry.height=dimensions.height();
+        const QByteArray previewKey=QCryptographicHash::hash((canonical+QString::number(info.lastModified().toMSecsSinceEpoch())+"_source").toUtf8(),QCryptographicHash::Sha1).toHex();
+        entry.comparisonSourceUrl=prepareComparisonPreview(path,QString::fromLatin1(previewKey));
+        if(entry.comparisonSourceUrl.isEmpty())entry.comparisonSourceUrl=entry.sourceUrl;
         if(!accentImage.isNull())entry.accent=analyseAccent(accentImage);m_batchEntries.append(entry);++added;
     }
     m_batchStatus=added?QString("Добавлено %1 файлов%2").arg(added).arg(skipped?QString(", пропущено %1").arg(skipped):QString())
@@ -236,7 +262,7 @@ void OptimizerEngine::optimizeBatch(){
     QVector<QString> paths;paths.reserve(m_batchEntries.size());
     for(BatchEntry &entry:m_batchEntries){
         paths.append(QUrl(entry.sourceUrl).toLocalFile());entry.progress=0;entry.done=false;entry.failed=false;
-        entry.resultUrl.clear();entry.outputPath.clear();entry.outputMb=0;entry.report.clear();entry.status="В очереди";
+        entry.resultUrl.clear();entry.comparisonResultUrl.clear();entry.outputPath.clear();entry.outputMb=0;entry.report.clear();entry.status="В очереди";
     }
     m_batchCancelRequested=false;m_batchBusy=true;m_batchProgress=0;m_batchStatus=QString("Обработка 0 из %1").arg(paths.size());m_batchProgressHistory={0.0};m_batchActivityHistory={.22};
     emit batchItemsChanged();emit batchBusyChanged();emit batchProgressChanged();emit batchStatusChanged();emit batchTelemetryChanged();
@@ -265,6 +291,9 @@ void OptimizerEngine::optimizeBatch(){
                 const QString out=outputDir.filePath(source.completeBaseName()+"_AGR_AUTO_RGB24.png");QFile file(out);
                 if(!file.open(QIODevice::WriteOnly|QIODevice::Truncate)||file.write(result.png)!=result.png.size())throw std::runtime_error("Не удалось записать результат");
                 file.close();summary.resultUrl=QUrl::fromLocalFile(out).toString();summary.outputPath=QDir::toNativeSeparators(out);
+                const QByteArray previewKey=QCryptographicHash::hash((path+QString::number(source.lastModified().toMSecsSinceEpoch())+"_result").toUtf8(),QCryptographicHash::Sha1).toHex();
+                summary.comparisonResultUrl=saveComparisonPreview(result.output,QString::fromLatin1(previewKey));
+                if(summary.comparisonResultUrl.isEmpty())summary.comparisonResultUrl=summary.resultUrl;
                 summary.outputMb=result.png.size()/1000000.0;summary.report=result.report;
             }catch(const std::exception &error){summary.error=QString::fromUtf8(error.what());if(m_batchCancelRequested.load())run.cancelled=true;}
             catch(...){summary.error="Неизвестный сбой обработки";}

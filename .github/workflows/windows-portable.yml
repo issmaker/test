@@ -18,7 +18,7 @@ jobs:
     env:
       QT_VERSION: 6.8.3
       BUILD_DIR: build
-      DIST_DIR: dist/AdaptiveTextureOptimizer-27-Windows
+      DIST_DIR: dist/AdaptiveTextureOptimizer-28-Windows
 
     steps:
       - name: Checkout
@@ -111,14 +111,28 @@ jobs:
             -PassThru
           if ($selfTest.ExitCode -ne 0) { throw "Optimizer self-test failed with code $($selfTest.ExitCode)" }
 
+      - name: Test all UI layouts
+        shell: pwsh
+        run: |
+          $env:QT_QPA_PLATFORM = "offscreen"
+          $env:QT_QUICK_BACKEND = "software"
+          $env:AGR_STARTUP_TEST = "1"
+          $uiTest = Start-Process `
+            -FilePath "$env:DIST_DIR/AdaptiveTextureOptimizer.exe" `
+            -ArgumentList "--ui-layout-test" `
+            -WorkingDirectory $env:DIST_DIR `
+            -Wait `
+            -PassThru
+          if ($uiTest.ExitCode -ne 0) { throw "UI layout test failed with code $($uiTest.ExitCode)" }
+
       - name: Pack portable application
         shell: pwsh
-        run: Compress-Archive -Path "$env:DIST_DIR/*" -DestinationPath "dist/AdaptiveTextureOptimizer-27-Windows-Portable.zip" -CompressionLevel Optimal
+        run: Compress-Archive -Path "$env:DIST_DIR/*" -DestinationPath "dist/AdaptiveTextureOptimizer-28-Windows-Portable.zip" -CompressionLevel Optimal
 
       - name: Upload ready-to-run application
         uses: actions/upload-artifact@v7
         with:
-          name: AdaptiveTextureOptimizer-27-Windows-Portable
-          path: dist/AdaptiveTextureOptimizer-27-Windows-Portable.zip
+          name: AdaptiveTextureOptimizer-28-Windows-Portable
+          path: dist/AdaptiveTextureOptimizer-28-Windows-Portable.zip
           if-no-files-found: error
           retention-days: 30

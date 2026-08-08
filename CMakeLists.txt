@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(AGRAdaptiveTextureOptimizer VERSION 26.0.0 LANGUAGES CXX)
+project(AGRAdaptiveTextureOptimizer VERSION 27.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -33,18 +33,16 @@ qt_add_qml_module(AdaptiveTextureOptimizer
         qml/AppButton.qml
         qml/GlassCard.qml
         qml/MetricChip.qml
-        qml/StarCounter.qml
         qml/LimitSelector.qml
         qml/ZoomView.qml
         qml/WipeCompare.qml
         qml/Sparkline.qml
-        qml/SpaceBackground.qml
-        qml/MeteorOverlay.qml)
+        qml/MarsBackdrop.qml)
 
 qt_add_resources(AdaptiveTextureOptimizer app_icons
     PREFIX "/icons"
     BASE "assets"
-    FILES assets/black-hole.svg)
+    FILES assets/mars.svg)
 
 target_include_directories(AdaptiveTextureOptimizer PRIVATE src)
 target_link_libraries(AdaptiveTextureOptimizer PRIVATE

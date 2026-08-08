@@ -66,7 +66,7 @@ public:
     QVariantList activityHistory()const{return m_activityHistory;}
 
     Q_INVOKABLE void load(const QString &url);
-    Q_INVOKABLE void optimize(double maxMb=3.0,int algorithmId=1);
+    Q_INVOKABLE void optimize(double maxMb=3.0);
     Q_INVOKABLE void toggleMasterView();
     Q_INVOKABLE void openSourceFolder();
     Q_INVOKABLE void openOutputFolder();

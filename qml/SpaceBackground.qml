@@ -10,6 +10,7 @@ Item {
     property real zoomPulse: 0
     property real zoomDirection: 1
     property color accentColor: "#ff641f"
+    property bool lightFx: false
     property real clock: 0
     property var stars: []
     property real burstStart: -10000
@@ -38,6 +39,7 @@ Item {
     }
 
     Timer {
+        // ECO reduces geometry, not frame rate. Both modes remain smooth.
         interval: 33
         running: root.visible
         repeat: true
@@ -59,22 +61,175 @@ Item {
             c.clearRect(0,0,w,h)
 
             const background=c.createLinearGradient(0,0,w,h)
-            background.addColorStop(0,"#02070b")
-            background.addColorStop(.48,"#071016")
-            background.addColorStop(1,"#020609")
+            background.addColorStop(0,"#010307")
+            background.addColorStop(.38,"#071118")
+            background.addColorStop(.72,"#03070d")
+            background.addColorStop(1,"#000205")
             c.fillStyle=background;c.fillRect(0,0,w,h)
 
+            // Deep-space volume: layered nebulae and a faint galactic band.
+            // ECO keeps only one inexpensive cloud.
+            const cloudCount=root.lightFx?1:4
+            const cloudData=[
+                [.12,.74,.42,.16], [.46,.08,.34,.11],
+                [.88,.72,.48,.12], [.60,.56,.28,.08]
+            ]
+            for(let cloudIndex=0;cloudIndex<cloudCount;cloudIndex++){
+                const d=cloudData[cloudIndex]
+                const nx=w*d[0]+root.pointerX*(25+cloudIndex*12)
+                const ny=h*d[1]+root.pointerY*(18+cloudIndex*9)
+                const nr=Math.max(w,h)*d[2]
+                const nebula=c.createRadialGradient(nx,ny,0,nx,ny,nr)
+                nebula.addColorStop(0,root.tint(d[3]))
+                nebula.addColorStop(.24,root.tint(d[3]*.52))
+                nebula.addColorStop(.68,`rgba(${cloudIndex%2?20:5},${cloudIndex%2?31:27},${cloudIndex%2?48:38},${d[3]*.20})`)
+                nebula.addColorStop(1,root.tint(0))
+                c.fillStyle=nebula;c.fillRect(nx-nr,ny-nr,nr*2,nr*2)
+            }
+            if(!root.lightFx){
+                c.save()
+                c.translate(w*.36+root.pointerX*42,h*.68+root.pointerY*28)
+                c.rotate(-.31)
+                const galaxy=c.createLinearGradient(-w*.45,0,w*.45,0)
+                galaxy.addColorStop(0,"rgba(255,255,255,0)")
+                galaxy.addColorStop(.25,root.tint(.025))
+                galaxy.addColorStop(.52,"rgba(205,230,246,.055)")
+                galaxy.addColorStop(.76,root.tint(.024))
+                galaxy.addColorStop(1,"rgba(255,255,255,0)")
+                c.fillStyle=galaxy;c.fillRect(-w*.52,-28,w*1.04,56)
+                c.restore()
+
+                // Slow aurora curtains. Several translucent Bézier ribbons
+                // drift independently, so the background never looks frozen.
+                for(let curtain=0;curtain<3;curtain++){
+                    const drift=Math.sin(root.clock*(.00010+curtain*.000027)+curtain*2.1)
+                    const baseY=h*(.18+curtain*.19)+root.pointerY*(18+curtain*7)
+                    const aurora=c.createLinearGradient(0,baseY,w,baseY+80)
+                    aurora.addColorStop(0,root.tint(0))
+                    aurora.addColorStop(.22,root.tint(.055+curtain*.012))
+                    aurora.addColorStop(.55,curtain===1?"rgba(70,126,168,.055)":root.tint(.095))
+                    aurora.addColorStop(.82,root.tint(.038))
+                    aurora.addColorStop(1,root.tint(0))
+                    c.strokeStyle=aurora
+                    c.lineWidth=22+curtain*15
+                    c.beginPath()
+                    c.moveTo(-80,baseY+drift*24)
+                    c.bezierCurveTo(w*.22,baseY-70-drift*18,w*.37,baseY+85,w*.57,baseY-8)
+                    c.bezierCurveTo(w*.74,baseY-68,w*.88,baseY+64+drift*25,w+100,baseY-25)
+                    c.stroke()
+                }
+            }
+
             const age=root.clock-root.burstStart
-            const burst=age>=0&&age<1500?Math.sin(Math.PI*age/1500):0
+            const burst=age>=0&&age<2200?Math.sin(Math.PI*Math.min(1,age/2200)):0
             const effect=Math.max(root.warp?.42+root.progress*.58:0,root.zoomPulse)
             const direction=root.warp?1:root.zoomDirection
-            const cx=w*.70+root.pointerX*88,cy=h*.29+root.pointerY*62
+            const cameraYaw=root.pointerX*.78
+            const cameraPitch=root.pointerY*.52
+            const cx=w*.70+root.pointerX*155,cy=h*.29+root.pointerY*96
             const maxR=Math.sqrt(w*w+h*h)*.82
+
+            // Project a small 3D planetary system around the black hole. Mouse
+            // movement rotates the virtual camera, changing position, scale
+            // and draw order of every body.
+            const planetDefinitions=[
+                {orbit:310,tilt:95,size:18,speed:.000037,phase:.4,a:"#58c6d8",b:"#102c3a",ring:true},
+                {orbit:430,tilt:145,size:27,speed:-.000020,phase:2.2,a:"#d5a66e",b:"#4a241d",ring:false},
+                {orbit:540,tilt:188,size:13,speed:.000014,phase:4.8,a:"#a394e8",b:"#251d49",ring:true},
+                {orbit:655,tilt:220,size:34,speed:-.000009,phase:1.5,a:"#72a878",b:"#172d22",ring:false},
+                {orbit:760,tilt:270,size:10,speed:.000007,phase:3.6,a:"#d9e7e9",b:"#344451",ring:false}
+            ]
+            const planetCount=root.lightFx?3:planetDefinitions.length
+            const projectedPlanets=[]
+            const cosYaw=Math.cos(cameraYaw),sinYaw=Math.sin(cameraYaw)
+            const cosPitch=Math.cos(cameraPitch),sinPitch=Math.sin(cameraPitch)
+            for(let planetIndex=0;planetIndex<planetCount;planetIndex++){
+                const pd=planetDefinitions[planetIndex]
+                const angle=pd.phase+root.clock*pd.speed
+                const worldX=Math.cos(angle)*pd.orbit
+                const worldZ=Math.sin(angle)*pd.orbit
+                const worldY=Math.sin(angle*.73+pd.phase)*pd.tilt
+                const rotatedX=worldX*cosYaw-worldZ*sinYaw
+                const yawZ=worldX*sinYaw+worldZ*cosYaw
+                const rotatedY=worldY*cosPitch-yawZ*sinPitch
+                const rotatedZ=worldY*sinPitch+yawZ*cosPitch
+                const perspective=Math.max(.42,Math.min(2.1,720/(720+rotatedZ)))
+                projectedPlanets.push({
+                    x:cx+rotatedX*perspective,
+                    y:cy+rotatedY*perspective,
+                    z:rotatedZ,
+                    size:pd.size*perspective,
+                    a:pd.a,b:pd.b,ring:pd.ring,
+                    phase:angle
+                })
+            }
+            projectedPlanets.sort((a,b)=>b.z-a.z)
+            function drawProjectedPlanet(p,front) {
+                if((front&&p.z>0)||(!front&&p.z<=0))return
+                const alpha=front ? 0.96 : 0.58
+                const glowRadius=p.size*(front?3.4:2.6)
+                const bodyGlow=c.createRadialGradient(p.x,p.y,0,p.x,p.y,glowRadius)
+                bodyGlow.addColorStop(0,root.tint(alpha*.20))
+                bodyGlow.addColorStop(.34,root.tint(alpha*.07))
+                bodyGlow.addColorStop(1,root.tint(0))
+                c.fillStyle=bodyGlow
+                c.fillRect(p.x-glowRadius,p.y-glowRadius,glowRadius*2,glowRadius*2)
+                if(p.ring){
+                    c.save();c.translate(p.x,p.y);c.rotate(-.23+cameraYaw*.18)
+                    c.strokeStyle=front?root.tint(.52):root.tint(.21)
+                    c.lineWidth=Math.max(.7,p.size*.11)
+                    c.beginPath();c.ellipse(0,0,p.size*1.75,p.size*.40,0,0,6.283185);c.stroke()
+                    c.restore()
+                }
+                const body=c.createRadialGradient(p.x-p.size*.34,p.y-p.size*.38,p.size*.05,p.x,p.y,p.size)
+                body.addColorStop(0,p.a);body.addColorStop(.58,p.b);body.addColorStop(1,"#020508")
+                c.globalAlpha=alpha;c.fillStyle=body
+                c.beginPath();c.arc(p.x,p.y,p.size,0,6.283185);c.fill()
+                c.globalAlpha=1
+                c.fillStyle=`rgba(0,2,5,${front ? 0.34 : 0.52})`
+                c.beginPath();c.arc(p.x+p.size*.42,p.y+p.size*.10,p.size*.92,0,6.283185);c.fill()
+                if(front){
+                    c.strokeStyle="rgba(225,246,255,.24)";c.lineWidth=1
+                    c.beginPath();c.arc(p.x,p.y,p.size+.8,0,6.283185);c.stroke()
+                }
+            }
+
+            if(!root.lightFx){
+                c.save();c.translate(cx,cy);c.rotate(cameraYaw*.10)
+                c.strokeStyle=root.tint(.045);c.lineWidth=.7
+                for(let orbitLine=0;orbitLine<planetDefinitions.length;orbitLine++){
+                    const pd=planetDefinitions[orbitLine]
+                    c.beginPath()
+                    c.ellipse(0,0,pd.orbit,pd.tilt*.72+38,cameraPitch*.18,0,6.283185)
+                    c.stroke()
+                }
+                c.restore()
+            }
+            for(let farPlanet=0;farPlanet<projectedPlanets.length;farPlanet++)
+                drawProjectedPlanet(projectedPlanets[farPlanet],false)
 
             // A restrained star field. It stays at 30 FPS, but the expensive
             // blur filters are replaced by small vector strokes rendered on
             // the Canvas render thread.
-            for(let i=0;i<root.stars.length;i++){
+            const starLimit=root.lightFx?44:root.stars.length
+
+            if(!root.lightFx){
+                // Faint constellations appear only in the far field.
+                c.lineWidth=.65
+                for(let constellation=0;constellation<5;constellation++){
+                    const first=constellation*7
+                    c.strokeStyle=constellation%2===0?root.tint(.10):"rgba(180,218,239,.085)"
+                    c.beginPath()
+                    for(let node=0;node<6;node++){
+                        const s=root.stars[first+node]
+                        const px=((s.x+root.pointerX*.022+1)%1)*w
+                        const py=((s.y+root.pointerY*.022+1)%1)*h
+                        if(node===0)c.moveTo(px,py);else c.lineTo(px,py)
+                    }
+                    c.stroke()
+                }
+            }
+            for(let i=0;i<starLimit;i++){
                 const s=root.stars[i]
                 let x,y,tail=0
                 if(effect>.01){
@@ -88,7 +243,8 @@ Item {
                     x=((s.x+root.pointerX*(.025+s.z*.055)+1)%1)*w
                     y=((s.y+root.pointerY*(.025+s.z*.055)+1)%1)*h
                 }
-                const alpha=.25+s.z*.68,size=.55+s.z*1.45
+                const twinkle=root.lightFx?1:(.74+.26*Math.sin(root.clock*(.0011+s.h*.002)+s.p*11))
+                const alpha=(.25+s.z*.68)*twinkle,size=.55+s.z*1.45
                 c.strokeStyle=s.h>.84?root.tint(alpha):`rgba(220,238,248,${alpha})`
                 c.lineWidth=size;c.beginPath()
                 if(tail){
@@ -96,6 +252,52 @@ Item {
                     c.moveTo(x-dx/len*tail*sign,y-dy/len*tail*sign);c.lineTo(x,y)
                 }else{c.moveTo(x,y);c.lineTo(x+.35,y+.35)}
                 c.stroke()
+            }
+
+            if(!root.lightFx){
+                // Foreground stardust moves more strongly than the distant
+                // field and gives the mouse parallax real depth.
+                for(let dust=0;dust<34;dust++){
+                    const hx=root.hash(dust*4.17),hy=root.hash(dust*9.31+4)
+                    const x=((hx+root.pointerX*.12+1)%1)*w
+                    const y=((hy+root.pointerY*.10+1)%1)*h
+                    const radius=.3+root.hash(dust+88)*1.2
+                    c.fillStyle=dust%9===0?root.tint(.38):"rgba(218,236,246,.24)"
+                    c.beginPath();c.arc(x,y,radius,0,6.283185);c.fill()
+                }
+
+                // A distant comet crosses the sky on a long cycle and remains
+                // behind all application controls.
+                const cometPhase=(root.clock%23800)/23800
+                const cometEase=cometPhase*cometPhase*(3-2*cometPhase)
+                const cometX=-180+(w+360)*cometEase
+                const cometY=h*(.10+.18*Math.sin(cometPhase*Math.PI))+
+                             root.pointerY*35
+                const cometTail=c.createLinearGradient(cometX-190,cometY-74,cometX,cometY)
+                cometTail.addColorStop(0,"rgba(255,255,255,0)")
+                cometTail.addColorStop(.55,root.tint(.11))
+                cometTail.addColorStop(1,"rgba(238,250,255,.72)")
+                c.strokeStyle=cometTail;c.lineWidth=1.6
+                c.beginPath();c.moveTo(cometX-190,cometY-74);c.lineTo(cometX,cometY);c.stroke()
+                const cometGlow=c.createRadialGradient(cometX,cometY,0,cometX,cometY,18)
+                cometGlow.addColorStop(0,"rgba(255,255,255,.90)")
+                cometGlow.addColorStop(.18,root.tint(.48))
+                cometGlow.addColorStop(1,root.tint(0))
+                c.fillStyle=cometGlow;c.fillRect(cometX-20,cometY-20,40,40)
+
+                // The cursor bends a small patch of starlight, reinforcing the
+                // parallax without moving the texture view itself.
+                if(root.pointerActive){
+                    const cursorX=w*(.5+root.pointerX/.60)
+                    const cursorY=h*(.5+root.pointerY/.60)
+                    const cursorLens=c.createRadialGradient(cursorX,cursorY,8,cursorX,cursorY,92)
+                    cursorLens.addColorStop(0,root.tint(.035))
+                    cursorLens.addColorStop(.65,root.tint(.018))
+                    cursorLens.addColorStop(1,root.tint(0))
+                    c.fillStyle=cursorLens;c.fillRect(cursorX-95,cursorY-95,190,190)
+                    c.strokeStyle=root.tint(.075);c.lineWidth=.8
+                    c.beginPath();c.arc(cursorX,cursorY,30+4*Math.sin(root.clock*.002),0,6.283185);c.stroke()
+                }
             }
 
             // A small living planet: atmosphere, surface bands, craters,
@@ -145,7 +347,11 @@ Item {
             // Black hole inspired by gravitational-lensing photography: a
             // wide accretion disc, bright equatorial band and bent light arcs.
             const diskScale=1+effect*.055
-            c.save();c.translate(cx,cy);c.scale(diskScale,diskScale)
+            c.save();c.translate(cx,cy)
+            c.rotate(cameraYaw*.11)
+            c.transform(1,cameraPitch*.075,cameraYaw*.095,1,0,0)
+            c.scale(diskScale*(1+Math.abs(cameraYaw)*.035),
+                    diskScale*(1-Math.abs(cameraPitch)*.045))
             const outer=470
             const halo=c.createRadialGradient(0,0,70,0,0,outer)
             halo.addColorStop(0,"rgba(0,0,0,1)")
@@ -155,8 +361,45 @@ Item {
             halo.addColorStop(1,root.tint(0))
             c.fillStyle=halo;c.fillRect(-outer,-outer,outer*2,outer*2)
 
+            if(!root.lightFx){
+                // Bipolar relativistic jets become more energetic during the
+                // compression warp and remain subtle while idle.
+                const jetStrength=.15+effect*.42+burst*.28
+                const upperJet=c.createLinearGradient(0,-530,0,-135)
+                upperJet.addColorStop(0,root.tint(0))
+                upperJet.addColorStop(.52,root.tint(jetStrength*.18))
+                upperJet.addColorStop(.86,"rgba(205,239,255,"+(jetStrength*.34)+")")
+                upperJet.addColorStop(1,root.tint(0))
+                c.fillStyle=upperJet
+                c.beginPath();c.moveTo(-3,-142);c.lineTo(-34,-540);c.lineTo(29,-540);c.lineTo(3,-142);c.closePath();c.fill()
+                const lowerJet=c.createLinearGradient(0,135,0,530)
+                lowerJet.addColorStop(0,root.tint(0))
+                lowerJet.addColorStop(.18,"rgba(205,239,255,"+(jetStrength*.24)+")")
+                lowerJet.addColorStop(.55,root.tint(jetStrength*.14))
+                lowerJet.addColorStop(1,root.tint(0))
+                c.fillStyle=lowerJet
+                c.beginPath();c.moveTo(-3,142);c.lineTo(-26,530);c.lineTo(30,530);c.lineTo(3,142);c.closePath();c.fill()
+            }
+
+            // Slowly orbiting fragments make the black hole feel like a
+            // physical system rather than a static illustration.
+            const debrisCount=root.lightFx?10:56
+            for(let debris=0;debris<debrisCount;debris++){
+                const seed=root.hash(debris*13.7)
+                const angle=debris*.91+root.clock*(.000025+.000055*seed)
+                const radius=220+seed*235
+                const flatten=.18+.08*root.hash(debris+91)
+                const dx=Math.cos(angle)*radius
+                const dy=Math.sin(angle)*radius*flatten
+                const depth=.35+.65*(Math.sin(angle)*.5+.5)
+                c.fillStyle=debris%7===0?"rgba(245,249,255,"+(depth*.38)+")":root.tint(depth*.34)
+                c.save();c.translate(dx,dy);c.rotate(angle+.8)
+                c.fillRect(-1.2-depth*2,-.5,2.4+depth*4,1+depth)
+                c.restore()
+            }
+
             c.save();c.rotate(-.025+Math.sin(root.clock*.00015)*.008);c.scale(1,.20)
-            for(let ring=0;ring<12;ring++){
+            for(let ring=0;ring<(root.lightFx?6:15);ring++){
                 const radius=172+ring*20
                 c.strokeStyle=root.tint(.12+ring*.036)
                 c.lineWidth=5+(ring%3)*2
@@ -164,8 +407,19 @@ Item {
             }
             c.restore()
 
+            // Photon orbit and polar lensing arcs.
+            const photonPulse=.62+.38*Math.sin(root.clock*.0022)
+            c.strokeStyle=root.tint(.44+.24*photonPulse+.18*effect)
+            c.lineWidth=1.2+photonPulse
+            if(!root.lightFx){c.setLineDash([3,8]);c.lineDashOffset=-root.clock*.025}
+            c.beginPath();c.arc(0,0,164,0,6.283185);c.stroke()
+            if(!root.lightFx)c.setLineDash([])
+            c.strokeStyle=root.tint(.18+.18*effect)
+            c.lineWidth=2
+            c.beginPath();c.ellipse(0,0,182,285,-.04,Math.PI*1.17,Math.PI*1.83);c.stroke()
+
             c.save();c.scale(1,.56)
-            for(let lens=0;lens<7;lens++){
+            for(let lens=0;lens<(root.lightFx?3:9);lens++){
                 c.strokeStyle=root.tint(.19+lens*.055)
                 c.lineWidth=3+lens*.7
                 c.beginPath();c.arc(0,12,145+lens*14,Math.PI+.12,6.283185-.12);c.stroke()
@@ -180,7 +434,48 @@ Item {
             hole.addColorStop(0,"#000000");hole.addColorStop(.83,"#000000");hole.addColorStop(1,"rgba(0,0,0,.06)")
             c.fillStyle=hole;c.beginPath();c.arc(0,0,148,0,6.283185);c.fill()
             c.strokeStyle=root.tint(.50+.22*effect+.22*burst);c.lineWidth=2.2+effect*2;c.beginPath();c.arc(0,0,151,0,6.283185);c.stroke()
+
+            if(!root.lightFx){
+                // Chromatic lensing and travelling gravitational waves.
+                c.globalAlpha=.28+.22*effect
+                c.strokeStyle="rgba(78,172,255,.28)";c.lineWidth=1.2
+                c.beginPath();c.arc(-2,0,155,Math.PI*.18,Math.PI*1.48);c.stroke()
+                c.strokeStyle="rgba(255,93,123,.22)"
+                c.beginPath();c.arc(2,0,158,Math.PI*.58,Math.PI*1.92);c.stroke()
+                c.globalAlpha=1
+                for(let wave=0;wave<4;wave++){
+                    const wavePhase=(root.clock*.000065+wave*.25)%1
+                    c.strokeStyle=root.tint((1-wavePhase)*(.055+.09*effect))
+                    c.lineWidth=.8+effect
+                    c.beginPath()
+                    c.ellipse(0,0,210+wavePhase*380,(210+wavePhase*380)*.42,-.02,0,6.283185)
+                    c.stroke()
+                }
+            }
+
+            // A subtle rotating gravitational reticle becomes stronger while
+            // optimizing and when a meteor is caught.
+            if(!root.lightFx){
+                c.save();c.rotate(root.clock*.000045)
+                c.strokeStyle=root.tint(.08+.14*effect+.20*burst);c.lineWidth=1
+                for(let ray=0;ray<20;ray++){
+                    c.rotate(Math.PI/10)
+                    c.beginPath();c.moveTo(485,0);c.lineTo(520+effect*80+burst*75,0);c.stroke()
+                }
+                c.restore()
+            }
             c.restore()
+
+            for(let nearPlanet=0;nearPlanet<projectedPlanets.length;nearPlanet++)
+                drawProjectedPlanet(projectedPlanets[nearPlanet],true)
+
+            if(burst>.01){
+                const veil=c.createRadialGradient(root.burstX,root.burstY,1,root.burstX,root.burstY,260)
+                veil.addColorStop(0,`rgba(255,255,255,${burst*.13})`)
+                veil.addColorStop(.28,root.tint(burst*.10))
+                veil.addColorStop(1,root.tint(0))
+                c.fillStyle=veil;c.fillRect(0,0,w,h)
+            }
 
         }
     }

@@ -8,6 +8,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QImageReader>
+#include <QException>
 #include <QStandardPaths>
 #include <QUrl>
 #include <array>
@@ -49,13 +50,13 @@ QString analyseAccent(const QImage &input) {
 
 SourcePreview preparePreview(const QString &path,int generation,const QString &cachePath) {
     SourcePreview result;result.generation=generation;
-    QImageReader meta(path);meta.setAutoTransform(true);const QSize native=meta.size();
+    QImageReader meta(path,"PNG");meta.setAutoTransform(true);const QSize native=meta.size();
     result.sourceWidth=native.width();result.sourceHeight=native.height();
     if(!native.isValid()){result.error="PNG не удалось прочитать";return result;}
     const int longest=qMax(native.width(),native.height());
     QSize target=native;
     if(longest>2048){const double scale=2048.0/longest;target=QSize(qMax(1,int(std::lround(native.width()*scale))),qMax(1,int(std::lround(native.height()*scale))));}
-    QImageReader reader(path);reader.setAutoTransform(true);
+    QImageReader reader(path,"PNG");reader.setAutoTransform(true);
     if(target!=native)reader.setScaledSize(target);
     QImage working=reader.read().convertToFormat(QImage::Format_RGB888);
     if(working.isNull()){result.error="PNG не удалось декодировать";return result;}
@@ -107,7 +108,9 @@ OptimizerEngine::OptimizerEngine(QObject *parent):QObject(parent) {
             m_referenceUrl=QUrl::fromLocalFile(reference).toString();m_resultUrl=QUrl::fromLocalFile(out).toString();
             m_report=result.report+"\n\nСохранено: "+m_outputPath;m_status="Готово — AGR Adaptive RGB24 сохранён";
             emit resultUrlChanged();emit referenceUrlChanged();emit reportChanged();emit outputPathChanged();emit outputSizeChanged();emit statusChanged();
-        }catch(const std::exception&error){m_status=QString("Ошибка: ")+error.what();emit statusChanged();}
+        }catch(const QException&error){m_status=QString("Ошибка обработки: ")+QString::fromUtf8(error.what());emit statusChanged();}
+        catch(const std::exception&error){m_status=QString("Ошибка обработки: ")+QString::fromUtf8(error.what());emit statusChanged();}
+        catch(...){m_status="Ошибка обработки: неизвестный сбой";emit statusChanged();}
         m_telemetryTimer.stop();m_busy=false;emit busyChanged();
     });
 }
@@ -136,10 +139,13 @@ void OptimizerEngine::setProgress(double value,const QString &text){
     QMetaObject::invokeMethod(this,[=]{m_progress=value;m_status=text;emit progressChanged();emit statusChanged();},Qt::QueuedConnection);
 }
 
-void OptimizerEngine::optimize(double maxMb,int){
+void OptimizerEngine::optimize(double maxMb){
     if(m_sourceUrl.isEmpty()||m_busy||m_previewBusy)return;m_busy=true;m_progress=0;m_progressHistory={0.0};m_activityHistory={.18};m_telemetryPhase=0;
-    emit busyChanged();emit progressChanged();emit telemetryChanged();m_telemetryTimer.start();const QString path=localPath();
-    m_watcher.setFuture(QtConcurrent::run([this,path,maxMb]{return TextureProcessor::process(path,qint64(maxMb*1000000.0),1,[this](double value,const QString&text){setProgress(value,text);});}));
+    const double requestedMb=qBound(.5,maxMb,20.0);
+    const qint64 requestedBytes=qint64(std::llround(requestedMb*1000000.0));
+    m_status=QString("Запуск с пределом %1 MB…").arg(requestedMb,0,'f',1);
+    emit busyChanged();emit progressChanged();emit telemetryChanged();emit statusChanged();m_telemetryTimer.start();const QString path=localPath();
+    m_watcher.setFuture(QtConcurrent::run([this,path,requestedBytes]{return TextureProcessor::process(path,requestedBytes,[this](double value,const QString&text){setProgress(value,text);});}));
 }
 
 void OptimizerEngine::toggleMasterView(){if(!sourceIsLarge())return;m_showingMaster=!m_showingMaster;emit showingMasterChanged();}

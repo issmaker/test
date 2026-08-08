@@ -20,8 +20,8 @@ Item {
         TapHandler { onTapped:{root.caught(bubble.x+bubble.width/2,bubble.y+bubble.height/2);pop.restart()} }
         SequentialAnimation {
             id:drift
-            ParallelAnimation { NumberAnimation{target:bubble;property:"x";by:44;duration:1800;easing.type:Easing.InOutSine} NumberAnimation{target:bubble;property:"y";by:-28;duration:1800;easing.type:Easing.InOutSine} }
-            ParallelAnimation { NumberAnimation{target:bubble;property:"x";by:-70;duration:2300;easing.type:Easing.InOutSine} NumberAnimation{target:bubble;property:"y";by:52;duration:2300;easing.type:Easing.InOutSine} }
+            ParallelAnimation { NumberAnimation{target:bubble;property:"x";to:root.width*.72;duration:1800;easing.type:Easing.InOutSine} NumberAnimation{target:bubble;property:"y";to:root.height*.28;duration:1800;easing.type:Easing.InOutSine} }
+            ParallelAnimation { NumberAnimation{target:bubble;property:"x";to:root.width*.34;duration:2300;easing.type:Easing.InOutSine} NumberAnimation{target:bubble;property:"y";to:root.height*.68;duration:2300;easing.type:Easing.InOutSine} }
             ScriptAction{script:root.relocate()}
         }
         SequentialAnimation { id:pop;NumberAnimation{target:bubble;property:"scale";to:1.65;duration:90} NumberAnimation{target:bubble;property:"opacity";to:0;duration:120} ScriptAction{script:{bubble.scale=1;bubble.opacity=1;root.relocate()}} }

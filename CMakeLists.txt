@@ -1,12 +1,12 @@
 cmake_minimum_required(VERSION 3.24)
-project(AGRAdaptiveTextureOptimizer VERSION 35.0.0 LANGUAGES CXX)
+project(AGRAdaptiveTextureOptimizer VERSION 36.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
-find_package(Qt6 6.6 REQUIRED COMPONENTS Quick QuickControls2 Concurrent)
+find_package(Qt6 6.6 REQUIRED COMPONENTS Widgets WebEngineWidgets WebChannel Concurrent)
 
 include(FetchContent)
 set(LIBDEFLATE_BUILD_GZIP OFF CACHE BOOL "" FORCE)
@@ -19,30 +19,19 @@ FetchContent_Declare(libdeflate
 FetchContent_MakeAvailable(libdeflate)
 
 qt_standard_project_setup(REQUIRES 6.6)
-set_source_files_properties(qml/AppTheme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 qt_add_executable(AdaptiveTextureOptimizer
     src/main.cpp
     src/OptimizerEngine.cpp
     src/PngEncoder.cpp
     src/TextureProcessor.cpp)
 
-qt_add_qml_module(AdaptiveTextureOptimizer
-    URI AGR.TextureOptimizer
-    VERSION 1.0
-    QML_FILES
-        qml/Main.qml
-        qml/AppTheme.qml
-        qml/AppButton.qml
-        qml/GlassCard.qml
-        qml/MetricChip.qml
-        qml/ZoomView.qml
-        qml/WipeCompare.qml
-        qml/Sparkline.qml
-        qml/RadialGauge.qml
-        qml/LiquidBackdrop.qml
-        qml/NavIcon.qml
-        qml/NavButton.qml
-        qml/BubbleCatch.qml)
+qt_add_resources(AdaptiveTextureOptimizer web_interface
+    PREFIX "/web"
+    BASE "web/dist"
+    FILES
+        web/dist/index.html
+        web/dist/assets/app.js
+        web/dist/assets/app.css)
 
 qt_add_resources(AdaptiveTextureOptimizer app_icons
     PREFIX "/icons"
@@ -58,7 +47,7 @@ qt_add_resources(AdaptiveTextureOptimizer app_icons
 
 target_include_directories(AdaptiveTextureOptimizer PRIVATE src)
 target_link_libraries(AdaptiveTextureOptimizer PRIVATE
-    Qt6::Quick Qt6::QuickControls2 Qt6::Concurrent libdeflate_static)
+    Qt6::Widgets Qt6::WebEngineWidgets Qt6::WebChannel Qt6::Concurrent libdeflate_static)
 
 if(WIN32)
     enable_language(RC)

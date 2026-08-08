@@ -6,7 +6,7 @@ Button {
     property string kind: "home"
     property string label: "Главная"
     property bool selected: false
-    property color accentColor: Theme.teal
+    property color accentColor: AppTheme.teal
     property string tip: ""
     implicitWidth: 184
     implicitHeight: 46
@@ -22,12 +22,12 @@ Button {
                 width: 20; height: 20
                 anchors.verticalCenter: parent.verticalCenter
                 kind: root.kind
-                iconColor: !root.enabled ? Theme.textFaint : (root.selected ? root.accentColor : Theme.textMuted)
+                iconColor: !root.enabled ? AppTheme.contentTertiary : (root.selected ? root.accentColor : AppTheme.contentSecondary)
             }
             Text {
                 anchors.verticalCenter: parent.verticalCenter
                 text: root.label
-                color: !root.enabled ? Theme.textFaint : (root.selected ? Theme.text : Theme.textMuted)
+                color: !root.enabled ? AppTheme.contentTertiary : (root.selected ? AppTheme.contentPrimary : AppTheme.contentSecondary)
                 font.pixelSize: 12
                 font.weight: root.selected ? Font.DemiBold : Font.Medium
             }
@@ -35,14 +35,14 @@ Button {
     }
 
     background: Rectangle {
-        radius: Theme.radiusMedium
+        radius: AppTheme.radiusMedium
         color: root.selected
              ? Qt.rgba(root.accentColor.r, root.accentColor.g, root.accentColor.b, .11)
-             : (root.hovered ? Theme.surfaceHover : "transparent")
+             : (root.hovered ? AppTheme.surfaceHover : "transparent")
         border.width: 1
         border.color: root.selected
                     ? Qt.rgba(root.accentColor.r, root.accentColor.g, root.accentColor.b, .26)
-                    : (root.hovered ? Theme.stroke : "transparent")
+                    : (root.hovered ? AppTheme.stroke : "transparent")
         Rectangle {
             visible: root.selected
             anchors.left: parent.left
@@ -61,7 +61,7 @@ Button {
         delay: 420
         x: root.width + 10
         y: 5
-        contentItem: Text { text: root.tip; color: Theme.text; font.pixelSize: 11 }
-        background: Rectangle { radius: Theme.radiusSmall; color: "#f0131614"; border.width: 1; border.color: Theme.strokeStrong }
+        contentItem: Text { text: root.tip; color: AppTheme.contentPrimary; font.pixelSize: 11 }
+        background: Rectangle { radius: AppTheme.radiusSmall; color: "#f0131614"; border.width: 1; border.color: AppTheme.strokeStrong }
     }
 }

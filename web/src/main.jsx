@@ -18,6 +18,7 @@ const EMPTY = {
   busy: false, previewBusy: false, progressHistory: [], activityHistory: [], batchItems: [], batchBusy: false,
   batchProgress: 0, batchStatus: 'Добавьте PNG-файлы', batchProgressHistory: [], batchActivityHistory: []
 }
+const HEADLESS_TEST = new URLSearchParams(window.location.search).has('headless-test')
 
 function useBackend() {
   const [backend, setBackend] = useState(null)
@@ -229,7 +230,7 @@ function App() {
   },[screen,holding])
   const hidden=screen==='home'&&progress>.025
   return <div className={`app scene-${screen} ${hidden?'is-cinematic':''}`}>
-    <div className="webgl"><Scene progress={progress} screen={screen} decode={decode||holding}/></div>
+    <div className="webgl">{HEADLESS_TEST?<div className="headless-scene"/>:<Scene progress={progress} screen={screen} decode={decode||holding}/>}</div>
     <PointerPixels active={decode&&screen==='home'}/>
     <div className={`chrome ${hidden?'hidden':''}`}><Nav screen={screen} setScreen={setScreen} state={state} setDecode={setDecode} backend={backend}/></div>
     {screen==='home'&&<Home setScreen={setScreen} hidden={hidden} setDecode={setDecode}/>} {screen==='npm'&&<Workspace kind="npm" state={state} backend={backend} setScreen={setScreen} setDecode={setDecode}/>} {screen==='batch'&&<Workspace kind="batch" state={state} backend={backend} setScreen={setScreen} setDecode={setDecode}/>} {screen==='compare'&&<Compare index={Number(routeRaw.split(':')[1]||0)} state={state} backend={backend} setScreen={setScreen}/>} 

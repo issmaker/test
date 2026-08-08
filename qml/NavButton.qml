@@ -5,7 +5,7 @@ Button {
     id:root
     property string kind:"home"
     property bool selected:false
-    property color accentColor:"#a34fff"
+    property color accentColor:"#29c7ad"
     property string tip:""
     implicitWidth:62;implicitHeight:62;padding:0
     contentItem:NavIcon { width:25;height:25;anchors.centerIn:parent;kind:root.kind;iconColor:root.enabled?(root.selected?"white":"#a9a4af"):"#55515a" }

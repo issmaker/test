@@ -1,11 +1,13 @@
 #include "OptimizerEngine.h"
 #include <QtConcurrent>
 #include <QCryptographicHash>
+#include <QCoreApplication>
 #include <QColor>
 #include <QDateTime>
 #include <QDesktopServices>
 #include <QDir>
 #include <QFile>
+#include <QFileDialog>
 #include <QFileInfo>
 #include <QImageReader>
 #include <QException>
@@ -165,6 +167,35 @@ OptimizerEngine::OptimizerEngine(QObject *parent):QObject(parent) {
 }
 
 QString OptimizerEngine::localPath()const{return QUrl(m_sourceUrl).toLocalFile();}
+
+QVariantMap OptimizerEngine::snapshot() const {
+    QVariantMap state;
+    state["sourceUrl"]=m_sourceUrl;state["resultUrl"]=m_resultUrl;state["referenceUrl"]=m_referenceUrl;
+    state["workingPreviewUrl"]=m_workingPreviewUrl;state["status"]=m_status;state["report"]=m_report;
+    state["outputPath"]=m_outputPath;state["progress"]=m_progress;state["sourceFileMb"]=m_sourceFileMb;
+    state["outputFileMb"]=m_outputFileMb;state["sourceWidth"]=m_sourceWidth;state["sourceHeight"]=m_sourceHeight;
+    state["workingWidth"]=m_workingWidth;state["workingHeight"]=m_workingHeight;state["sourceIsLarge"]=sourceIsLarge();
+    state["previewBusy"]=m_previewBusy;state["busy"]=m_busy;state["progressHistory"]=m_progressHistory;
+    state["activityHistory"]=m_activityHistory;state["batchItems"]=batchItems();state["batchBusy"]=m_batchBusy;
+    state["batchProgress"]=m_batchProgress;state["batchStatus"]=m_batchStatus;
+    state["batchProgressHistory"]=m_batchProgressHistory;state["batchActivityHistory"]=m_batchActivityHistory;
+    return state;
+}
+
+void OptimizerEngine::chooseNpmFile() {
+    if(m_busy)return;
+    const QString path=QFileDialog::getOpenFileName(nullptr,QStringLiteral("Выберите НПМ PNG-текстуру"),{},QStringLiteral("PNG textures (*.png)"));
+    if(!path.isEmpty())load(QUrl::fromLocalFile(path).toString());
+}
+
+void OptimizerEngine::chooseBatchFiles() {
+    if(m_batchBusy)return;
+    const QStringList paths=QFileDialog::getOpenFileNames(nullptr,QStringLiteral("Добавьте PNG-текстуры"),{},QStringLiteral("PNG textures (*.png)"));
+    QVariantList urls;urls.reserve(paths.size());for(const QString &path:paths)urls.append(QUrl::fromLocalFile(path).toString());
+    if(!urls.isEmpty())addBatchFiles(urls);
+}
+
+void OptimizerEngine::quitApp(){QCoreApplication::quit();}
 
 void OptimizerEngine::appendTelemetry(double progressValue,double activityValue){
     m_progressHistory.append(qBound(0.0,progressValue,1.0));m_activityHistory.append(qBound(0.0,activityValue,1.0));

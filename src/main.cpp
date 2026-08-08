@@ -9,7 +9,11 @@
 #include <QMainWindow>
 #include <QWebChannel>
 #include <QWebEnginePage>
+#include <QWebEngineProfile>
 #include <QWebEngineSettings>
+#include <QWebEngineUrlRequestJob>
+#include <QWebEngineUrlScheme>
+#include <QWebEngineUrlSchemeHandler>
 #include <QWebEngineView>
 #include <QTimer>
 #include <QTextStream>
@@ -24,6 +28,18 @@
 namespace {
 QString g_startupLogPath;
 QMutex g_logMutex;
+
+class TextureSchemeHandler final : public QWebEngineUrlSchemeHandler {
+public:
+    using QWebEngineUrlSchemeHandler::QWebEngineUrlSchemeHandler;
+    void requestStarted(QWebEngineUrlRequestJob *job) override {
+        const QByteArray encoded=job->requestUrl().path().mid(1).toLatin1();
+        const QString path=QString::fromUtf8(QByteArray::fromBase64(encoded,QByteArray::Base64UrlEncoding));
+        auto *file=new QFile(path,job);
+        if(!file->open(QIODevice::ReadOnly)){delete file;job->fail(QWebEngineUrlRequestJob::UrlNotFound);return;}
+        job->reply(QByteArrayLiteral("image/png"),file);
+    }
+};
 
 void startupMessageHandler(QtMsgType type,
                            const QMessageLogContext &context,
@@ -109,7 +125,11 @@ int runSelfTest() {
 } // namespace
 
 int main(int argc,char**argv){
-    QApplication app(argc,argv);app.setApplicationName("Adaptive Texture Optimizer");app.setApplicationVersion("36");
+    QWebEngineUrlScheme textureScheme(QByteArrayLiteral("texture"));
+    textureScheme.setSyntax(QWebEngineUrlScheme::Syntax::HostAndPort);
+    textureScheme.setFlags(QWebEngineUrlScheme::SecureScheme|QWebEngineUrlScheme::LocalScheme|QWebEngineUrlScheme::LocalAccessAllowed|QWebEngineUrlScheme::CorsEnabled);
+    QWebEngineUrlScheme::registerScheme(textureScheme);
+    QApplication app(argc,argv);app.setApplicationName("Adaptive Texture Optimizer");app.setApplicationVersion("37");
     app.setWindowIcon(QIcon(QStringLiteral(":/icons/liquid.svg")));
     g_startupLogPath = QCoreApplication::applicationDirPath()
         + QStringLiteral("/AdaptiveTextureOptimizer-startup.log");
@@ -117,7 +137,7 @@ int main(int argc,char**argv){
         QFile log(g_startupLogPath);
         if (log.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
             QTextStream out(&log);
-            out << "Adaptive Texture Optimizer 36 startup\n";
+            out << "Adaptive Texture Optimizer 37 startup\n";
             out << "Qt " << qVersion() << "\n";
         }
     }
@@ -129,8 +149,9 @@ int main(int argc,char**argv){
         if(!html.readAll().contains("id=\"root\"")||js.size()<500000||css.size()<5000)return 22;
         return 0;
     }
-    OptimizerEngine optimizer;optimizer.setObjectName(QStringLiteral("optimizer"));
+    OptimizerEngine optimizer;optimizer.setObjectName(QStringLiteral("optimizer"));TextureSchemeHandler textureHandler;
     QMainWindow window;auto *view=new QWebEngineView(&window);auto *channel=new QWebChannel(view);
+    view->page()->profile()->installUrlSchemeHandler(QByteArrayLiteral("texture"),&textureHandler);
     channel->registerObject(QStringLiteral("optimizer"),&optimizer);view->page()->setWebChannel(channel);
     view->settings()->setAttribute(QWebEngineSettings::LocalContentCanAccessFileUrls,true);
     view->settings()->setAttribute(QWebEngineSettings::WebGLEnabled,true);
@@ -138,7 +159,7 @@ int main(int argc,char**argv){
     QObject::connect(view,&QWebEngineView::loadFinished,&window,[&](bool ok){
         if(!ok)startupMessageHandler(QtCriticalMsg,QMessageLogContext(),QStringLiteral("Web interface failed to load"));
     });
-    window.setWindowTitle(QStringLiteral("Adaptive Texture Optimizer 36 — WebGL Interface"));window.setCentralWidget(view);
+    window.setWindowTitle(QStringLiteral("Оптимизатор текстур 37 — by issmaker"));window.setCentralWidget(view);
     const bool startupTest=!qEnvironmentVariableIsEmpty("AGR_STARTUP_TEST");
     view->setUrl(QUrl(startupTest?QStringLiteral("qrc:/web/index.html?headless-test=1"):QStringLiteral("qrc:/web/index.html")));window.showFullScreen();
     if(argc>1)optimizer.load(QUrl::fromLocalFile(QString::fromLocal8Bit(argv[1])).toString());

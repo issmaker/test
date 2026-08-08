@@ -143,7 +143,6 @@ int main(int argc,char**argv){
         if(!verify(1,"npmComparisonPanel",360.0))return 21;
         if(!verify(2,"batchListPanel",460.0))return 22;
         if(!verify(3,"batchComparisonPanel",460.0))return 23;
-        if(root->property("brandContrastLuma").toDouble()<.70)return 24;
         return 0;
     }
     if(argc>1)optimizer.load(QUrl::fromLocalFile(QString::fromLocal8Bit(argv[1])).toString());

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(AGRAdaptiveTextureOptimizer VERSION 29.0.0 LANGUAGES CXX)
+project(AGRAdaptiveTextureOptimizer VERSION 30.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -37,12 +37,15 @@ qt_add_qml_module(AdaptiveTextureOptimizer
         qml/WipeCompare.qml
         qml/Sparkline.qml
         qml/RadialGauge.qml
-        qml/MarsBackdrop.qml)
+        qml/LiquidBackdrop.qml
+        qml/NavIcon.qml
+        qml/NavButton.qml
+        qml/BubbleCatch.qml)
 
 qt_add_resources(AdaptiveTextureOptimizer app_icons
     PREFIX "/icons"
     BASE "assets"
-    FILES assets/mars.svg)
+    FILES assets/liquid.svg)
 
 target_include_directories(AdaptiveTextureOptimizer PRIVATE src)
 target_link_libraries(AdaptiveTextureOptimizer PRIVATE

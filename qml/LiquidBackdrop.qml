@@ -14,6 +14,8 @@ Item {
     Canvas {
         id: atmosphere
         anchors.fill: parent
+        opacity: root.scene === 0 ? 1 : .42
+        Behavior on opacity { NumberAnimation { duration:320 } }
         renderStrategy: Canvas.Threaded
         onPaint: {
             const c=getContext("2d"),w=width,h=height;c.clearRect(0,0,w,h)
@@ -40,6 +42,8 @@ Item {
     Item {
         id: ribbonField
         anchors.fill: parent
+        opacity: root.scene === 0 ? 1 : .13
+        Behavior on opacity { NumberAnimation { duration:320 } }
         transform: Translate {
             x: root.pointerX*54; y: root.pointerY*38
             Behavior on x { NumberAnimation { duration:260;easing.type:Easing.OutCubic } }
@@ -77,6 +81,12 @@ Item {
             NumberAnimation{from:.998;to:1.006;duration:3200;easing.type:Easing.InOutSine}
             NumberAnimation{from:1.006;to:.998;duration:3200;easing.type:Easing.InOutSine}
         }
+    }
+
+    Rectangle {
+        anchors.fill:parent
+        color:root.scene===0?"transparent":"#8f050205"
+        Behavior on color { ColorAnimation { duration:320 } }
     }
 
     Rectangle {

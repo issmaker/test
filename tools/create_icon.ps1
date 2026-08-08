@@ -11,14 +11,14 @@ $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
 $graphics.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
 $graphics.Clear([System.Drawing.Color]::Transparent)
 
-$background = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(255, 12, 10, 17))
-$edge = [System.Drawing.Pen]::new([System.Drawing.Color]::FromArgb(255, 78, 67, 91), 6)
-$cyanGlow = [System.Drawing.Pen]::new([System.Drawing.Color]::FromArgb(65, 93, 225, 255), 24)
-$purpleGlow = [System.Drawing.Pen]::new([System.Drawing.Color]::FromArgb(75, 178, 70, 255), 24)
-$cyan = [System.Drawing.Pen]::new([System.Drawing.Color]::FromArgb(255, 103, 231, 255), 8)
-$purple = [System.Drawing.Pen]::new([System.Drawing.Color]::FromArgb(255, 194, 70, 237), 8)
+$background = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(255, 9, 12, 12))
+$edge = [System.Drawing.Pen]::new([System.Drawing.Color]::FromArgb(255, 57, 76, 72), 6)
+$cyanGlow = [System.Drawing.Pen]::new([System.Drawing.Color]::FromArgb(62, 41, 199, 173), 24)
+$purpleGlow = [System.Drawing.Pen]::new([System.Drawing.Color]::FromArgb(55, 112, 219, 200), 20)
+$cyan = [System.Drawing.Pen]::new([System.Drawing.Color]::FromArgb(255, 41, 199, 173), 8)
+$purple = [System.Drawing.Pen]::new([System.Drawing.Color]::FromArgb(220, 163, 226, 214), 5)
 $white = [System.Drawing.Pen]::new([System.Drawing.Color]::FromArgb(190, 255, 255, 255), 3)
-$orb = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(210, 105, 73, 221))
+$orb = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(235, 25, 126, 111))
 $shine = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(175, 255, 255, 255))
 
 $graphics.FillRectangle($background, 8, 8, 240, 240)
@@ -45,4 +45,4 @@ $writer.Write([UInt32]$png.Length); $writer.Write([UInt32]22); $writer.Write($pn
 $writer.Dispose(); $file.Dispose(); $pngStream.Dispose(); $graphics.Dispose(); $bitmap.Dispose()
 $background.Dispose(); $edge.Dispose(); $cyanGlow.Dispose(); $purpleGlow.Dispose()
 $cyan.Dispose(); $purple.Dispose(); $white.Dispose(); $orb.Dispose(); $shine.Dispose()
-Write-Host "Created Windows Liquid Glass icon: $fullPath"
+Write-Host "Created Windows Organic Flow icon: $fullPath"

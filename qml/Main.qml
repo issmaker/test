@@ -132,17 +132,17 @@ ApplicationWindow {
                 RowLayout { Layout.fillWidth:true; Layout.preferredHeight:56; spacing:10
                     Image { Layout.preferredWidth:40;Layout.preferredHeight:40;source:"qrc:/icons/liquid.svg";sourceSize:Qt.size(80,80);smooth:true }
                     ColumnLayout { Layout.fillWidth:true;spacing:0
-                        Text { text:"FLOW STUDIO";color:Theme.text;font.pixelSize:12;font.weight:Font.DemiBold;letterSpacing:.7 }
-                        Text { text:"TEXTURE SYSTEM";color:Theme.textFaint;font.pixelSize:8;letterSpacing:.8 }
+                        Text { text:"FLOW STUDIO";color:Theme.text;font.pixelSize:12;font.weight:Font.DemiBold;font.letterSpacing:.7 }
+                        Text { text:"TEXTURE SYSTEM";color:Theme.textFaint;font.pixelSize:8;font.letterSpacing:.8 }
                     }
                 }
                 Rectangle { Layout.fillWidth:true; height:1; color:"#14ffffff" }
-                Text { Layout.leftMargin:12;Layout.topMargin:8;text:"РАБОЧАЯ ОБЛАСТЬ";color:Theme.textFaint;font.pixelSize:8;font.weight:Font.DemiBold;letterSpacing:1.1 }
+                Text { Layout.leftMargin:12;Layout.topMargin:8;text:"РАБОЧАЯ ОБЛАСТЬ";color:Theme.textFaint;font.pixelSize:8;font.weight:Font.DemiBold;font.letterSpacing:1.1 }
                 NavButton { kind:"home";label:"Главная";selected:false;accentColor:win.uiAccent;tip:"Главный экран и выбор режима";enabled:!optimizer.busy&&!optimizer.batchBusy;onClicked:win.screen=0 }
                 NavButton { kind:"npm";label:"НПМ · до 3 MB";selected:win.screen===1;accentColor:win.uiAccent;tip:"Оптимизация НПМ-текстур до 3 MB";enabled:!optimizer.batchBusy;onClicked:win.enterNpm() }
                 NavButton { kind:"batch";label:"Все текстуры";selected:win.screen===2;accentColor:win.uiAccent;tip:"Список пакетной оптимизации";enabled:!optimizer.busy;onClicked:win.screen=2 }
                 NavButton { kind:"compare";label:"Сравнение";selected:win.screen===3;accentColor:win.uiAccent;tip:"Сравнительный анализ";enabled:win.batchItem&&win.batchItem.done&&!optimizer.batchBusy;onClicked:win.screen=3 }
-                Text { Layout.leftMargin:12;Layout.topMargin:10;text:"ИНСТРУМЕНТЫ";color:Theme.textFaint;font.pixelSize:8;font.weight:Font.DemiBold;letterSpacing:1.1 }
+                Text { Layout.leftMargin:12;Layout.topMargin:10;text:"ИНСТРУМЕНТЫ";color:Theme.textFaint;font.pixelSize:8;font.weight:Font.DemiBold;font.letterSpacing:1.1 }
                 NavButton { kind:"play";label:"Поймай импульс";selected:win.bubblesOn;accentColor:"#29c7ad";tip:win.bubblesOn?"Выключить игру «Поймай импульс»":"Включить игру «Поймай импульс»";onClicked:win.bubblesOn=!win.bubblesOn }
                 Item { Layout.fillHeight:true }
                 RowLayout { Layout.fillWidth:true;MetricChip { text:"IMPULSE  "+win.bubbleScore; checked:win.bubbleScore>0; accentColor:"#29c7ad" } Item{Layout.fillWidth:true} MetricChip{text:"v32";checked:true;accentColor:win.uiAccent} }

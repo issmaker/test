@@ -70,7 +70,6 @@ jobs:
           & "${env:QT_ROOT_DIR}/bin/windeployqt.exe" `
             --release `
             --compiler-runtime `
-            --webengine `
             "$env:DIST_DIR/AdaptiveTextureOptimizer.exe"
 
       - name: Smoke-test package

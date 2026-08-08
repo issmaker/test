@@ -92,6 +92,13 @@ QString saveComparisonPreview(const QImage &image,const QString &cacheKey){
     QDir().mkpath(directory);const QString output=directory+"/"+cacheKey+".png";
     return preview.save(output,"PNG",1)?QUrl::fromLocalFile(output).toString():QString();
 }
+
+QString browserTextureUrl(const QString &value){
+    if(value.isEmpty())return {};
+    const QUrl url(value);const QString path=url.isLocalFile()?url.toLocalFile():value;
+    const QByteArray encoded=path.toUtf8().toBase64(QByteArray::Base64UrlEncoding|QByteArray::OmitTrailingEquals);
+    return QStringLiteral("texture://local/")+QString::fromLatin1(encoded);
+}
 }
 
 OptimizerEngine::OptimizerEngine(QObject *parent):QObject(parent) {
@@ -170,13 +177,16 @@ QString OptimizerEngine::localPath()const{return QUrl(m_sourceUrl).toLocalFile()
 
 QVariantMap OptimizerEngine::snapshot() const {
     QVariantMap state;
-    state["sourceUrl"]=m_sourceUrl;state["resultUrl"]=m_resultUrl;state["referenceUrl"]=m_referenceUrl;
-    state["workingPreviewUrl"]=m_workingPreviewUrl;state["status"]=m_status;state["report"]=m_report;
+    state["sourceUrl"]=browserTextureUrl(m_sourceUrl);state["resultUrl"]=browserTextureUrl(m_resultUrl);state["referenceUrl"]=browserTextureUrl(m_referenceUrl);
+    state["workingPreviewUrl"]=browserTextureUrl(m_workingPreviewUrl);state["status"]=m_status;state["report"]=m_report;
     state["outputPath"]=m_outputPath;state["progress"]=m_progress;state["sourceFileMb"]=m_sourceFileMb;
     state["outputFileMb"]=m_outputFileMb;state["sourceWidth"]=m_sourceWidth;state["sourceHeight"]=m_sourceHeight;
     state["workingWidth"]=m_workingWidth;state["workingHeight"]=m_workingHeight;state["sourceIsLarge"]=sourceIsLarge();
     state["previewBusy"]=m_previewBusy;state["busy"]=m_busy;state["progressHistory"]=m_progressHistory;
-    state["activityHistory"]=m_activityHistory;state["batchItems"]=batchItems();state["batchBusy"]=m_batchBusy;
+    state["activityHistory"]=m_activityHistory;
+    QVariantList webBatch=batchItems();for(QVariant &value:webBatch){QVariantMap item=value.toMap();
+        for(const char *key:{"sourceUrl","resultUrl","comparisonSourceUrl","comparisonResultUrl"})item[key]=browserTextureUrl(item.value(key).toString());
+        value=item;}state["batchItems"]=webBatch;state["batchBusy"]=m_batchBusy;
     state["batchProgress"]=m_batchProgress;state["batchStatus"]=m_batchStatus;
     state["batchProgressHistory"]=m_batchProgressHistory;state["batchActivityHistory"]=m_batchActivityHistory;
     return state;

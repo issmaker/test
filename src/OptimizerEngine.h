@@ -23,6 +23,8 @@ struct SourcePreview {
 struct BatchEntry {
     QString sourceUrl;
     QString resultUrl;
+    QString comparisonSourceUrl;
+    QString comparisonResultUrl;
     QString outputPath;
     QString name;
     QString status;
@@ -40,6 +42,7 @@ struct BatchEntry {
 struct BatchRunItem {
     int index = -1;
     QString resultUrl;
+    QString comparisonResultUrl;
     QString outputPath;
     QString report;
     QString error;

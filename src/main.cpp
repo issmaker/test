@@ -8,7 +8,9 @@
 #include <QQmlContext>
 #include <QQuickStyle>
 #include <QTextStream>
+#include <QTemporaryDir>
 #include "OptimizerEngine.h"
+#include "PngEncoder.h"
 
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -56,22 +58,49 @@ void showStartupFailure(const QString &details) {
     Q_UNUSED(details)
 #endif
 }
+
+int runSelfTest() {
+    QTemporaryDir directory;
+    if (!directory.isValid()) return 2;
+
+    QImage input(512, 512, QImage::Format_RGB888);
+    quint32 state = 0x27a6f19dU;
+    for (int y = 0; y < input.height(); ++y) {
+        uchar *line = input.scanLine(y);
+        for (int x = 0; x < input.width(); ++x) {
+            state = state * 1664525U + 1013904223U;
+            line[x*3] = uchar((x + (state >> 24)) & 255);
+            line[x*3+1] = uchar((y + (state >> 16)) & 255);
+            line[x*3+2] = uchar((x + y + (state >> 8)) & 255);
+        }
+    }
+    const QString inputPath = directory.filePath(QStringLiteral("self-test.png"));
+    if (!input.save(inputPath, "PNG")) return 3;
+
+    constexpr qint64 limit = 250000;
+    const TextureResult result = TextureProcessor::process(inputPath, limit, [](double,const QString&){});
+    if (result.png.isEmpty() || result.png.size() > limit) return 4;
+    if (!PngEncoder::verifyRgb24(result.png, result.output)) return 5;
+    if (result.output.size() != input.size()) return 6;
+    return 0;
+}
 } // namespace
 
 int main(int argc,char**argv){
-    QGuiApplication app(argc,argv);app.setApplicationName("Adaptive Texture Optimizer");app.setApplicationVersion("1.0");
-    app.setWindowIcon(QIcon(QStringLiteral(":/icons/black-hole.svg")));
+    QGuiApplication app(argc,argv);app.setApplicationName("Adaptive Texture Optimizer");app.setApplicationVersion("27");
+    app.setWindowIcon(QIcon(QStringLiteral(":/icons/mars.svg")));
     g_startupLogPath = QCoreApplication::applicationDirPath()
         + QStringLiteral("/AdaptiveTextureOptimizer-startup.log");
     {
         QFile log(g_startupLogPath);
         if (log.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
             QTextStream out(&log);
-            out << "Adaptive Texture Optimizer 1.0 startup\n";
+            out << "Adaptive Texture Optimizer 27 startup\n";
             out << "Qt " << qVersion() << "\n";
         }
     }
     qInstallMessageHandler(startupMessageHandler);
+    if(app.arguments().contains(QStringLiteral("--self-test")))return runSelfTest();
     QQuickStyle::setStyle("Basic");OptimizerEngine optimizer;QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty("optimizer",&optimizer);
     engine.loadFromModule("AGR.TextureOptimizer","Main");

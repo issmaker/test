@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 
 Item {
     id: root
@@ -10,6 +11,7 @@ Item {
     property real parallaxX: 0
     property real parallaxY: 0
     property color accentColor: "#ff641f"
+    property real fitScale: .08
     signal viewChanged(real scale, real panX, real panY)
     signal resetRequested()
     signal fitCalculated(real scale)
@@ -26,16 +28,18 @@ Item {
         return Math.max(-edge,Math.min(edge,value))
     }
     function publish(scaleValue,xValue,yValue) {
-        const safeScale=Math.max(.08,Math.min(16,scaleValue))
+        const safeScale=Math.max(root.fitScale*.72,Math.min(16,scaleValue))
         root.viewChanged(safeScale,limitX(xValue,safeScale),limitY(yValue,safeScale))
     }
     function calculateFit() {
-        if(picture.status===Image.Ready&&picture.sourceSize.width>0)
-            fitCalculated(Math.min((viewport.width-26)/picture.sourceSize.width,(viewport.height-26)/picture.sourceSize.height))
+        if(picture.status===Image.Ready&&picture.sourceSize.width>0){
+            root.fitScale=Math.max(.01,Math.min((viewport.width-22)/picture.sourceSize.width,(viewport.height-22)/picture.sourceSize.height))
+            fitCalculated(root.fitScale)
+        }
     }
     function zoomAt(scaleValue,screenX,screenY) {
         const old=Math.max(.0001,root.sharedScale)
-        const next=Math.max(.08,Math.min(16,scaleValue))
+        const next=Math.max(root.fitScale*.72,Math.min(16,scaleValue))
         const localX=screenX-(viewport.x+viewport.width/2)
         const localY=screenY-(viewport.y+viewport.height/2)
         const ratio=next/old
@@ -66,11 +70,18 @@ Item {
         id: viewport
         anchors.fill: parent
         anchors.margins: 6
-        radius: 17
+        radius: 18
         clip: true
-        color: "#b00b0a0e"
+        color: "#09000000"
         border.width: 1
         border.color: "#12ffffff"
+        layer.enabled: true
+        layer.samples: 4
+        layer.effect: MultiEffect {
+            maskEnabled: true
+            maskSource: roundedMask
+            shadowEnabled: false
+        }
 
         Image {
             id: picture
@@ -117,6 +128,12 @@ Item {
             border.color: Qt.rgba(root.accentColor.r,root.accentColor.g,root.accentColor.b,.30)
             Text{id:scaleText;anchors.centerIn:parent;text:Math.round(root.sharedScale*100)+"%";color:"#d1ccd6";font.pixelSize:10;font.weight:Font.DemiBold}
         }
+    }
+
+    Rectangle {
+        id: roundedMask
+        width: viewport.width; height: viewport.height; radius: viewport.radius
+        visible: false; layer.enabled: true; color: "white"
     }
 
     WheelHandler {

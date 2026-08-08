@@ -3,7 +3,7 @@ import QtQuick
 Item {
     id:root
     property bool running:true
-    property color accentColor:"#29c7ad"
+    property color accentColor:"#ff3f93"
     signal caught(real x,real y)
     function relocate(){
         bubble.x=150+Math.random()*Math.max(20,width-bubble.width-230)

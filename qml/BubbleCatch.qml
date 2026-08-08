@@ -3,7 +3,7 @@ import QtQuick
 Item {
     id:root
     property bool running:true
-    property color accentColor:"#b24fff"
+    property color accentColor:"#29c7ad"
     signal caught(real x,real y)
     function relocate(){
         bubble.x=150+Math.random()*Math.max(20,width-bubble.width-230)
@@ -12,11 +12,12 @@ Item {
     }
     onRunningChanged:{if(running)relocate();else drift.stop()}
     Rectangle {
-        id:bubble;visible:root.running;width:34;height:34;radius:17
-        color:Qt.rgba(root.accentColor.r,root.accentColor.g,root.accentColor.b,.34)
-        border.width:1;border.color:"#aaffffff"
-        Rectangle{width:10;height:6;radius:4;x:7;y:6;rotation:-25;color:"#baffffff"}
-        Rectangle{anchors.fill:parent;anchors.margins:-8;radius:width/2;color:"transparent";border.width:2;border.color:Qt.rgba(root.accentColor.r,root.accentColor.g,root.accentColor.b,.18)}
+        id:bubble;visible:root.running;width:38;height:38;radius:19
+        color:"#22090c0c"
+        border.width:2;border.color:Qt.rgba(root.accentColor.r,root.accentColor.g,root.accentColor.b,.82)
+        Rectangle{anchors.centerIn:parent;width:10;height:10;radius:5;color:root.accentColor}
+        Rectangle{anchors.fill:parent;anchors.margins:-8;radius:width/2;color:"transparent";border.width:2;border.color:Qt.rgba(root.accentColor.r,root.accentColor.g,root.accentColor.b,.20);SequentialAnimation on scale{loops:Animation.Infinite;NumberAnimation{from:.82;to:1.18;duration:650;easing.type:Easing.OutCubic}NumberAnimation{from:1.18;to:.82;duration:650;easing.type:Easing.InCubic}}}
+        Rectangle{anchors.centerIn:parent;width:parent.width+12;height:3;radius:2;color:Qt.rgba(root.accentColor.r,root.accentColor.g,root.accentColor.b,.38);rotation:45;RotationAnimation on rotation{from:0;to:360;duration:2600;loops:Animation.Infinite}}
         TapHandler { onTapped:{root.caught(bubble.x+bubble.width/2,bubble.y+bubble.height/2);pop.restart()} }
         SequentialAnimation {
             id:drift

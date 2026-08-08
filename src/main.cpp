@@ -1,4 +1,4 @@
-#include <QGuiApplication>
+#include <QApplication>
 #include <QDateTime>
 #include <QColor>
 #include <QFile>
@@ -6,10 +6,12 @@
 #include <QImageReader>
 #include <QMutex>
 #include <QMutexLocker>
-#include <QQmlApplicationEngine>
-#include <QQmlContext>
-#include <QQuickStyle>
-#include <QQuickItem>
+#include <QMainWindow>
+#include <QWebChannel>
+#include <QWebEnginePage>
+#include <QWebEngineSettings>
+#include <QWebEngineView>
+#include <QTimer>
 #include <QTextStream>
 #include <QTemporaryDir>
 #include "OptimizerEngine.h"
@@ -107,7 +109,7 @@ int runSelfTest() {
 } // namespace
 
 int main(int argc,char**argv){
-    QGuiApplication app(argc,argv);app.setApplicationName("Adaptive Texture Optimizer");app.setApplicationVersion("35");
+    QApplication app(argc,argv);app.setApplicationName("Adaptive Texture Optimizer");app.setApplicationVersion("36");
     app.setWindowIcon(QIcon(QStringLiteral(":/icons/liquid.svg")));
     g_startupLogPath = QCoreApplication::applicationDirPath()
         + QStringLiteral("/AdaptiveTextureOptimizer-startup.log");
@@ -115,36 +117,29 @@ int main(int argc,char**argv){
         QFile log(g_startupLogPath);
         if (log.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
             QTextStream out(&log);
-            out << "Adaptive Texture Optimizer 35 startup\n";
+            out << "Adaptive Texture Optimizer 36 startup\n";
             out << "Qt " << qVersion() << "\n";
         }
     }
     qInstallMessageHandler(startupMessageHandler);
     if(app.arguments().contains(QStringLiteral("--self-test")))return runSelfTest();
-    QQuickStyle::setStyle("Basic");OptimizerEngine optimizer;QQmlApplicationEngine engine;
-    engine.rootContext()->setContextProperty("optimizer",&optimizer);
-    engine.loadFromModule("AGR.TextureOptimizer","Main");
-    if(engine.rootObjects().isEmpty()){
-        const QString details = QStringLiteral("QML root object was not created. Log: %1")
-            .arg(g_startupLogPath);
-        startupMessageHandler(QtCriticalMsg, QMessageLogContext(), details);
-        if (qEnvironmentVariableIsEmpty("AGR_STARTUP_TEST"))
-            showStartupFailure(details);
-        return -1;
-    }
     if(app.arguments().contains(QStringLiteral("--ui-layout-test"))){
-        QObject *root=engine.rootObjects().constFirst();
-        const auto verify=[&](int screen,const char *name,double minimumHeight){
-            root->setProperty("screen",screen);
-            for(int i=0;i<5;++i)QCoreApplication::processEvents();
-            QObject *item=root->findChild<QObject*>(QString::fromLatin1(name));
-            return item&&item->property("visible").toBool()&&item->property("height").toDouble()>=minimumHeight;
-        };
-        if(!verify(1,"npmComparisonPanel",360.0))return 21;
-        if(!verify(2,"batchListPanel",460.0))return 22;
-        if(!verify(3,"batchComparisonPanel",460.0))return 23;
+        QFile html(QStringLiteral(":/web/index.html")),js(QStringLiteral(":/web/assets/app.js")),css(QStringLiteral(":/web/assets/app.css"));
+        if(!html.open(QIODevice::ReadOnly)||!js.open(QIODevice::ReadOnly)||!css.open(QIODevice::ReadOnly))return 21;
+        if(!html.readAll().contains("id=\"root\"")||js.size()<500000||css.size()<5000)return 22;
         return 0;
     }
+    OptimizerEngine optimizer;optimizer.setObjectName(QStringLiteral("optimizer"));
+    QMainWindow window;auto *view=new QWebEngineView(&window);auto *channel=new QWebChannel(view);
+    channel->registerObject(QStringLiteral("optimizer"),&optimizer);view->page()->setWebChannel(channel);
+    view->settings()->setAttribute(QWebEngineSettings::LocalContentCanAccessFileUrls,true);
+    view->settings()->setAttribute(QWebEngineSettings::WebGLEnabled,true);
+    view->settings()->setAttribute(QWebEngineSettings::Accelerated2dCanvasEnabled,true);
+    QObject::connect(view,&QWebEngineView::loadFinished,&window,[&](bool ok){
+        if(!ok)startupMessageHandler(QtCriticalMsg,QMessageLogContext(),QStringLiteral("Web interface failed to load"));
+    });
+    window.setWindowTitle(QStringLiteral("Adaptive Texture Optimizer 36 — WebGL Interface"));window.setCentralWidget(view);
+    view->setUrl(QUrl(QStringLiteral("qrc:/web/index.html")));window.showFullScreen();
     if(argc>1)optimizer.load(QUrl::fromLocalFile(QString::fromLocal8Bit(argv[1])).toString());
     return app.exec();
 }

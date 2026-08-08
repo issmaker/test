@@ -1,7 +1,9 @@
 #include <QGuiApplication>
 #include <QDateTime>
+#include <QColor>
 #include <QFile>
 #include <QIcon>
+#include <QImageReader>
 #include <QMutex>
 #include <QMutexLocker>
 #include <QQmlApplicationEngine>
@@ -65,7 +67,7 @@ int runSelfTest() {
     if (!directory.isValid()) return 2;
 
     QImage input(512, 512, QImage::Format_RGB888);
-    quint32 state = 0x30a6f19dU;
+    quint32 state = 0x31a6f19dU;
     for (int y = 0; y < input.height(); ++y) {
         uchar *line = input.scanLine(y);
         for (int x = 0; x < input.width(); ++x) {
@@ -91,12 +93,21 @@ int runSelfTest() {
     try { TextureProcessor::processAutomatic(inputPath, [](double,const QString&){}, []{return true;}); }
     catch(...) { cancellationObserved=true; }
     if(!cancellationObserved)return 10;
+    QImage wide(8192,256,QImage::Format_RGB888);wide.fill(QColor(37,112,103));
+    const QString widePath=directory.filePath(QStringLiteral("self-test-8k-width.png"));
+    if(!wide.save(widePath,"PNG"))return 11;
+    OptimizerEngine previewEngine;QVariantList previewFiles;previewFiles.append(QUrl::fromLocalFile(widePath));previewEngine.addBatchFiles(previewFiles);
+    const QVariantList previewItems=previewEngine.batchItems();if(previewItems.size()!=1)return 12;
+    const QString comparisonUrl=previewItems.constFirst().toMap().value("comparisonSourceUrl").toString();
+    QImageReader comparisonReader(QUrl(comparisonUrl).toLocalFile(),"PNG");
+    const QSize comparisonSize=comparisonReader.size();
+    if(!comparisonSize.isValid()||qMax(comparisonSize.width(),comparisonSize.height())!=3072||comparisonSize.width()<=comparisonSize.height())return 13;
     return 0;
 }
 } // namespace
 
 int main(int argc,char**argv){
-    QGuiApplication app(argc,argv);app.setApplicationName("Adaptive Texture Optimizer");app.setApplicationVersion("30");
+    QGuiApplication app(argc,argv);app.setApplicationName("Adaptive Texture Optimizer");app.setApplicationVersion("31");
     app.setWindowIcon(QIcon(QStringLiteral(":/icons/liquid.svg")));
     g_startupLogPath = QCoreApplication::applicationDirPath()
         + QStringLiteral("/AdaptiveTextureOptimizer-startup.log");
@@ -104,7 +115,7 @@ int main(int argc,char**argv){
         QFile log(g_startupLogPath);
         if (log.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
             QTextStream out(&log);
-            out << "Adaptive Texture Optimizer 30 startup\n";
+            out << "Adaptive Texture Optimizer 31 startup\n";
             out << "Qt " << qVersion() << "\n";
         }
     }

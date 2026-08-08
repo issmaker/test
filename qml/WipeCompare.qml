@@ -52,31 +52,28 @@ Item {
 
     Rectangle {
         anchors.fill: frame
-        anchors.margins: -8
-        radius: 23
+        anchors.margins: -3
+        radius: 20
         color: "transparent"
         border.width: 1
-        border.color: Qt.rgba(root.accentColor.r,root.accentColor.g,root.accentColor.b,.42)
+        border.color: Qt.rgba(root.accentColor.r,root.accentColor.g,root.accentColor.b,.22)
         transform: Translate {
-            x: root.parallaxX*5
-            y: root.parallaxY*4
+            x: root.parallaxX*3
+            y: root.parallaxY*3
             Behavior on x { NumberAnimation{duration:220;easing.type:Easing.OutCubic} }
             Behavior on y { NumberAnimation{duration:220;easing.type:Easing.OutCubic} }
-        }
-        Rectangle {
-            anchors.fill:parent;anchors.margins:4;radius:19;color:"transparent"
-            border.width:1
-            border.color:Qt.rgba(root.accentColor.r,root.accentColor.g,root.accentColor.b,.14)
         }
     }
 
     Rectangle {
         id: frame
         anchors.fill: parent
-        anchors.margins: 10
-        radius: 16
+        anchors.margins: 6
+        radius: 17
         clip: true
-        color: "transparent"
+        color: "#b00b0a0e"
+        border.width: 1
+        border.color: "#12ffffff"
 
         Image {
             id: beforeImage
@@ -106,20 +103,28 @@ Item {
 
         Rectangle {
             x:frame.width*root.divider-width/2
-            width:2;height:frame.height;color:"#f4ffff"
+            width:2;height:frame.height;color:root.accentColor
             Rectangle {
-                anchors.centerIn:parent;width:38;height:38;radius:19
-                color:"#e60a141a";border.width:2;border.color:root.accentColor
-                Text{anchors.centerIn:parent;text:"◀  ▶";color:"#ffffff";font.pixelSize:10;font.bold:true}
+                anchors.centerIn:parent;width:42;height:42;radius:15
+                color:"#ed16151b";border.width:2;border.color:root.accentColor
+                Text{anchors.centerIn:parent;text:"‹  ›";color:"#ffffff";font.pixelSize:16;font.bold:true}
             }
         }
-        Text{x:15;y:12;text:"ОРИГИНАЛ";color:"#f4ffff";font.pixelSize:12;font.bold:true}
-        Text{anchors.right:parent.right;anchors.rightMargin:15;y:12;text:"РЕЗУЛЬТАТ";color:"#f4ffff";font.pixelSize:12;font.bold:true}
+        Rectangle {
+            x:12;y:12;width:beforeLabel.width+20;height:28;radius:10;color:"#d416151b"
+            border.width:1;border.color:"#18ffffff"
+            Text{id:beforeLabel;anchors.centerIn:parent;text:"BEFORE / ORIGINAL";color:"#f4f1f6";font.pixelSize:9;font.bold:true;font.letterSpacing:.6}
+        }
+        Rectangle {
+            anchors.right:parent.right;anchors.rightMargin:12;y:12;width:afterLabel.width+20;height:28;radius:10;color:"#d416151b"
+            border.width:1;border.color:Qt.rgba(root.accentColor.r,root.accentColor.g,root.accentColor.b,.34)
+            Text{id:afterLabel;anchors.centerIn:parent;text:"AFTER / AGR RGB24";color:"#f4f1f6";font.pixelSize:9;font.bold:true;font.letterSpacing:.6}
+        }
         Rectangle {
             anchors.right:parent.right;anchors.bottom:parent.bottom;anchors.margins:12
-            width:zoomText.width+20;height:28;radius:9;color:"#d70a1219"
+            width:zoomText.width+20;height:28;radius:10;color:"#d416151b"
             border.width:1;border.color:Qt.rgba(root.accentColor.r,root.accentColor.g,root.accentColor.b,.3)
-            Text{id:zoomText;anchors.centerIn:parent;text:Math.round(root.sharedScale*100)+"%";color:"#b9d2df";font.pixelSize:11}
+            Text{id:zoomText;anchors.centerIn:parent;text:Math.round(root.sharedScale*100)+"%";color:"#d1ccd6";font.pixelSize:10;font.weight:Font.DemiBold}
         }
     }
 

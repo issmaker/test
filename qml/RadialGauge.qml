@@ -3,7 +3,7 @@ import QtQuick
 Item {
     id: root
     property real value: 0
-    property color accentColor: "#29c7ad"
+    property color accentColor: Theme.teal
     property string valueText: Math.round(value * 100) + "%"
     property string label: "PROCESS"
 
@@ -27,7 +27,7 @@ Item {
     }
     Column {
         anchors.centerIn: parent; spacing: 2
-        Text { anchors.horizontalCenter:parent.horizontalCenter; text:root.valueText; color:"white"; font.pixelSize:15; font.weight:Font.DemiBold }
-        Text { anchors.horizontalCenter:parent.horizontalCenter; text:root.label; color:"#817b88"; font.pixelSize:8; font.letterSpacing:.7 }
+        Text { anchors.horizontalCenter:parent.horizontalCenter; text:root.valueText; color:Theme.text; font.pixelSize:15; font.weight:Font.DemiBold }
+        Text { anchors.horizontalCenter:parent.horizontalCenter; text:root.label; color:Theme.textMuted; font.pixelSize:8; font.letterSpacing:.7 }
     }
 }

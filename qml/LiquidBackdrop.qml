@@ -6,116 +6,86 @@ Item {
     property real pointerX: 0
     property real pointerY: 0
     property real activity: 0
-    readonly property color primary: scene===1 ? "#f0a34b" : (scene===2 ? "#29c7ad" : (scene===3 ? "#54d9c2" : "#32bca7"))
-    readonly property color secondary: scene===1 ? "#d55b4b" : (scene===2 ? "#267f79" : (scene===3 ? "#b8a269" : "#5e716f"))
+    readonly property color primary: scene === 1 ? "#ff4f9a" : "#ed2f8a"
+    readonly property color secondary: scene === 3 ? "#9a37dd" : "#7b1459"
+
+    Rectangle { anchors.fill: parent; color: "#050204" }
+
+    Canvas {
+        id: atmosphere
+        anchors.fill: parent
+        renderStrategy: Canvas.Threaded
+        onPaint: {
+            const c=getContext("2d"),w=width,h=height;c.clearRect(0,0,w,h)
+            const glow=c.createRadialGradient(w*.62,h*.46,0,w*.62,h*.46,w*.68)
+            glow.addColorStop(0,root.scene===1?"rgba(105,13,67,.62)":"rgba(92,7,61,.72)")
+            glow.addColorStop(.48,"rgba(54,4,37,.34)");glow.addColorStop(1,"rgba(0,0,0,0)")
+            c.fillStyle=glow;c.fillRect(0,0,w,h)
+            const edge=c.createLinearGradient(0,0,w,h)
+            edge.addColorStop(0,"rgba(0,0,0,.72)");edge.addColorStop(.4,"rgba(0,0,0,.04)");edge.addColorStop(1,"rgba(0,0,0,.58)")
+            c.fillStyle=edge;c.fillRect(0,0,w,h)
+            for(let i=0;i<1500;++i){
+                const x=(i*1543%10007)/10007*w,y=(i*3323%9973)/9973*h
+                const a=.012+(i%7)*.003;c.fillStyle="rgba(255,170,224,"+a+")";c.fillRect(x,y,1,1)
+            }
+            for(let i=0;i<18;++i){
+                const x=(i*307%1000)/1000*w,y=(i*613%1000)/1000*h,r=1+(i%4)*.65
+                c.fillStyle=i%3===0?"rgba(255,63,151,.34)":"rgba(255,255,255,.13)"
+                c.beginPath();c.arc(x,y,r,0,6.283);c.fill()
+            }
+        }
+        Connections { target:root; function onSceneChanged(){atmosphere.requestPaint()} }
+    }
+
+    Item {
+        id: ribbonField
+        anchors.fill: parent
+        transform: Translate {
+            x: root.pointerX*54; y: root.pointerY*38
+            Behavior on x { NumberAnimation { duration:260;easing.type:Easing.OutCubic } }
+            Behavior on y { NumberAnimation { duration:260;easing.type:Easing.OutCubic } }
+        }
+        Canvas {
+            id: ribbons
+            anchors.fill: parent
+            renderStrategy: Canvas.Threaded
+            onPaint: {
+                const c=getContext("2d"),w=width,h=height;c.clearRect(0,0,w,h);c.lineCap="round";c.lineJoin="round"
+                function path(offset,shift){
+                    c.beginPath();c.moveTo(w*(-.04+shift),h*(1.14+offset))
+                    c.bezierCurveTo(w*(.32+shift),h*(.88+offset),w*(.49+shift),h*(.26+offset),w*(.71+shift),h*(.48+offset))
+                    c.bezierCurveTo(w*(.84+shift),h*(.62+offset),w*(.86+shift),h*(.24+offset),w*(1.08+shift),h*(.20+offset))
+                }
+                function ribbon(offset,shift,size,bright){
+                    path(offset,shift);c.strokeStyle="rgba(255,20,145,.08)";c.lineWidth=size*1.55;c.stroke()
+                    path(offset+.015,shift-.008);c.strokeStyle="rgba(18,0,12,.92)";c.lineWidth=size*1.12;c.stroke()
+                    const body=c.createLinearGradient(w*.24,h,w*.92,0)
+                    body.addColorStop(0,"#3a0829");body.addColorStop(.46,bright?"#9d1d70":"#651047");body.addColorStop(.72,bright?"#c12a83":"#86165e");body.addColorStop(1,"#3b092b")
+                    path(offset,shift);c.strokeStyle=body;c.lineWidth=size;c.stroke()
+                    path(offset-.018,shift+.003);c.strokeStyle=bright?"rgba(255,87,176,.66)":"rgba(255,74,166,.30)";c.lineWidth=Math.max(2,size*.055);c.stroke()
+                    path(offset-.029,shift+.006);c.strokeStyle="rgba(255,220,242,.18)";c.lineWidth=1;c.stroke()
+                }
+                ribbon(.22,-.06,Math.max(58,w*.055),false)
+                ribbon(.07,.10,Math.max(74,w*.068),true)
+                ribbon(-.12,.27,Math.max(62,w*.058),false)
+                ribbon(-.27,.43,Math.max(48,w*.046),true)
+            }
+            Connections { target:root; function onSceneChanged(){ribbons.requestPaint()} }
+        }
+        SequentialAnimation on scale {
+            loops:Animation.Infinite
+            NumberAnimation{from:.998;to:1.006;duration:3200;easing.type:Easing.InOutSine}
+            NumberAnimation{from:1.006;to:.998;duration:3200;easing.type:Easing.InOutSine}
+        }
+    }
 
     Rectangle {
         anchors.fill:parent
         gradient:Gradient {
-            orientation:Gradient.Horizontal
-            GradientStop { position:0; color:root.scene===1?"#17110c":(root.scene===2?"#071311":"#101111") }
-            GradientStop { position:.5; color:"#09090b" }
-            GradientStop { position:1; color:"#030404" }
+            orientation:Gradient.Vertical
+            GradientStop{position:0;color:"#18000000"}
+            GradientStop{position:.58;color:"#00000000"}
+            GradientStop{position:1;color:"#65000000"}
         }
-    }
-
-    Item {
-        id: farLayer
-        anchors.fill:parent
-        transform:Translate {
-            x:root.pointerX*32; y:root.pointerY*24
-            Behavior on x { NumberAnimation{duration:260;easing.type:Easing.OutCubic} }
-            Behavior on y { NumberAnimation{duration:260;easing.type:Easing.OutCubic} }
-        }
-        Canvas {
-            id:ribbonCanvas
-            anchors.fill:parent
-            onPaint:{
-                const c=getContext("2d"),w=width,h=height;c.clearRect(0,0,w,h);c.lineCap="round"
-                const p=root.primary,s=root.secondary
-                function ribbon(y,bend,width,alpha,color){
-                    c.beginPath();c.moveTo(-w*.08,y);c.bezierCurveTo(w*.22,y-bend,w*.58,y+bend,w*1.08,y-bend*.25)
-                    c.strokeStyle=Qt.rgba(color.r,color.g,color.b,alpha*.12);c.lineWidth=width*2.2;c.stroke()
-                    c.strokeStyle=Qt.rgba(color.r,color.g,color.b,alpha*.34);c.lineWidth=width;c.stroke()
-                    c.strokeStyle=Qt.rgba(1,1,1,alpha*.30);c.lineWidth=Math.max(1,width*.055);c.stroke()
-                }
-                ribbon(h*.18,h*.14,26,.52,p);ribbon(h*.57,-h*.17,38,.42,s);ribbon(h*.88,h*.10,15,.30,p)
-            }
-            Connections { target:root; function onSceneChanged(){ribbonCanvas.requestPaint()} }
-        }
-    }
-
-    Item {
-        anchors.fill:parent
-        transform:Translate {
-            x:root.pointerX*-58; y:root.pointerY*-44
-            Behavior on x { NumberAnimation{duration:190;easing.type:Easing.OutCubic} }
-            Behavior on y { NumberAnimation{duration:190;easing.type:Easing.OutCubic} }
-        }
-        Repeater {
-            model:7
-            Rectangle {
-                required property int index
-                width:90+index*31;height:width;radius:width/2
-                x:(index*277%1100)/1100*parent.width-width/2
-                y:(index*173%700)/700*parent.height-height/2
-                color:Qt.rgba(index%2?root.primary.r:root.secondary.r,index%2?root.primary.g:root.secondary.g,index%2?root.primary.b:root.secondary.b,.018+index*.003)
-                border.width:1
-                border.color:Qt.rgba(1,1,1,.035)
-            }
-        }
-    }
-
-    Item {
-        id: orb
-        width:Math.min(root.width,root.height)*.44;height:width
-        x:root.width*.66-width/2+root.pointerX*76
-        y:root.height*.49-height/2+root.pointerY*58
-        Behavior on x { NumberAnimation{duration:210;easing.type:Easing.OutCubic} }
-        Behavior on y { NumberAnimation{duration:210;easing.type:Easing.OutCubic} }
-        Rectangle { anchors.fill:parent;anchors.margins:-18;radius:width/2;color:"transparent";border.width:16;border.color:Qt.rgba(root.primary.r,root.primary.g,root.primary.b,.045) }
-        Rectangle {
-            anchors.centerIn:parent;width:parent.width*.36;height:width;radius:width/2
-            gradient:Gradient {
-                orientation:Gradient.Vertical
-                GradientStop{position:0;color:Qt.lighter(root.primary,1.18)}
-                GradientStop{position:.48;color:Qt.darker(root.primary,1.8)}
-                GradientStop{position:1;color:"#090a0a"}
-            }
-            border.width:1;border.color:"#55ffffff"
-        }
-        Canvas {
-            id:coilCanvas
-            anchors.fill:parent
-            onPaint:{
-                const c=getContext("2d"),cx=width/2,cy=height/2;c.clearRect(0,0,width,height);c.lineCap="round"
-                for(let arm=0;arm<16;++arm){
-                    c.beginPath()
-                    for(let i=0;i<46;++i){
-                        const t=i/45,angle=arm*Math.PI*2/16+t*2.4,r=18+t*width*.40
-                        const x=cx+Math.cos(angle)*r,y=cy+Math.sin(angle)*r
-                        if(i===0)c.moveTo(x,y);else c.lineTo(x,y)
-                    }
-                    c.strokeStyle=arm%3===0?Qt.rgba(root.primary.r,root.primary.g,root.primary.b,.55):"rgba(210,218,216,.20)"
-                    c.lineWidth=arm%3===0?1.6:.8;c.stroke()
-                }
-            }
-            Connections{target:root;function onSceneChanged(){coilCanvas.requestPaint()}}
-        }
-        SequentialAnimation on scale { loops:Animation.Infinite; NumberAnimation{from:.985;to:1.015;duration:1900;easing.type:Easing.InOutSine} NumberAnimation{from:1.015;to:.985;duration:1900;easing.type:Easing.InOutSine} }
-        RotationAnimation on rotation { from:0;to:360;duration:68000;loops:Animation.Infinite }
-    }
-
-    Canvas {
-        anchors.fill:parent;opacity:.18
-        onPaint:{
-            const c=getContext("2d"),w=width,h=height;c.clearRect(0,0,w,h)
-            for(let x=0;x<w;x+=52){c.strokeStyle="rgba(255,255,255,.025)";c.beginPath();c.moveTo(x,0);c.lineTo(x,h);c.stroke()}
-            for(let y=0;y<h;y+=52){c.strokeStyle="rgba(255,255,255,.025)";c.beginPath();c.moveTo(0,y);c.lineTo(w,y);c.stroke()}
-        }
-    }
-    Rectangle {
-        anchors.fill:parent
-        gradient:Gradient { orientation:Gradient.Vertical; GradientStop{position:0;color:"#06000000"} GradientStop{position:.72;color:"#10000000"} GradientStop{position:1;color:"#68000000"} }
     }
 }

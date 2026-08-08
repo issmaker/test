@@ -18,7 +18,7 @@ jobs:
     env:
       QT_VERSION: 6.8.3
       BUILD_DIR: build
-      DIST_DIR: dist/AdaptiveTextureOptimizer-33-Windows
+      DIST_DIR: dist/AdaptiveTextureOptimizer-34-Windows
 
     steps:
       - name: Checkout
@@ -128,12 +128,12 @@ jobs:
 
       - name: Pack portable application
         shell: pwsh
-        run: Compress-Archive -Path "$env:DIST_DIR/*" -DestinationPath "dist/AdaptiveTextureOptimizer-33-Windows-Portable.zip" -CompressionLevel Optimal
+        run: Compress-Archive -Path "$env:DIST_DIR/*" -DestinationPath "dist/AdaptiveTextureOptimizer-34-Windows-Portable.zip" -CompressionLevel Optimal
 
       - name: Upload ready-to-run application
         uses: actions/upload-artifact@v7
         with:
-          name: AdaptiveTextureOptimizer-33-Windows-Portable
-          path: dist/AdaptiveTextureOptimizer-33-Windows-Portable.zip
+          name: AdaptiveTextureOptimizer-34-Windows-Portable
+          path: dist/AdaptiveTextureOptimizer-34-Windows-Portable.zip
           if-no-files-found: error
           retention-days: 30

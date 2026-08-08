@@ -10,13 +10,13 @@
 #include <stdexcept>
 #include <vector>
 
-QImage TextureProcessor::perceptualPaletteCandidate(const QImage &input,int colors,int model,int orderedStrength){
+QImage TextureProcessor::perceptualPaletteCandidate(const QImage &input,int colors,int model,int orderedStrength,const Cancel &cancel){
     const QImage src=input.convertToFormat(QImage::Format_RGB888);
     colors=qBound(1,colors,256);
     struct Bin{quint64 r=0,g=0,b=0,n=0;};
     struct Point{double r=0,g=0,b=0;quint64 n=0;int key=0;};
     std::vector<Bin> histogram(32768);
-    for(int y=0;y<src.height();++y){const uchar*p=src.constScanLine(y);for(int x=0;x<src.width();++x){const int r=p[x*3],g=p[x*3+1],b=p[x*3+2],k=(r>>3)*1024+(g>>3)*32+(b>>3);auto&h=histogram[k];h.r+=r;h.g+=g;h.b+=b;++h.n;}}
+    for(int y=0;y<src.height();++y){if((y&31)==0&&cancel&&cancel())throw std::runtime_error("Остановлено пользователем");const uchar*p=src.constScanLine(y);for(int x=0;x<src.width();++x){const int r=p[x*3],g=p[x*3+1],b=p[x*3+2],k=(r>>3)*1024+(g>>3)*32+(b>>3);auto&h=histogram[k];h.r+=r;h.g+=g;h.b+=b;++h.n;}}
     std::vector<Point> points;points.reserve(32768);
     for(int k=0;k<32768;++k)if(histogram[k].n){const auto&h=histogram[k];points.push_back({double(h.r)/h.n,double(h.g)/h.n,double(h.b)/h.n,h.n,k});}
     if(points.empty())return src;
@@ -67,7 +67,7 @@ QImage TextureProcessor::perceptualPaletteCandidate(const QImage &input,int colo
     for(int k=0;k<32768;++k){const auto&h=histogram[k];Point p;if(h.n)p={double(h.r)/h.n,double(h.g)/h.n,double(h.b)/h.n,h.n,k};else p={double(((k>>10)&31)*8+4),double(((k>>5)&31)*8+4),double((k&31)*8+4),1,k};const Lab pl=model==1?lab(p.r,p.g,p.b):Lab{};int best=0;double bestD=std::numeric_limits<double>::max();for(int j=0;j<int(palette.size());++j){double d;if(model==1){const auto&b=paletteLab[j];const double dl=(pl.l-b.l)*1.35,da=pl.a-b.a,db=pl.b-b.b;d=dl*dl+da*da+db*db;}else d=fastDistance(p,palette[j]);if(d<bestD){bestD=d;best=j;}}const auto&c=palette[best];map[k]=qRgb(qBound(0,int(std::lround(c.r)),255),qBound(0,int(std::lround(c.g)),255),qBound(0,int(std::lround(c.b)),255));}
     static constexpr int bayer[16]={0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5};
     QImage out(src.size(),QImage::Format_RGB888);
-    for(int y=0;y<src.height();++y){const uchar*s=src.constScanLine(y);uchar*d=out.scanLine(y);for(int x=0;x<src.width();++x){int r=s[x*3],g=s[x*3+1],b=s[x*3+2];if(orderedStrength){const int o=(bayer[(y&3)*4+(x&3)]*2-15)*orderedStrength/16;r=qBound(0,r+o,255);g=qBound(0,g+o,255);b=qBound(0,b+o,255);}const QRgb c=map[(r>>3)*1024+(g>>3)*32+(b>>3)];d[x*3]=uchar(qRed(c));d[x*3+1]=uchar(qGreen(c));d[x*3+2]=uchar(qBlue(c));}}
+    for(int y=0;y<src.height();++y){if((y&31)==0&&cancel&&cancel())throw std::runtime_error("Остановлено пользователем");const uchar*s=src.constScanLine(y);uchar*d=out.scanLine(y);for(int x=0;x<src.width();++x){int r=s[x*3],g=s[x*3+1],b=s[x*3+2];if(orderedStrength){const int o=(bayer[(y&3)*4+(x&3)]*2-15)*orderedStrength/16;r=qBound(0,r+o,255);g=qBound(0,g+o,255);b=qBound(0,b+o,255);}const QRgb c=map[(r>>3)*1024+(g>>3)*32+(b>>3)];d[x*3]=uchar(qRed(c));d[x*3+1]=uchar(qGreen(c));d[x*3+2]=uchar(qBlue(c));}}
     return out;
 }
 
@@ -90,7 +90,7 @@ void TextureProcessor::measure(const QImage &a0,const QImage &b0,double &mean,do
 }
 
 
-TextureResult TextureProcessor::process(const QString &path,qint64 limit,const Progress &progress) {
+TextureResult TextureProcessor::process(const QString &path,qint64 limit,const Progress &progress,const Cancel &cancel) {
     if(limit<=0)throw std::runtime_error("Некорректный предел размера");
     QElapsedTimer timer;timer.start();
     QImageReader reader(path,"PNG");reader.setAutoTransform(true);
@@ -98,7 +98,7 @@ TextureResult TextureProcessor::process(const QString &path,qint64 limit,const P
     if(source.isNull())throw std::runtime_error("PNG не удалось прочитать");
     if(qMax(source.width(),source.height())>2048){const double k=2048.0/qMax(source.width(),source.height());source=areaDownsample(source,QSize(qMax(1,int(std::lround(source.width()*k))),qMax(1,int(std::lround(source.height()*k)))));}
 
-    progress(.04,"Lossless RGB24 · libdeflate");
+    if(cancel&&cancel())throw std::runtime_error("Остановлено пользователем");progress(.04,"Lossless RGB24 · libdeflate");
     const auto exact=PngEncoder::encodeRgb24(source,10);
     TextureResult exactResult;exactResult.original=source;exactResult.output=source;exactResult.png=exact.bytes;exactResult.lossless=true;exactResult.tested=1;exactResult.algorithmName="Lossless RGB24";
     if(exact.bytes.size()<=limit){
@@ -115,7 +115,7 @@ TextureResult TextureProcessor::process(const QString &path,qint64 limit,const P
         const std::array<int,19> counts={{256,224,208,192,176,160,144,128,112,96,80,64,48,32,16,8,4,2,1}};
         const auto evaluate=[&](int colors){
             progress(qMin(.96,.08+.045*step++),QString("%1 · %2 цветов").arg(algorithmName).arg(colors));
-            const QImage candidate=perceptualPaletteCandidate(source,colors,0,0);const auto encoded=PngEncoder::encodeRgb24(candidate,10);++totalTested;
+            if(cancel&&cancel())throw std::runtime_error("Остановлено пользователем");const QImage candidate=perceptualPaletteCandidate(source,colors,0,0,cancel);const auto encoded=PngEncoder::encodeRgb24(candidate,10);++totalTested;
             double mean=0,psnr=0;int maximum=0;measure(source,candidate,mean,psnr,maximum);const bool passing=encoded.bytes.size()<=limit;
             if((passing&&(winner.png.size()>limit||psnr>winner.psnr+.005||(qAbs(psnr-winner.psnr)<.005&&encoded.bytes.size()>winner.png.size())))||(!passing&&winner.png.size()>limit&&encoded.bytes.size()<winner.png.size())){
                 winner.output=candidate;winner.png=encoded.bytes;winner.meanError=mean;winner.psnr=psnr;winner.maxError=maximum;winner.paletteColors=colors;winner.lossless=false;
@@ -145,17 +145,14 @@ TextureResult TextureProcessor::process(const QString &path,qint64 limit,const P
     progress(1.0,"Готово");return best;
 }
 
-TextureResult TextureProcessor::processAutomatic(const QString &path,const Progress &progress) {
+TextureResult TextureProcessor::processAutomatic(const QString &path,const Progress &progress,const Cancel &cancel) {
     QElapsedTimer timer;timer.start();
     QImageReader reader(path,"PNG");reader.setAutoTransform(true);
     const QImage source=reader.read().convertToFormat(QImage::Format_RGB888);
     if(source.isNull())throw std::runtime_error("PNG не удалось прочитать");
 
-    progress(.04,"Проверка lossless RGB24");
-    const auto exact=PngEncoder::encodeRgb24(source,10);
-    TextureResult best;best.original=source;best.output=source;best.png=exact.bytes;
-    best.lossless=true;best.tested=1;best.algorithmName="Lossless RGB24";
-    best.psnr=std::numeric_limits<double>::infinity();best.meanError=0;best.maxError=0;
+    if(cancel&&cancel())throw std::runtime_error("Остановлено пользователем");
+    TextureResult best;best.original=source;best.output=source;
 
     // This workflow has no byte target. Instead it finds the smallest RGB24
     // candidate that stays inside a conservative visual-quality envelope.
@@ -164,21 +161,32 @@ TextureResult TextureProcessor::processAutomatic(const QString &path,const Progr
     static constexpr double minimumPsnr=38.0;
     static constexpr double maximumMeanError=3.0;
     static constexpr int maximumChannelError=72;
-    const std::array<int,7> counts={{256,224,192,160,128,112,96}};
-    int tested=1;
+    const std::array<int,2> counts={{192,128}};
+    int tested=0;
     for(int i=0;i<int(counts.size());++i){
         const int colors=counts[size_t(i)];
         progress(.10+.78*double(i)/counts.size(),QString("Авто-качество · %1 цветов").arg(colors));
-        const QImage candidate=perceptualPaletteCandidate(source,colors,0,0);
-        const auto encoded=PngEncoder::encodeRgb24(candidate,10);
+        if(cancel&&cancel())throw std::runtime_error("Остановлено пользователем");
+        const QImage candidate=perceptualPaletteCandidate(source,colors,0,0,cancel);
+        const auto encoded=PngEncoder::encodeRgb24(candidate,7);
         double mean=0,psnr=0;int maximum=0;measure(source,candidate,mean,psnr,maximum);++tested;
         const bool safe=psnr>=minimumPsnr&&mean<=maximumMeanError&&maximum<=maximumChannelError;
-        if(safe&&encoded.bytes.size()<best.png.size()){
+        if(safe&&(best.png.isEmpty()||encoded.bytes.size()<best.png.size())){
             best.output=candidate;best.png=encoded.bytes;best.lossless=false;
             best.paletteColors=colors;best.algorithmName="AGR Auto Quality RGB24";
             best.psnr=psnr;best.meanError=mean;best.maxError=maximum;
         }
-        if(!safe&&i>1)break;
+        if(!safe)break;
+    }
+
+    // Lossless is the safe fallback only when the fast perceptual candidate
+    // could not meet the quality envelope. Most normal/colour textures avoid
+    // this extra full-image compression pass entirely.
+    if(best.png.isEmpty()){
+        if(cancel&&cancel())throw std::runtime_error("Остановлено пользователем");progress(.90,"Безопасный lossless fallback");
+        const auto exact=PngEncoder::encodeRgb24(source,7);best.output=source;best.png=exact.bytes;
+        best.lossless=true;best.algorithmName="Lossless RGB24";
+        best.psnr=std::numeric_limits<double>::infinity();best.meanError=0;best.maxError=0;++tested;
     }
 
     if(!PngEncoder::verifyRgb24(best.png,best.output))throw std::runtime_error("RGB24-проверка не пройдена");

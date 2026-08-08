@@ -18,7 +18,7 @@ jobs:
     env:
       QT_VERSION: 6.8.3
       BUILD_DIR: build
-      DIST_DIR: dist/AdaptiveTextureOptimizer-35-Windows
+      DIST_DIR: dist/AdaptiveTextureOptimizer-36-Windows
 
     steps:
       - name: Checkout
@@ -29,8 +29,22 @@ jobs:
         with:
           version: ${{ env.QT_VERSION }}
           arch: win64_msvc2022_64
-          modules: qtshadertools
+          modules: qtwebengine qtwebchannel qtshadertools
           cache: true
+
+      - name: Install web interface dependencies
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Build React WebGL interface
+        shell: pwsh
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
 
       - name: Create Windows cinematic interface icon
         shell: pwsh
@@ -56,7 +70,7 @@ jobs:
           & "${env:QT_ROOT_DIR}/bin/windeployqt.exe" `
             --release `
             --compiler-runtime `
-            --qmldir "$pwd/qml" `
+            --webengine `
             "$env:DIST_DIR/AdaptiveTextureOptimizer.exe"
 
       - name: Smoke-test package
@@ -73,6 +87,7 @@ jobs:
           }
           $env:QT_QPA_PLATFORM = "offscreen"
           $env:QT_QUICK_BACKEND = "software"
+          $env:QTWEBENGINE_CHROMIUM_FLAGS = "--disable-gpu --disable-software-rasterizer"
           $env:AGR_STARTUP_TEST = "1"
           foreach ($attempt in 1..3) {
             $stdout = "$pwd/dist/startup-stdout-$attempt.log"
@@ -128,12 +143,12 @@ jobs:
 
       - name: Pack portable application
         shell: pwsh
-        run: Compress-Archive -Path "$env:DIST_DIR/*" -DestinationPath "dist/AdaptiveTextureOptimizer-35-Windows-Portable.zip" -CompressionLevel Optimal
+        run: Compress-Archive -Path "$env:DIST_DIR/*" -DestinationPath "dist/AdaptiveTextureOptimizer-36-Windows-Portable.zip" -CompressionLevel Optimal
 
       - name: Upload ready-to-run application
         uses: actions/upload-artifact@v7
         with:
-          name: AdaptiveTextureOptimizer-35-Windows-Portable
-          path: dist/AdaptiveTextureOptimizer-35-Windows-Portable.zip
+          name: AdaptiveTextureOptimizer-36-Windows-Portable
+          path: dist/AdaptiveTextureOptimizer-36-Windows-Portable.zip
           if-no-files-found: error
           retention-days: 30

@@ -21,6 +21,7 @@ class TextureProcessor final {
 public:
     using Progress = std::function<void(double, const QString &)>;
     static TextureResult process(const QString &path, qint64 limitBytes, const Progress &progress);
+    static TextureResult processAutomatic(const QString &path, const Progress &progress);
 private:
     static QImage perceptualPaletteCandidate(const QImage &, int colors, int model, int orderedStrength);
     static QImage areaDownsample(const QImage &, const QSize &);

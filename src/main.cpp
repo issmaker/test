@@ -119,7 +119,7 @@ int runSelfTest() {
     const QString comparisonUrl=previewItems.constFirst().toMap().value("comparisonSourceUrl").toString();
     QImageReader comparisonReader(QUrl(comparisonUrl).toLocalFile(),"PNG");
     const QSize comparisonSize=comparisonReader.size();
-    if(!comparisonSize.isValid()||qMax(comparisonSize.width(),comparisonSize.height())!=3072||comparisonSize.width()<=comparisonSize.height())return 13;
+    if(!comparisonSize.isValid()||qMax(comparisonSize.width(),comparisonSize.height())!=2048||comparisonSize.width()<=comparisonSize.height())return 13;
     return 0;
 }
 } // namespace
@@ -129,7 +129,7 @@ int main(int argc,char**argv){
     textureScheme.setSyntax(QWebEngineUrlScheme::Syntax::HostAndPort);
     textureScheme.setFlags(QWebEngineUrlScheme::SecureScheme|QWebEngineUrlScheme::LocalScheme|QWebEngineUrlScheme::LocalAccessAllowed|QWebEngineUrlScheme::CorsEnabled);
     QWebEngineUrlScheme::registerScheme(textureScheme);
-    QApplication app(argc,argv);app.setApplicationName("Adaptive Texture Optimizer");app.setApplicationVersion("37");
+    QApplication app(argc,argv);app.setApplicationName("Adaptive Texture Optimizer");app.setApplicationVersion("38");
     app.setWindowIcon(QIcon(QStringLiteral(":/icons/liquid.svg")));
     g_startupLogPath = QCoreApplication::applicationDirPath()
         + QStringLiteral("/AdaptiveTextureOptimizer-startup.log");
@@ -137,7 +137,7 @@ int main(int argc,char**argv){
         QFile log(g_startupLogPath);
         if (log.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
             QTextStream out(&log);
-            out << "Adaptive Texture Optimizer 37 startup\n";
+            out << "Adaptive Texture Optimizer 38 startup\n";
             out << "Qt " << qVersion() << "\n";
         }
     }
@@ -159,7 +159,7 @@ int main(int argc,char**argv){
     QObject::connect(view,&QWebEngineView::loadFinished,&window,[&](bool ok){
         if(!ok)startupMessageHandler(QtCriticalMsg,QMessageLogContext(),QStringLiteral("Web interface failed to load"));
     });
-    window.setWindowTitle(QStringLiteral("Оптимизатор текстур 37 — by issmaker"));window.setCentralWidget(view);
+    window.setWindowTitle(QStringLiteral("Оптимизатор текстур 38"));window.setCentralWidget(view);
     const bool startupTest=!qEnvironmentVariableIsEmpty("AGR_STARTUP_TEST");
     view->setUrl(QUrl(startupTest?QStringLiteral("qrc:/web/index.html?headless-test=1"):QStringLiteral("qrc:/web/index.html")));window.showFullScreen();
     if(argc>1)optimizer.load(QUrl::fromLocalFile(QString::fromLocal8Bit(argv[1])).toString());

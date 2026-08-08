@@ -3,7 +3,7 @@ import QtQuick
 Item {
     id: root
     property real value: 0
-    property color accentColor: "#ba3d93"
+    property color accentColor: "#29c7ad"
     property string valueText: Math.round(value * 100) + "%"
     property string label: "PROCESS"
 

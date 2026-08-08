@@ -26,6 +26,7 @@ ApplicationWindow {
     property real pointerY: 0
     property int bubbleScore: 0
     property bool bubblesOn: true
+    readonly property color brandContrastColor: AppTheme.contentPrimary
     readonly property var batchItem: batchIndex >= 0 && batchIndex < optimizer.batchItems.length
                                      ? optimizer.batchItems[batchIndex] : null
     property color uiAccent: screen === 1 ? "#ff74b2" : "#ff3f93"
@@ -127,7 +128,7 @@ ApplicationWindow {
                 RowLayout { Layout.preferredWidth:245;spacing:12
                     Image { Layout.preferredWidth:42;Layout.preferredHeight:42;source:"qrc:/icons/liquid.svg";sourceSize:Qt.size(84,84);smooth:true }
                     ColumnLayout { spacing:0
-                        Text { objectName:"brandText";text:"Adaptive Texture";color:AppTheme.contentPrimary;font.pixelSize:15;font.weight:Font.DemiBold }
+                        Text { text:"Adaptive Texture";color:win.brandContrastColor;font.pixelSize:15;font.weight:Font.DemiBold }
                         Text { text:"FLOW INFRASTRUCTURE";color:AppTheme.contentSecondary;font.pixelSize:8;font.letterSpacing:1.1 }
                     }
                 }

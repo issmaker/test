@@ -7,6 +7,7 @@
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QQuickStyle>
+#include <QQuickItem>
 #include <QTextStream>
 #include <QTemporaryDir>
 #include "OptimizerEngine.h"
@@ -64,7 +65,7 @@ int runSelfTest() {
     if (!directory.isValid()) return 2;
 
     QImage input(512, 512, QImage::Format_RGB888);
-    quint32 state = 0x27a6f19dU;
+    quint32 state = 0x28a6f19dU;
     for (int y = 0; y < input.height(); ++y) {
         uchar *line = input.scanLine(y);
         for (int x = 0; x < input.width(); ++x) {
@@ -82,12 +83,16 @@ int runSelfTest() {
     if (result.png.isEmpty() || result.png.size() > limit) return 4;
     if (!PngEncoder::verifyRgb24(result.png, result.output)) return 5;
     if (result.output.size() != input.size()) return 6;
+    const TextureResult automatic = TextureProcessor::processAutomatic(inputPath, [](double,const QString&){});
+    if (automatic.png.isEmpty()) return 7;
+    if (!PngEncoder::verifyRgb24(automatic.png, automatic.output)) return 8;
+    if (automatic.output.size() != input.size()) return 9;
     return 0;
 }
 } // namespace
 
 int main(int argc,char**argv){
-    QGuiApplication app(argc,argv);app.setApplicationName("Adaptive Texture Optimizer");app.setApplicationVersion("27");
+    QGuiApplication app(argc,argv);app.setApplicationName("Adaptive Texture Optimizer");app.setApplicationVersion("28");
     app.setWindowIcon(QIcon(QStringLiteral(":/icons/mars.svg")));
     g_startupLogPath = QCoreApplication::applicationDirPath()
         + QStringLiteral("/AdaptiveTextureOptimizer-startup.log");
@@ -95,7 +100,7 @@ int main(int argc,char**argv){
         QFile log(g_startupLogPath);
         if (log.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
             QTextStream out(&log);
-            out << "Adaptive Texture Optimizer 27 startup\n";
+            out << "Adaptive Texture Optimizer 28 startup\n";
             out << "Qt " << qVersion() << "\n";
         }
     }
@@ -111,6 +116,19 @@ int main(int argc,char**argv){
         if (qEnvironmentVariableIsEmpty("AGR_STARTUP_TEST"))
             showStartupFailure(details);
         return -1;
+    }
+    if(app.arguments().contains(QStringLiteral("--ui-layout-test"))){
+        QObject *root=engine.rootObjects().constFirst();
+        const auto verify=[&](int screen,const char *name,double minimumHeight){
+            root->setProperty("screen",screen);
+            for(int i=0;i<5;++i)QCoreApplication::processEvents();
+            QObject *item=root->findChild<QObject*>(QString::fromLatin1(name));
+            return item&&item->property("visible").toBool()&&item->property("height").toDouble()>=minimumHeight;
+        };
+        if(!verify(1,"npmComparisonPanel",360.0))return 21;
+        if(!verify(2,"batchListPanel",460.0))return 22;
+        if(!verify(3,"batchComparisonPanel",460.0))return 23;
+        return 0;
     }
     if(argc>1)optimizer.load(QUrl::fromLocalFile(QString::fromLocal8Bit(argv[1])).toString());
     return app.exec();

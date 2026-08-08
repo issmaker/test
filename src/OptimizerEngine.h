@@ -6,6 +6,7 @@
 #include <QVariantList>
 #include <QVariantMap>
 #include <QVector>
+#include <atomic>
 #include "TextureProcessor.h"
 
 struct SourcePreview {
@@ -45,7 +46,7 @@ struct BatchRunItem {
     double outputMb = 0;
 };
 
-struct BatchRunResult { QVector<BatchRunItem> items; };
+struct BatchRunResult { QVector<BatchRunItem> items; bool cancelled = false; };
 
 class OptimizerEngine final : public QObject {
     Q_OBJECT
@@ -74,6 +75,8 @@ class OptimizerEngine final : public QObject {
     Q_PROPERTY(bool batchBusy READ batchBusy NOTIFY batchBusyChanged)
     Q_PROPERTY(double batchProgress READ batchProgress NOTIFY batchProgressChanged)
     Q_PROPERTY(QString batchStatus READ batchStatus NOTIFY batchStatusChanged)
+    Q_PROPERTY(QVariantList batchProgressHistory READ batchProgressHistory NOTIFY batchTelemetryChanged)
+    Q_PROPERTY(QVariantList batchActivityHistory READ batchActivityHistory NOTIFY batchTelemetryChanged)
 
 public:
     explicit OptimizerEngine(QObject *parent=nullptr);
@@ -102,6 +105,8 @@ public:
     bool batchBusy()const{return m_batchBusy;}
     double batchProgress()const{return m_batchProgress;}
     QString batchStatus()const{return m_batchStatus;}
+    QVariantList batchProgressHistory()const{return m_batchProgressHistory;}
+    QVariantList batchActivityHistory()const{return m_batchActivityHistory;}
 
     Q_INVOKABLE void load(const QString &url);
     Q_INVOKABLE void optimize(double maxMb=3.0);
@@ -112,6 +117,8 @@ public:
     Q_INVOKABLE void clearBatch();
     Q_INVOKABLE void optimizeBatch();
     Q_INVOKABLE void openBatchOutput(int index);
+    Q_INVOKABLE void stopCurrent();
+    Q_INVOKABLE void stopBatch();
 
 signals:
     void sourceUrlChanged();
@@ -133,6 +140,7 @@ signals:
     void batchBusyChanged();
     void batchProgressChanged();
     void batchStatusChanged();
+    void batchTelemetryChanged();
 
 private:
     QString localPath()const;
@@ -152,4 +160,7 @@ private:
     double m_batchProgress=0;
     QString m_batchStatus="Добавьте PNG-файлы";
     QFutureWatcher<BatchRunResult> m_batchWatcher;
+    QVariantList m_batchProgressHistory,m_batchActivityHistory;
+    std::atomic_bool m_cancelRequested{false};
+    std::atomic_bool m_batchCancelRequested{false};
 };

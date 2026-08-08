@@ -11,8 +11,8 @@ ApplicationWindow {
     minimumHeight: 760
     visible: true
     visibility: Window.FullScreen
-    title: "Adaptive Texture Optimizer 33 — Magenta Infrastructure"
-    color: Theme.canvas
+    title: "Adaptive Texture Optimizer 34 — Magenta Infrastructure"
+    color: AppTheme.canvas
 
     // 0 — start, 1 — НПМ, 2 — batch list, 3 — batch comparison
     property int screen: 0
@@ -34,12 +34,12 @@ ApplicationWindow {
                                     : (optimizer.workingPreviewUrl ? optimizer.workingPreviewUrl
                                        : (optimizer.sourceIsLarge ? "" : optimizer.sourceUrl))
 
-    palette.window: Theme.canvas
-    palette.windowText: Theme.text
-    palette.base: Theme.surface
-    palette.text: Theme.text
-    palette.button: Theme.surfaceRaised
-    palette.buttonText: Theme.text
+    palette.window: AppTheme.canvas
+    palette.windowText: AppTheme.contentPrimary
+    palette.base: AppTheme.surface
+    palette.text: AppTheme.contentPrimary
+    palette.button: AppTheme.surfaceRaised
+    palette.buttonText: AppTheme.contentPrimary
     palette.highlight: uiAccent
 
     Behavior on uiAccent { ColorAnimation { duration: 600; easing.type: Easing.InOutCubic } }
@@ -127,8 +127,8 @@ ApplicationWindow {
                 RowLayout { Layout.preferredWidth:245;spacing:12
                     Image { Layout.preferredWidth:42;Layout.preferredHeight:42;source:"qrc:/icons/liquid.svg";sourceSize:Qt.size(84,84);smooth:true }
                     ColumnLayout { spacing:0
-                        Text { text:"Adaptive Texture";color:Theme.text;font.pixelSize:15;font.weight:Font.DemiBold }
-                        Text { text:"FLOW INFRASTRUCTURE";color:Theme.textMuted;font.pixelSize:8;font.letterSpacing:1.1 }
+                        Text { objectName:"brandText";text:"Adaptive Texture";color:AppTheme.contentPrimary;font.pixelSize:15;font.weight:Font.DemiBold }
+                        Text { text:"FLOW INFRASTRUCTURE";color:AppTheme.contentSecondary;font.pixelSize:8;font.letterSpacing:1.1 }
                     }
                 }
                 Item { Layout.fillWidth:true }
@@ -142,9 +142,9 @@ ApplicationWindow {
                         NavButton { Layout.preferredWidth:142;kind:"compare";label:"Сравнение";selected:win.screen===3;accentColor:win.uiAccent;enabled:win.batchItem&&win.batchItem.done&&!optimizer.batchBusy;onClicked:win.screen=3 }
                         Item { Layout.fillWidth:true }
                         MetricChip { text:"SCORE "+win.bubbleScore;checked:win.bubbleScore>0;accentColor:win.uiAccent }
-                        MetricChip { text:"v33";checked:true;accentColor:win.uiAccent }
+                        MetricChip { text:"v34";checked:true;accentColor:win.uiAccent }
                         NavButton { Layout.preferredWidth:112;kind:"play";label:"Импульс";selected:win.bubblesOn;accentColor:win.uiAccent;onClicked:win.bubblesOn=!win.bubblesOn }
-                        NavButton { Layout.preferredWidth:102;kind:"exit";label:"Выход";accentColor:Theme.danger;enabled:!optimizer.busy&&!optimizer.batchBusy;onClicked:Qt.quit() }
+                        NavButton { Layout.preferredWidth:102;kind:"exit";label:"Выход";accentColor:AppTheme.danger;enabled:!optimizer.busy&&!optimizer.batchBusy;onClicked:Qt.quit() }
                     }
                 }
             }
@@ -160,30 +160,30 @@ ApplicationWindow {
                 anchors.verticalCenter:parent.verticalCenter
                 anchors.verticalCenterOffset:70
                 width:parent.width*.58;spacing:-5
-                Text { text:"REAL-TIME";color:Theme.text;font.pixelSize:Math.min(78,win.width*.046);font.weight:Font.Light }
-                Text { text:"ОПТИМИЗАЦИЯ";color:Theme.text;font.pixelSize:Math.min(78,win.width*.046);font.weight:Font.Light }
-                Text { text:"ТЕКСТУР,";color:Theme.teal;font.pixelSize:Math.min(78,win.width*.046);font.weight:Font.Light }
-                Text { text:"КОТОРАЯ РАБОТАЕТ";color:Theme.text;font.pixelSize:Math.min(78,win.width*.046);font.weight:Font.Light }
-                Text { text:"ВМЕСТЕ С ВАМИ";color:Theme.text;font.pixelSize:Math.min(78,win.width*.046);font.weight:Font.Light }
+                Text { text:"REAL-TIME";color:AppTheme.contentPrimary;font.pixelSize:Math.min(78,win.width*.046);font.weight:Font.Light }
+                Text { text:"ОПТИМИЗАЦИЯ";color:AppTheme.contentPrimary;font.pixelSize:Math.min(78,win.width*.046);font.weight:Font.Light }
+                Text { text:"ТЕКСТУР,";color:AppTheme.teal;font.pixelSize:Math.min(78,win.width*.046);font.weight:Font.Light }
+                Text { text:"КОТОРАЯ РАБОТАЕТ";color:AppTheme.contentPrimary;font.pixelSize:Math.min(78,win.width*.046);font.weight:Font.Light }
+                Text { text:"ВМЕСТЕ С ВАМИ";color:AppTheme.contentPrimary;font.pixelSize:Math.min(78,win.width*.046);font.weight:Font.Light }
             }
 
             GlassCard {
                 anchors.right:parent.right;anchors.rightMargin:64
                 anchors.verticalCenter:parent.verticalCenter;anchors.verticalCenterOffset:82
-                width:420;height:380;radius:14;accentColor:Theme.teal;glassOpacity:.94
+                width:420;height:380;radius:14;accentColor:AppTheme.teal;glassOpacity:.94
                 ColumnLayout { anchors.fill:parent;anchors.margins:26;spacing:16
-                    Text { text:"TEXTURE INFRASTRUCTURE";color:Theme.teal;font.pixelSize:9;font.weight:Font.DemiBold;font.letterSpacing:1.3 }
-                    Text { Layout.fillWidth:true;text:"Два готовых конвейера для production-текстур";color:Theme.text;font.pixelSize:24;font.weight:Font.Medium;wrapMode:Text.Wrap;lineHeight:1.05 }
-                    Text { Layout.fillWidth:true;text:"Один файл для НПМ до 3 MB или пакетная RGB24-оптимизация 2K, 4K и 8K без ручного лимита.";color:Theme.textMuted;font.pixelSize:12;wrapMode:Text.Wrap;lineHeight:1.35 }
+                    Text { text:"TEXTURE INFRASTRUCTURE";color:AppTheme.teal;font.pixelSize:9;font.weight:Font.DemiBold;font.letterSpacing:1.3 }
+                    Text { Layout.fillWidth:true;text:"Два готовых конвейера для production-текстур";color:AppTheme.contentPrimary;font.pixelSize:24;font.weight:Font.Medium;wrapMode:Text.Wrap;lineHeight:1.05 }
+                    Text { Layout.fillWidth:true;text:"Один файл для НПМ до 3 MB или пакетная RGB24-оптимизация 2K, 4K и 8K без ручного лимита.";color:AppTheme.contentSecondary;font.pixelSize:12;wrapMode:Text.Wrap;lineHeight:1.35 }
                     Item { Layout.fillHeight:true }
                     Row { spacing:8
-                        MetricChip{text:"RGB24";checked:true;accentColor:Theme.teal}
-                        MetricChip{text:"8K READY";checked:true;accentColor:Theme.teal}
-                        MetricChip{text:"BATCH";accentColor:Theme.teal}
+                        MetricChip{text:"RGB24";checked:true;accentColor:AppTheme.teal}
+                        MetricChip{text:"8K READY";checked:true;accentColor:AppTheme.teal}
+                        MetricChip{text:"BATCH";accentColor:AppTheme.teal}
                     }
-                    AppButton { Layout.fillWidth:true;implicitHeight:52;text:"НПМ · ОПТИМИЗИРОВАТЬ ДО 3 MB";accent:Theme.teal;onClicked:win.enterNpm() }
+                    AppButton { Layout.fillWidth:true;implicitHeight:52;text:"НПМ · ОПТИМИЗИРОВАТЬ ДО 3 MB";accent:AppTheme.teal;onClicked:win.enterNpm() }
                     AppButton { Layout.fillWidth:true;implicitHeight:52;text:"ОТКРЫТЬ ОПТИМИЗАТОР ТЕКСТУР";accent:"#b52a77";quiet:true;onClicked:win.enterBatch() }
-                    Text { Layout.alignment:Qt.AlignHCenter;text:"Результаты сохраняются в папке compressed";color:Theme.textFaint;font.pixelSize:9 }
+                    Text { Layout.alignment:Qt.AlignHCenter;text:"Результаты сохраняются в папке compressed";color:AppTheme.contentTertiary;font.pixelSize:9 }
                 }
             }
         }
@@ -199,7 +199,7 @@ ApplicationWindow {
                 Layout.fillWidth: true; Layout.minimumHeight: 54; Layout.maximumHeight: 54
                 AppButton { text: "← Выбор режима"; quiet: true; accent: win.uiAccent; enabled: !optimizer.busy; onClicked: win.screen = 0 }
                 ColumnLayout { Layout.fillWidth: true; spacing: 0
-                    Text { text: "Magenta Infrastructure  /  Оптимизация для НПМ-текстур"; color: Theme.text; font.pixelSize: 20; font.weight: Font.DemiBold }
+                    Text { text: "Magenta Infrastructure  /  Оптимизация для НПМ-текстур"; color: AppTheme.contentPrimary; font.pixelSize: 20; font.weight: Font.DemiBold }
                     Text { text: "Фиксированный предел ≤ 3 MB  /  AGR ADAPTIVE RGB24"; color: "#817c87"; font.pixelSize: 9; font.letterSpacing: .8 }
                 }
                 AppButton { text: "Импорт PNG"; accent: win.warmAccent; enabled: !optimizer.busy; onClicked: npmPicker.open() }
@@ -231,7 +231,7 @@ ApplicationWindow {
                 GlassCard { Layout.preferredWidth: 290; Layout.fillHeight: true; accentColor: win.uiAccent
                     Column { anchors.fill: parent; anchors.margins: 13; spacing: 7
                         Text { text: optimizer.busy ? "PROCESSING  " + Math.round(optimizer.progress*100) + "%" : "SYSTEM READY"; color: optimizer.busy ? win.uiAccent : "#8f8a95"; font.pixelSize: 9; font.bold: true }
-                        Rectangle { width: parent.width; height: 7; radius: 4; color: Theme.surfaceRaised
+                        Rectangle { width: parent.width; height: 7; radius: 4; color: AppTheme.surfaceRaised
                             Rectangle { width: parent.width*(optimizer.busy?optimizer.progress:(optimizer.resultUrl?1:.06)); height: parent.height; radius: 4; color: win.uiAccent; Behavior on width { NumberAnimation { duration: 200 } } }
                         }
                         Text { text: optimizer.status; width: parent.width; elide: Text.ElideRight; color: "#8c8792"; font.pixelSize: 9 }
@@ -242,7 +242,7 @@ ApplicationWindow {
             GlassCard {
                 objectName: "npmComparisonPanel"
                 Layout.fillWidth: true; Layout.fillHeight: true; Layout.minimumHeight: 390
-                accentColor: win.uiAccent; glassOpacity: .28
+                accentColor: win.uiAccent; glassOpacity: .78
                 ColumnLayout {
                     anchors.fill: parent; anchors.margins: 12; spacing: 9
                     RowLayout { Layout.fillWidth: true; Layout.minimumHeight: 38; Layout.maximumHeight: 38
@@ -290,7 +290,7 @@ ApplicationWindow {
                 Layout.fillWidth:true; Layout.minimumHeight:54; Layout.maximumHeight:54; spacing:10
                 AppButton { text:"← Выбор режима"; quiet:true; accent:win.uiAccent; enabled:!optimizer.batchBusy; onClicked:win.screen=0 }
                 ColumnLayout { Layout.fillWidth:true; spacing:0
-                    Text { text:"Magenta Infrastructure  /  Оптимизация текстур"; color:Theme.text; font.pixelSize:20; font.weight:Font.DemiBold }
+                    Text { text:"Magenta Infrastructure  /  Оптимизация текстур"; color:AppTheme.contentPrimary; font.pixelSize:20; font.weight:Font.DemiBold }
                     Text { text:"ПАКЕТНЫЙ RGB24  /  AUTO QUALITY  /  БЕЗ ЛИМИТА MB"; color:"#85808e"; font.pixelSize:9; font.letterSpacing:.8 }
                 }
                 MetricChip { text:optimizer.batchItems.length+" FILES"; checked:optimizer.batchItems.length>0; accentColor:win.uiAccent }
@@ -307,7 +307,7 @@ ApplicationWindow {
                             Text { text:optimizer.batchStatus; color:"#d3ced8"; font.pixelSize:11; font.weight:Font.DemiBold; Layout.fillWidth:true; elide:Text.ElideRight }
                             Text { text:Math.round(optimizer.batchProgress*100)+"%"; color:win.uiAccent; font.pixelSize:11; font.bold:true }
                         }
-                        Rectangle { Layout.fillWidth:true; height:7; radius:4; color:Theme.surfaceRaised
+                        Rectangle { Layout.fillWidth:true; height:7; radius:4; color:AppTheme.surfaceRaised
                             Rectangle { width:parent.width*optimizer.batchProgress; height:parent.height; radius:4; color:win.uiAccent; Behavior on width { NumberAnimation { duration:220 } } }
                         }
                     }
@@ -338,13 +338,13 @@ ApplicationWindow {
                         required property var modelData
                         required property int index
                         width:batchList.width-12
-                        height:190; radius:Theme.radiusLarge; color:Theme.surface; border.width:1; border.color:Theme.stroke
+                        height:190; radius:AppTheme.radiusLarge; color:AppTheme.surface; border.width:1; border.color:AppTheme.stroke
                         RowLayout { anchors.fill:parent; anchors.margins:10; spacing:12
-                            Rectangle { Layout.preferredWidth:250; Layout.fillHeight:true; radius:Theme.radiusMedium; clip:true; color:"#070908"
+                            Rectangle { Layout.preferredWidth:250; Layout.fillHeight:true; radius:AppTheme.radiusMedium; clip:true; color:"#070908"
                                 Image { anchors.fill:parent; anchors.margins:5; source:modelData.comparisonSourceUrl||modelData.sourceUrl; asynchronous:true; cache:false; fillMode:Image.PreserveAspectFit; sourceSize:Qt.size(420,260) }
                                 MetricChip { anchors.left:parent.left; anchors.top:parent.top; anchors.margins:9; text:"BEFORE"; accentColor:win.uiAccent }
                             }
-                            Rectangle { Layout.preferredWidth:250; Layout.fillHeight:true; radius:Theme.radiusMedium; clip:true; color:"#070908"
+                            Rectangle { Layout.preferredWidth:250; Layout.fillHeight:true; radius:AppTheme.radiusMedium; clip:true; color:"#070908"
                                 Image { anchors.fill:parent; anchors.margins:5; source:modelData.comparisonResultUrl||modelData.resultUrl; asynchronous:true; cache:false; fillMode:Image.PreserveAspectFit; sourceSize:Qt.size(420,260) }
                                 Text { anchors.centerIn:parent; visible:!modelData.resultUrl; text:modelData.failed?"Ошибка обработки":"AFTER\nожидает обработки"; color:modelData.failed?"#ef6c72":"#66616c"; font.pixelSize:11; horizontalAlignment:Text.AlignHCenter }
                                 MetricChip { anchors.left:parent.left; anchors.top:parent.top; anchors.margins:9; text:"AFTER"; checked:modelData.done; accentColor:win.uiAccent }
@@ -352,7 +352,7 @@ ApplicationWindow {
                             ColumnLayout { Layout.fillWidth:true; Layout.fillHeight:true; spacing:7
                                 Text { Layout.fillWidth:true; text:modelData.name; color:"white"; font.pixelSize:15; font.weight:Font.DemiBold; elide:Text.ElideMiddle }
                                 Text { text:modelData.width+" × "+modelData.height+"  •  "+win.mb(modelData.sourceMb)+(modelData.done?"  →  "+win.mb(modelData.outputMb):""); color:"#99949f"; font.pixelSize:10 }
-                                Rectangle { Layout.fillWidth:true; height:6; radius:3; color:Theme.surfaceRaised
+                                Rectangle { Layout.fillWidth:true; height:6; radius:3; color:AppTheme.surfaceRaised
                                     Rectangle { width:parent.width*modelData.progress; height:parent.height; radius:3; color:modelData.failed?"#ef6c72":win.uiAccent }
                                 }
                                 Text { Layout.fillWidth:true; Layout.fillHeight:true; text:modelData.report||modelData.status; color:modelData.failed?"#ef8b90":"#817c87"; font.pixelSize:9; wrapMode:Text.Wrap; maximumLineCount:4; elide:Text.ElideRight }
@@ -386,7 +386,7 @@ ApplicationWindow {
 
             GlassCard {
                 objectName: "batchComparisonPanel"
-                Layout.fillWidth:true; Layout.fillHeight:true; Layout.minimumHeight:500; accentColor:win.uiAccent; glassOpacity:.28
+                Layout.fillWidth:true; Layout.fillHeight:true; Layout.minimumHeight:500; accentColor:win.uiAccent; glassOpacity:.78
                 ColumnLayout { anchors.fill:parent; anchors.margins:12; spacing:9
                     RowLayout { Layout.fillWidth:true; Layout.minimumHeight:34; Layout.maximumHeight:34
                         Text { text:"СРАВНИТЕЛЬНЫЙ АНАЛИЗ / AUTO QUALITY RGB24"; color:"white"; font.pixelSize:12; font.weight:Font.DemiBold; Layout.fillWidth:true }

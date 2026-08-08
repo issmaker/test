@@ -5,7 +5,7 @@ Rectangle {
     property color accentColor: Theme.teal
     property real glassOpacity: .76
     radius: Theme.radiusLarge
-    color: Qt.rgba(.067, .078, .071, glassOpacity*.90)
+    color: Qt.rgba(.067, .039, .063, glassOpacity*.90)
     border.width: 1
     border.color: Theme.stroke
 

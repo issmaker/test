@@ -18,7 +18,7 @@ jobs:
     env:
       QT_VERSION: 6.8.3
       BUILD_DIR: build
-      DIST_DIR: dist/AdaptiveTextureOptimizer-26-Windows
+      DIST_DIR: dist/AdaptiveTextureOptimizer-27-Windows
 
     steps:
       - name: Checkout
@@ -32,9 +32,9 @@ jobs:
           modules: qtshadertools
           cache: true
 
-      - name: Create Windows black-hole icon
+      - name: Create Windows Mars icon
         shell: pwsh
-        run: ./tools/create_icon.ps1 -OutputPath ./assets/black-hole.ico
+        run: ./tools/create_icon.ps1 -OutputPath ./assets/mars.ico
 
       - name: Configure release
         shell: pwsh
@@ -113,12 +113,12 @@ jobs:
 
       - name: Pack portable application
         shell: pwsh
-        run: Compress-Archive -Path "$env:DIST_DIR/*" -DestinationPath "dist/AdaptiveTextureOptimizer-26-Windows-Portable.zip" -CompressionLevel Optimal
+        run: Compress-Archive -Path "$env:DIST_DIR/*" -DestinationPath "dist/AdaptiveTextureOptimizer-27-Windows-Portable.zip" -CompressionLevel Optimal
 
       - name: Upload ready-to-run application
         uses: actions/upload-artifact@v7
         with:
-          name: AdaptiveTextureOptimizer-26-Windows-Portable
-          path: dist/AdaptiveTextureOptimizer-26-Windows-Portable.zip
+          name: AdaptiveTextureOptimizer-27-Windows-Portable
+          path: dist/AdaptiveTextureOptimizer-27-Windows-Portable.zip
           if-no-files-found: error
           retention-days: 30

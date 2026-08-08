@@ -6,21 +6,39 @@ Item {
     property real pointerX: 0
     property real pointerY: 0
     property real activity: 0
+    property real journey: 0
+    readonly property bool lightScene: scene === 1 || scene === 2
     readonly property color primary: scene === 1 ? "#ff4f9a" : "#ed2f8a"
     readonly property color secondary: scene === 3 ? "#9a37dd" : "#7b1459"
 
-    Rectangle { anchors.fill: parent; color: "#050204" }
+    Rectangle {
+        anchors.fill: parent
+        color: root.lightScene ? (root.scene === 1 ? "#f2f4f8" : "#eaf1f8") : "#050204"
+        Behavior on color { ColorAnimation { duration: 650; easing.type: Easing.InOutCubic } }
+    }
+
+    Rectangle {
+        anchors.fill: parent
+        opacity: root.lightScene ? 1 : 0
+        Behavior on opacity { NumberAnimation { duration: 520 } }
+        gradient: Gradient {
+            orientation: Gradient.Horizontal
+            GradientStop { position: 0; color: root.scene === 1 ? "#dbe7f3" : "#d8e8f7" }
+            GradientStop { position: .42; color: "#00ffffff" }
+            GradientStop { position: 1; color: root.scene === 2 ? "#d7e1f2" : "#eef1f8" }
+        }
+    }
 
     Canvas {
         id: atmosphere
         anchors.fill: parent
-        opacity: root.scene === 0 ? 1 : .42
+        opacity: root.lightScene ? .13 : (root.scene === 0 ? 1 : .42)
         Behavior on opacity { NumberAnimation { duration:320 } }
         renderStrategy: Canvas.Threaded
         onPaint: {
             const c=getContext("2d"),w=width,h=height;c.clearRect(0,0,w,h)
             const glow=c.createRadialGradient(w*.62,h*.46,0,w*.62,h*.46,w*.68)
-            glow.addColorStop(0,root.scene===1?"rgba(105,13,67,.62)":"rgba(92,7,61,.72)")
+            glow.addColorStop(0,root.lightScene?"rgba(68,99,164,.24)":"rgba(92,7,61,.72)")
             glow.addColorStop(.48,"rgba(54,4,37,.34)");glow.addColorStop(1,"rgba(0,0,0,0)")
             c.fillStyle=glow;c.fillRect(0,0,w,h)
             const edge=c.createLinearGradient(0,0,w,h)
@@ -42,10 +60,14 @@ Item {
     Item {
         id: ribbonField
         anchors.fill: parent
-        opacity: root.scene === 0 ? 1 : .13
+        opacity: root.journey > .02 ? 1 : (root.scene === 0 ? 1 : (root.lightScene ? .075 : .13))
+        scale: root.journey < .82 ? 1 + root.journey * 4.5 : Math.max(.62, 4.69 - (root.journey - .82) * 22.6)
+        rotation: root.journey * 28
+        transformOrigin: Item.Center
         Behavior on opacity { NumberAnimation { duration:320 } }
         transform: Translate {
-            x: root.pointerX*54; y: root.pointerY*38
+            x: root.pointerX*(54 + root.journey*80) - root.journey*root.width*.08
+            y: root.pointerY*(38 + root.journey*60) + Math.sin(root.journey*9)*root.height*.035
             Behavior on x { NumberAnimation { duration:260;easing.type:Easing.OutCubic } }
             Behavior on y { NumberAnimation { duration:260;easing.type:Easing.OutCubic } }
         }
@@ -76,16 +98,44 @@ Item {
             }
             Connections { target:root; function onSceneChanged(){ribbons.requestPaint()} }
         }
-        SequentialAnimation on scale {
-            loops:Animation.Infinite
-            NumberAnimation{from:.998;to:1.006;duration:3200;easing.type:Easing.InOutSine}
-            NumberAnimation{from:1.006;to:.998;duration:3200;easing.type:Easing.InOutSine}
+    }
+
+    Item {
+        anchors.centerIn: parent
+        width: Math.min(parent.width, parent.height) * .68
+        height: width
+        opacity: root.scene === 3 ? .72 : (root.journey > .78 ? (root.journey-.78)*4.5 : 0)
+        scale: root.scene === 3 ? 1 : .72 + root.journey*.28
+        Behavior on opacity { NumberAnimation { duration: 420 } }
+        Canvas {
+            anchors.fill: parent
+            onPaint: {
+                const c=getContext("2d"),w=width,h=height,r=w*.47
+                c.clearRect(0,0,w,h)
+                const halo=c.createRadialGradient(w/2,h/2,r*.16,w/2,h/2,r)
+                halo.addColorStop(0,"rgba(255,54,155,.04)")
+                halo.addColorStop(.72,"rgba(255,54,155,.11)")
+                halo.addColorStop(.94,"rgba(255,111,188,.28)")
+                halo.addColorStop(1,"rgba(255,111,188,0)")
+                c.fillStyle=halo;c.beginPath();c.arc(w/2,h/2,r,0,Math.PI*2);c.fill()
+                c.strokeStyle="rgba(255,139,205,.22)";c.lineWidth=1
+                c.beginPath();c.arc(w/2,h/2,r*.88,0,Math.PI*2);c.stroke()
+            }
         }
+    }
+
+    Text {
+        anchors.left: parent.left; anchors.leftMargin: 42
+        anchors.bottom: parent.bottom; anchors.bottomMargin: 24
+        visible: root.lightScene
+        text: root.scene === 1 ? "PIPELINE / 01" : "TEXTURE SYSTEM / 02"
+        color: "#284c7399"; font.pixelSize: 10; font.letterSpacing: 2
+        opacity: root.lightScene ? 1 : 0
     }
 
     Rectangle {
         anchors.fill:parent
-        color:root.scene===0?"transparent":"#8f050205"
+        color:root.lightScene ? "transparent" : (root.scene===0?"transparent":"#8f050205")
         Behavior on color { ColorAnimation { duration:320 } }
     }
 

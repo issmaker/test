@@ -107,7 +107,7 @@ int runSelfTest() {
 } // namespace
 
 int main(int argc,char**argv){
-    QGuiApplication app(argc,argv);app.setApplicationName("Adaptive Texture Optimizer");app.setApplicationVersion("34");
+    QGuiApplication app(argc,argv);app.setApplicationName("Adaptive Texture Optimizer");app.setApplicationVersion("35");
     app.setWindowIcon(QIcon(QStringLiteral(":/icons/liquid.svg")));
     g_startupLogPath = QCoreApplication::applicationDirPath()
         + QStringLiteral("/AdaptiveTextureOptimizer-startup.log");
@@ -115,7 +115,7 @@ int main(int argc,char**argv){
         QFile log(g_startupLogPath);
         if (log.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
             QTextStream out(&log);
-            out << "Adaptive Texture Optimizer 34 startup\n";
+            out << "Adaptive Texture Optimizer 35 startup\n";
             out << "Qt " << qVersion() << "\n";
         }
     }

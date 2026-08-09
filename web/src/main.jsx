@@ -917,6 +917,7 @@ function ZoomPane({ title, src, view, setView }) {
     pane = useRef(null),
     image = useRef(null),
     motionTick = useRef(0),
+    wheelEvents = useRef(new WeakSet()),
     clamp = useCallback((next) => {
       const box = pane.current,
         img = image.current;
@@ -944,6 +945,10 @@ function ZoomPane({ title, src, view, setView }) {
     };
   useEffect(() => setView({ s: 1, x: 0, y: 0 }), [src, setView]);
   const wheel = (e) => {
+    const nativeEvent = e.nativeEvent || e;
+    if (wheelEvents.current.has(nativeEvent)) return;
+    wheelEvents.current.add(nativeEvent);
+    window.__AGR_WHEEL_COUNT__ = (window.__AGR_WHEEL_COUNT__ || 0) + 1;
     e.preventDefault();
     if (!pane.current) return;
     const rect = pane.current.getBoundingClientRect(),
@@ -956,6 +961,7 @@ function ZoomPane({ title, src, view, setView }) {
         ),
         s = Math.max(1, Math.min(6, v.s * factor)),
         ratio = s / v.s;
+      window.__AGR_ZOOM_TARGET__ = s;
       return clamp({
         s,
         x: ox - (ox - v.x) * ratio,
@@ -991,6 +997,7 @@ function ZoomPane({ title, src, view, setView }) {
       <div
         ref={pane}
         className="zoom-pane"
+        onWheelCapture={wheel}
         onPointerDown={(e) => {
           if (view.s <= 1) return;
           drag.current = { px: e.clientX, py: e.clientY, x: view.x, y: view.y };

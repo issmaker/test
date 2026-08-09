@@ -949,7 +949,7 @@ function ZoomPane({ title, src, view, setView }) {
     if (wheelEvents.current.has(nativeEvent)) return;
     wheelEvents.current.add(nativeEvent);
     window.__AGR_WHEEL_COUNT__ = (window.__AGR_WHEEL_COUNT__ || 0) + 1;
-    e.preventDefault();
+    if (!e.nativeEvent) e.preventDefault();
     if (!pane.current) return;
     const rect = pane.current.getBoundingClientRect(),
       ox = e.clientX - rect.left - rect.width / 2,

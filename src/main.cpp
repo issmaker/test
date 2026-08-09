@@ -129,7 +129,7 @@ int main(int argc,char**argv){
     textureScheme.setSyntax(QWebEngineUrlScheme::Syntax::HostAndPort);
     textureScheme.setFlags(QWebEngineUrlScheme::SecureScheme|QWebEngineUrlScheme::LocalScheme|QWebEngineUrlScheme::LocalAccessAllowed|QWebEngineUrlScheme::CorsEnabled);
     QWebEngineUrlScheme::registerScheme(textureScheme);
-    QApplication app(argc,argv);app.setApplicationName("Adaptive Texture Optimizer");app.setApplicationVersion("39");
+    QApplication app(argc,argv);app.setApplicationName("Adaptive Texture Optimizer");app.setApplicationVersion("40");
     app.setWindowIcon(QIcon(QStringLiteral(":/icons/liquid.svg")));
     g_startupLogPath = QCoreApplication::applicationDirPath()
         + QStringLiteral("/AdaptiveTextureOptimizer-startup.log");
@@ -137,7 +137,7 @@ int main(int argc,char**argv){
         QFile log(g_startupLogPath);
         if (log.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
             QTextStream out(&log);
-            out << "Adaptive Texture Optimizer 39 startup\n";
+            out << "Adaptive Texture Optimizer 40 startup\n";
             out << "Qt " << qVersion() << "\n";
         }
     }
@@ -163,16 +163,27 @@ int main(int argc,char**argv){
     QObject::connect(view,&QWebEngineView::loadFinished,&window,[&](bool ok){
         if(!ok){startupMessageHandler(QtCriticalMsg,QMessageLogContext(),QStringLiteral("Web interface failed to load"));return;}
         if(startupTest){
-            QTimer::singleShot(450,view,[view]{view->page()->runJavaScript(QStringLiteral("document.querySelectorAll('.right-dock button')[2]?.click()"));});
-            QTimer::singleShot(1150,view,[view]{view->page()->runJavaScript(QStringLiteral("[...document.querySelectorAll('.right-dock button')].at(-1)?.click()"));});
-            QTimer::singleShot(1900,view,[view]{
-                view->page()->runJavaScript(QStringLiteral("Boolean(document.querySelector('.workspace')&&document.querySelector('.settings-panel')&&document.querySelector('.topbar'))"),[](const QVariant &result){
+            QTimer::singleShot(450,view,[view]{view->page()->runJavaScript(QStringLiteral("document.querySelectorAll('.right-dock button')[1]?.click()"));});
+            QTimer::singleShot(1100,view,[view]{view->page()->runJavaScript(QStringLiteral(R"JS((()=>{
+                const zoom=document.querySelector('.zoom-pane');
+                zoom?.dispatchEvent(new WheelEvent('wheel',{deltaY:-180,clientX:500,clientY:420,bubbles:true,cancelable:true}));
+                const button=document.querySelector('.top-actions button');
+                button?.dispatchEvent(new PointerEvent('pointerenter',{clientX:720,clientY:42,bubbles:true}));
+                button?.dispatchEvent(new PointerEvent('pointermove',{clientX:720,clientY:42,bubbles:true}));
+            })())JS"));});
+            QTimer::singleShot(1450,view,[view]{view->page()->runJavaScript(QStringLiteral("[...document.querySelectorAll('.right-dock button')].at(-1)?.click()"));});
+            QTimer::singleShot(2300,view,[view]{
+                view->page()->runJavaScript(QStringLiteral(R"JS((()=>{
+                    const hint=document.querySelector('.floating-hint'),box=hint?.getBoundingClientRect();
+                    const zoomed=document.querySelector('.zoom-orbit span')?.textContent!=='100%';
+                    return Boolean(document.querySelector('.workspace')&&document.querySelector('.settings-panel')&&document.querySelector('.topbar')&&zoomed&&box&&box.left>10&&box.top>10);
+                })())JS"),[](const QVariant &result){
                     if(!result.toBool())qCritical("React interaction smoke test failed");
                 });
             });
         }
     });
-    window.setWindowTitle(QStringLiteral("Оптимизатор текстур 39"));window.setCentralWidget(view);
+    window.setWindowTitle(QStringLiteral("Оптимизатор текстур 40"));window.setCentralWidget(view);
     view->setUrl(QUrl(startupTest?QStringLiteral("qrc:/web/index.html?headless-test=1"):QStringLiteral("qrc:/web/index.html")));window.showFullScreen();
     if(argc>1)optimizer.load(QUrl::fromLocalFile(QString::fromLocal8Bit(argv[1])).toString());
     return app.exec();

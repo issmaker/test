@@ -964,6 +964,12 @@ function ZoomPane({ title, src, view, setView }) {
     });
     pulse(-e.deltaX * 0.004, -e.deltaY * 0.0025, 0.9);
   };
+  useEffect(() => {
+    const node = pane.current;
+    if (!node) return;
+    node.addEventListener("wheel", wheel, { passive: false });
+    return () => node.removeEventListener("wheel", wheel);
+  }, [wheel]);
   const move = (e) => {
     if (!drag.current) return;
     const dx = e.clientX - drag.current.px,
@@ -985,7 +991,6 @@ function ZoomPane({ title, src, view, setView }) {
       <div
         ref={pane}
         className="zoom-pane"
-        onWheel={wheel}
         onPointerDown={(e) => {
           if (view.s <= 1) return;
           drag.current = { px: e.clientX, py: e.clientY, x: view.x, y: view.y };

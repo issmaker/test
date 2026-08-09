@@ -174,9 +174,11 @@ int main(int argc,char**argv){
                 view->page()->runJavaScript(QStringLiteral(R"JS((()=>{
                     const hint=document.querySelector('.floating-hint'),box=hint?.getBoundingClientRect();
                     const zoomed=document.querySelector('.zoom-orbit span')?.textContent!=='100%';
-                    return (document.querySelector('.workspace')?1:0)|(document.querySelector('.settings-panel')?2:0)|(document.querySelector('.topbar')?4:0)|(zoomed?8:0)|(box&&box.left>10&&box.top>10?16:0);
+                    const mask=(document.querySelector('.workspace')?1:0)|(document.querySelector('.settings-panel')?2:0)|(document.querySelector('.topbar')?4:0)|(zoomed?8:0)|(box&&box.left>10&&box.top>10?16:0);
+                    return `${mask}|${document.querySelector('.zoom-orbit span')?.textContent}|${window.__AGR_WHEEL_COUNT__||0}|${window.__AGR_ZOOM_TARGET__||0}`;
                 })())JS"),[](const QVariant &result){
-                    if(result.toInt()!=31)qCritical("React interaction smoke test failed, mask=%d",result.toInt());
+                    const QString details=result.toString();const int mask=details.section('|',0,0).toInt();
+                    if(mask!=31)qCritical("React interaction smoke test failed: %s",qPrintable(details));
                 });
             });
         }

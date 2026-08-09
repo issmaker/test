@@ -8,14 +8,7 @@ import React, {
 } from "react";
 import { createRoot } from "react-dom/client";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Float, MeshTransmissionMaterial, Sparkles } from "@react-three/drei";
-import {
-  Bloom,
-  EffectComposer,
-  Noise,
-  Vignette,
-} from "@react-three/postprocessing";
-import { BlendFunction } from "postprocessing";
+import { Sparkles } from "@react-three/drei";
 import { AnimatePresence, motion } from "motion/react";
 import { gsap } from "gsap";
 import {
@@ -60,6 +53,9 @@ const EMPTY = {
   batchActivityHistory: [],
 };
 const HEADLESS_TEST = new URLSearchParams(location.search).has("headless-test");
+const TEST_TEXTURE = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024"><defs><linearGradient id="g"><stop stop-color="#ff3f93"/><stop offset="1" stop-color="#38175f"/></linearGradient></defs><rect width="1024" height="1024" fill="url(#g)"/><path d="M0 760L420 230 1024 690" fill="none" stroke="white" stroke-width="28"/></svg>',
+)}`;
 const ROUTES = [
   ["home", "Главная", House],
   ["npm", "НПМ · 3 MB", ScanLine],
@@ -247,9 +243,11 @@ function CursorTrail() {
   );
 }
 
-function AmbientBackdrop({ theme, motionValue, secret }) {
+function AmbientBackdrop({ theme, secret }) {
   const [p, setP] = useState({ x: 0.5, y: 0.5 }),
-    raf = useRef(0);
+    raf = useRef(0),
+    root = useRef(null),
+    energy = useRef({ value: 0 });
   useEffect(() => {
     const move = (e) => {
       cancelAnimationFrame(raf.current);
@@ -260,11 +258,36 @@ function AmbientBackdrop({ theme, motionValue, secret }) {
     addEventListener("pointermove", move);
     return () => removeEventListener("pointermove", move);
   }, []);
+  useEffect(() => {
+    const react = (e) => {
+      const node = root.current;
+      if (!node) return;
+      const detail = e.detail || {};
+      node.style.setProperty("--motion-x", Number(detail.x || 0));
+      node.style.setProperty("--motion-y", Number(detail.y || 0));
+      energy.current.value = Math.max(0, Math.min(1, Number(detail.energy || 0)));
+      node.style.setProperty("--energy", energy.current.value);
+      gsap.killTweensOf(energy.current);
+      gsap.to(energy.current, {
+        value: 0,
+        duration: 0.72,
+        ease: "power3.out",
+        overwrite: true,
+        onUpdate: () =>
+          root.current?.style.setProperty("--energy", energy.current.value),
+      });
+    };
+    addEventListener("agr-motion", react);
+    return () => {
+      removeEventListener("agr-motion", react);
+      gsap.killTweensOf(energy.current);
+    };
+  }, []);
   const px = p.x * 1600,
-    py = p.y * 900,
-    energy = motionValue?.energy || 0;
+    py = p.y * 900;
   return (
     <div
+      ref={root}
       className={`ambient-backdrop ${secret ? "secret-energy" : ""}`}
       data-theme={theme}
       style={{
@@ -272,7 +295,7 @@ function AmbientBackdrop({ theme, motionValue, secret }) {
         "--my": `${p.y * 100}%`,
         "--px": p.x - 0.5,
         "--py": p.y - 0.5,
-        "--energy": energy,
+        "--energy": 0,
       }}
     >
       <div className="ambient-glow" />
@@ -281,7 +304,7 @@ function AmbientBackdrop({ theme, motionValue, secret }) {
           {Array.from({ length: 17 }, (_, i) => {
             const y = 22 + i * 55,
               d = Math.max(0, 1 - Math.abs(y - py) / 500),
-              bend = (px - 800) * 0.06 * d + energy * 110 * d;
+              bend = (px - 800) * 0.06 * d;
             return (
               <path
                 key={i}
@@ -315,34 +338,23 @@ function VectorSculpture() {
           </filter>
         </defs>
         <g className="vector-core" fill="none" strokeLinecap="round">
-          {Array.from({ length: 8 }, (_, i) => (
-            <path
+          {Array.from({ length: 7 }, (_, i) => (
+            <rect
               key={i}
-              d={`M ${305 + i * 4} 390 C 365 ${135 + i * 9}, 620 ${150 - i * 5}, 690 372 C 760 ${595 - i * 8}, 1015 ${575 + i * 4}, 930 330 C 850 ${92 + i * 7}, 585 ${190 + i * 3}, 520 390 C 455 ${590 - i * 6}, 285 ${560 + i * 5}, ${305 + i * 4} 390 Z`}
-              stroke={i === 4 ? "url(#vector-flow)" : "var(--accent)"}
-              strokeWidth={i === 4 ? 3.2 : 0.8 + i * 0.18}
-              opacity={i === 4 ? 0.8 : 0.08 + i * 0.035}
-              filter={i === 4 ? "url(#vector-glow)" : undefined}
+              x={430 + i * 13}
+              y={185 + i * 10}
+              width={380 - i * 26}
+              height={378 - i * 20}
+              rx={118 - i * 8}
+              transform={`rotate(${i * 12 - 36} 620 374)`}
+              stroke={i === 3 ? "url(#vector-flow)" : i % 2 ? "var(--accent2)" : "var(--accent)"}
+              strokeWidth={i === 3 ? 2.8 : 0.8 + i * 0.12}
+              opacity={i === 3 ? 0.72 : 0.11 + i * 0.025}
+              filter={i === 3 ? "url(#vector-glow)" : undefined}
             />
           ))}
-          <ellipse
-            cx="620"
-            cy="374"
-            rx="104"
-            ry="214"
-            stroke="var(--accent2)"
-            strokeWidth="1"
-            opacity=".22"
-          />
-          <ellipse
-            cx="620"
-            cy="374"
-            rx="238"
-            ry="72"
-            stroke="var(--accent)"
-            strokeWidth="1"
-            opacity=".18"
-          />
+          <circle cx="620" cy="374" r="54" stroke="var(--accent)" opacity=".3" />
+          <circle cx="620" cy="374" r="20" stroke="white" opacity=".45" />
         </g>
       </svg>
       <div className="side-form side-form-left">
@@ -359,91 +371,75 @@ function VectorSculpture() {
   );
 }
 
-function FlowSculpture({ progress, motionValue, colors }) {
+function SignalLattice({ progress, colors }) {
   const group = useRef();
   useFrame(({ clock, pointer }) => {
     if (!group.current) return;
     const t = clock.elapsedTime;
     group.current.rotation.y = THREE.MathUtils.lerp(
       group.current.rotation.y,
-      pointer.x * 0.2 + Math.sin(t * 0.18) * 0.08,
-      0.025,
+      pointer.x * 0.14 + t * 0.035,
+      0.018,
     );
     group.current.rotation.x = THREE.MathUtils.lerp(
       group.current.rotation.x,
-      -0.16 + pointer.y * 0.14 + progress * 0.32,
-      0.025,
+      -0.1 + pointer.y * 0.1 + progress * 0.18,
+      0.018,
     );
     group.current.rotation.z = THREE.MathUtils.lerp(
       group.current.rotation.z,
-      pointer.x * 0.1 - progress * 0.22,
-      0.025,
+      pointer.x * 0.06 - progress * 0.12,
+      0.018,
     );
-    const scale = 1 + progress * 0.13 + (motionValue?.energy || 0) * 0.035;
+    const scale = 1 + progress * 0.07;
     group.current.scale.setScalar(
       THREE.MathUtils.lerp(group.current.scale.x, scale, 0.035),
     );
   });
   return (
-    <group ref={group} position={[0.65, 0.1, -0.75]}>
-      {Array.from({ length: 7 }, (_, i) => (
+    <group ref={group} position={[0.72, 0.08, -0.8]}>
+      {Array.from({ length: 5 }, (_, i) => (
         <mesh
           key={i}
-          rotation={[(i - 3) * 0.082, (i - 3) * 0.11, (i - 3) * 0.105]}
-          scale={1 + i * 0.038}
+          rotation={[(i - 2) * 0.31, (i - 2) * 0.42, (i - 2) * 0.19]}
+          scale={1 + i * 0.16}
         >
-          <torusKnotGeometry args={[1.48, 0.025 + i * 0.006, 190, 9, 2, 3]} />
+          <torusGeometry args={[1.05, 0.018 + i * 0.006, 8, 96]} />
           <meshPhysicalMaterial
             color={colors[i % 2]}
-            emissive={i === 4 ? colors[0] : "#12040d"}
-            emissiveIntensity={i === 4 ? 1.15 : 0.15}
-            metalness={0.72}
-            roughness={0.2}
+            emissive={colors[i % 2]}
+            emissiveIntensity={0.22}
+            metalness={0.86}
+            roughness={0.28}
             clearcoat={1}
           />
         </mesh>
       ))}
+      <mesh scale={0.68}>
+        <icosahedronGeometry args={[1, 1]} />
+        <meshPhysicalMaterial color="#09070c" metalness={0.82} roughness={0.31} wireframe />
+      </mesh>
+      <mesh scale={0.18}>
+        <octahedronGeometry />
+        <meshBasicMaterial color={colors[0]} />
+      </mesh>
     </group>
   );
 }
 
-function OrganicForms({ colors }) {
-  const pieces = [
-    [-5.1, 2.75, -1.7, 1.25, 0.72, 1.45],
-    [5.25, -2.8, -1.5, 1, 0.68, 1.3],
-    [-4.9, -2.7, -1.8, 0.76, 1.12, 0.72],
-    [5.1, 2.7, -1.9, 0.65, 1.05, 0.7],
-  ];
+function EdgeFrames({ colors }) {
+  const pieces = [[-5.25, 2.45, -1.5, 0.72], [5.35, -2.45, -1.6, -0.62]];
   return (
     <>
       {pieces.map((p, i) => (
-        <Float
-          key={i}
-          speed={0.45 + i * 0.06}
-          rotationIntensity={0.16}
-          floatIntensity={0.18}
-        >
-          <mesh
-            position={p.slice(0, 3)}
-            scale={p.slice(3)}
-            rotation={[i * 0.5, 0.6 + i, 0.2]}
-          >
-            <dodecahedronGeometry args={[1.25, 3]} />
-            <MeshTransmissionMaterial
-              color={colors[i % 2]}
-              samples={3}
-              resolution={192}
-              transmission={1}
-              thickness={0.85}
-              roughness={0.16}
-              chromaticAberration={0.05}
-              anisotropy={0.18}
-              distortion={0.18}
-              temporalDistortion={0.04}
-              clearcoat={1}
-            />
-          </mesh>
-        </Float>
+        <group key={i} position={p.slice(0, 3)} rotation={[p[3], i ? -0.5 : 0.5, p[3]]}>
+          {Array.from({ length: 4 }, (_, ring) => (
+            <mesh key={ring} rotation={[ring * 0.36, ring * 0.22, ring * 0.41]} scale={1 + ring * 0.23}>
+              <torusGeometry args={[1.05, 0.022, 8, 80]} />
+              <meshPhysicalMaterial color={colors[(i + ring) % 2]} emissive={colors[(i + ring) % 2]} emissiveIntensity={0.12} metalness={0.9} roughness={0.34} />
+            </mesh>
+          ))}
+        </group>
       ))}
     </>
   );
@@ -522,7 +518,7 @@ function CameraRig({ progress, motionValue }) {
   });
   return null;
 }
-function Scene({ progress, active, motionValue, theme, quality }) {
+function Scene({ progress, theme, quality }) {
   const colors = THEME_COLORS[theme] || THEME_COLORS.rose;
   const density = quality === "eco" ? 45 : quality === "max" ? 125 : 80;
   return (
@@ -542,16 +538,12 @@ function Scene({ progress, active, motionValue, theme, quality }) {
         preserveDrawingBuffer: false,
       }}
     >
-      <ambientLight intensity={0.42} />
-      <pointLight position={[4, 3, 5]} color={colors[0]} intensity={14} />
-      <pointLight position={[-4, -2, 2]} color={colors[1]} intensity={9} />
-      <OrganicForms colors={colors} />
-      <FlowSculpture
-        progress={progress}
-        motionValue={motionValue}
-        colors={colors}
-      />
-      <NeuralLines active={active} motionValue={motionValue} colors={colors} />
+      <ambientLight intensity={0.58} />
+      <pointLight position={[4, 3, 5]} color={colors[0]} intensity={2.8} />
+      <pointLight position={[-4, -2, 2]} color={colors[1]} intensity={1.8} />
+      <EdgeFrames colors={colors} />
+      <SignalLattice progress={progress} colors={colors} />
+      <NeuralLines active={false} motionValue={{ energy: 0 }} colors={colors} />
       <Sparkles
         count={density}
         scale={[12, 7, 4]}
@@ -560,16 +552,6 @@ function Scene({ progress, active, motionValue, theme, quality }) {
         color={colors[0]}
       />
       <CameraRig progress={progress} motionValue={motionValue} />
-      <EffectComposer multisampling={0}>
-        <Bloom
-          intensity={active ? 1.05 : 0.56}
-          luminanceThreshold={0.36}
-          luminanceSmoothing={0.55}
-          mipmapBlur
-        />
-        <Noise opacity={0.025} blendFunction={BlendFunction.SOFT_LIGHT} />
-        <Vignette darkness={0.55} offset={0.24} />
-      </EffectComposer>
     </Canvas>
   );
 }
@@ -716,7 +698,7 @@ function Header({ screen, backend, onSettings }) {
         </span>
         <div>
           <b>Оптимизатор текстур</b>
-          <small>ADAPTIVE RGB24 / v40</small>
+          <small>ADAPTIVE RGB24 / v41</small>
         </div>
       </div>
       <div className="route-status">
@@ -916,8 +898,14 @@ function ZoomPane({ title, src, view, setView }) {
   const drag = useRef(null),
     pane = useRef(null),
     image = useRef(null),
+    canvas = useRef(null),
+    drawFrame = useRef(0),
+    [imageReady, setImageReady] = useState(false),
+    moveFrame = useRef(0),
+    pendingMove = useRef(null),
     motionTick = useRef(0),
     wheelEvents = useRef(new WeakSet()),
+    displaySrc = src || (HEADLESS_TEST ? TEST_TEXTURE : ""),
     clamp = useCallback((next) => {
       const box = pane.current,
         img = image.current;
@@ -943,7 +931,57 @@ function ZoomPane({ title, src, view, setView }) {
         new CustomEvent("agr-motion", { detail: { x, y, energy } }),
       );
     };
-  useEffect(() => setView({ s: 1, x: 0, y: 0 }), [src, setView]);
+  const draw = useCallback(() => {
+    cancelAnimationFrame(drawFrame.current);
+    drawFrame.current = requestAnimationFrame(() => {
+      const box = pane.current,
+        img = image.current,
+        target = canvas.current;
+      if (!box || !target || !img?.naturalWidth) return;
+      const cw = box.clientWidth,
+        ch = box.clientHeight,
+        dpr = Math.min(devicePixelRatio || 1, 1.5),
+        width = Math.max(1, Math.round(cw * dpr)),
+        height = Math.max(1, Math.round(ch * dpr));
+      if (target.width !== width) target.width = width;
+      if (target.height !== height) target.height = height;
+      const ctx = target.getContext("2d", { alpha: true });
+      if (!ctx) return;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, cw, ch);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+      const fit = Math.min(cw / img.naturalWidth, ch / img.naturalHeight),
+        dw = img.naturalWidth * fit * view.s,
+        dh = img.naturalHeight * fit * view.s;
+      ctx.drawImage(img, cw / 2 - dw / 2 + view.x, ch / 2 - dh / 2 + view.y, dw, dh);
+    });
+  }, [view]);
+  useEffect(() => {
+    setImageReady(false);
+    setView({ s: 1, x: 0, y: 0 });
+  }, [displaySrc, setView]);
+  useEffect(() => {
+    if (!imageReady) return;
+    draw();
+    const observer = new ResizeObserver(draw);
+    if (pane.current) observer.observe(pane.current);
+    return () => observer.disconnect();
+  }, [draw, imageReady]);
+  useEffect(() => {
+    if (!HEADLESS_TEST) return;
+    const testDrag = () =>
+      setView((v) => clamp({ ...v, x: v.x + 36, y: v.y + 24 }));
+    addEventListener("agr-test-drag", testDrag);
+    return () => removeEventListener("agr-test-drag", testDrag);
+  }, [clamp, setView]);
+  useEffect(
+    () => () => {
+      cancelAnimationFrame(moveFrame.current);
+      cancelAnimationFrame(drawFrame.current);
+    },
+    [],
+  );
   const wheel = (e) => {
     const nativeEvent = e.nativeEvent || e;
     if (wheelEvents.current.has(nativeEvent)) return;
@@ -978,14 +1016,23 @@ function ZoomPane({ title, src, view, setView }) {
   }, [wheel]);
   const move = (e) => {
     if (!drag.current) return;
-    const dx = e.clientX - drag.current.px,
-      dy = e.clientY - drag.current.py;
-    setView((v) =>
-      clamp({ ...v, x: drag.current.x + dx, y: drag.current.y + dy }),
-    );
-    pulse(dx * 0.011, -dy * 0.011, 0.7);
+    pendingMove.current = { x: e.clientX, y: e.clientY };
+    if (moveFrame.current) return;
+    moveFrame.current = requestAnimationFrame(() => {
+      moveFrame.current = 0;
+      if (!drag.current || !pendingMove.current) return;
+      const dx = pendingMove.current.x - drag.current.px,
+        dy = pendingMove.current.y - drag.current.py;
+      setView((v) =>
+        clamp({ ...v, x: drag.current.x + dx, y: drag.current.y + dy }),
+      );
+      pulse(dx * 0.008, -dy * 0.008, 0.48);
+    });
   };
   const stop = (e) => {
+    cancelAnimationFrame(moveFrame.current);
+    moveFrame.current = 0;
+    pendingMove.current = null;
     drag.current = null;
     if (e?.currentTarget?.hasPointerCapture?.(e.pointerId))
       e.currentTarget.releasePointerCapture(e.pointerId);
@@ -1010,16 +1057,20 @@ function ZoomPane({ title, src, view, setView }) {
         onLostPointerCapture={stop}
       >
         <span>{title}</span>
-        {src ? (
-          <img
-            ref={image}
-            onLoad={() => setView((v) => clamp(v))}
-            draggable="false"
-            src={src}
-            style={{
-              transform: `translate3d(${view.x}px,${view.y}px,0) scale(${view.s})`,
-            }}
-          />
+        {displaySrc ? (
+          <>
+            <canvas ref={canvas} className={imageReady ? "ready" : ""} />
+            <img
+              className="zoom-source"
+              ref={image}
+              onLoad={() => {
+                setImageReady(true);
+                setView((v) => clamp(v));
+              }}
+              draggable="false"
+              src={displaySrc}
+            />
+          </>
         ) : (
           <p>PNG не выбран</p>
         )}
@@ -1338,9 +1389,10 @@ function HoldRitual({ holding, progress, point }) {
         <motion.div
           className="hold-ritual"
           style={{ left: point.x, top: point.y }}
-          initial={{ opacity: 0, scale: 0.4 }}
+          initial={{ opacity: 0, scale: 0.78 }}
           animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 1.6 }}
+          exit={{ opacity: 0, scale: 1.18 }}
+          transition={{ duration: 0.28, ease: [0.2, 0.8, 0.2, 1] }}
         >
           <i />
           <i />
@@ -1355,6 +1407,13 @@ function HoldRitual({ holding, progress, point }) {
         </motion.div>
       )}
     </AnimatePresence>
+  );
+}
+function TransitionPortal({ active }) {
+  return (
+    <div className={`transition-portal ${active ? "active" : ""}`} aria-hidden="true">
+      <i /><i /><i /><b />
+    </div>
   );
 }
 function SecretScene({ active, onDone }) {
@@ -1396,6 +1455,7 @@ function SecretScene({ active, onDone }) {
 
 function App() {
   const { backend, state } = useBackend(),
+    appRoot = useRef(null),
     [route, setRoute] = useState("home"),
     [progress, setProgress] = useState(0),
     [holding, setHolding] = useState(false),
@@ -1403,8 +1463,6 @@ function App() {
       x: innerWidth / 2,
       y: innerHeight / 2,
     }),
-    [motionValue, setMotionValue] = useState({ x: 0, y: 0, energy: 0 }),
-    [dragging, setDragging] = useState(false),
     [diving, setDiving] = useState(false),
     [settings, setSettings] = useState(false),
     [theme, setTheme] = useState(
@@ -1415,7 +1473,6 @@ function App() {
     ),
     [secret, setSecret] = useState(false),
     progressRef = useRef({ value: 0 }),
-    motionRef = useRef({ x: 0, y: 0, energy: 0 }),
     routeTimers = useRef([]),
     screen = route.startsWith("compare") ? "compare" : route,
     setScreen = useCallback(
@@ -1431,31 +1488,14 @@ function App() {
             setRoute(next);
             setProgress(0);
             progressRef.current.value = 0;
-          }, 220),
-          setTimeout(() => setDiving(false), 900),
+          }, 310),
+          setTimeout(() => setDiving(false), 760),
         ];
       },
       [route, screen],
     );
   useEffect(() => {
-    const react = (e) => {
-      Object.assign(motionRef.current, e.detail);
-      setMotionValue({ ...motionRef.current });
-      gsap.killTweensOf(motionRef.current);
-      gsap.to(motionRef.current, {
-        x: 0,
-        y: 0,
-        energy: 0,
-        duration: 1.1,
-        ease: "power3.out",
-        onUpdate: () => setMotionValue({ ...motionRef.current }),
-      });
-    };
-    addEventListener("agr-motion", react);
-    return () => removeEventListener("agr-motion", react);
-  }, []);
-  useEffect(() => {
-    const update = (e) => setDragging(Boolean(e.detail));
+    const update = (e) => appRoot.current?.classList.toggle("is-dragging", Boolean(e.detail));
     addEventListener("agr-drag", update);
     return () => removeEventListener("agr-drag", update);
   }, []);
@@ -1485,8 +1525,8 @@ function App() {
         gsap.killTweensOf(progressRef.current);
         gsap.to(progressRef.current, {
           value: 0,
-          duration: 1.45,
-          ease: "elastic.out(1,.55)",
+          duration: 0.82,
+          ease: "power3.out",
           onUpdate: () => setProgress(progressRef.current.value),
         });
       };
@@ -1526,13 +1566,10 @@ function App() {
     );
   return (
     <div
-      className={`app theme-${theme} quality-${quality} scene-${screen} ${holding ? "is-holding" : ""} ${dragging ? "is-dragging" : ""} ${diving ? "is-diving" : ""}`}
+      ref={appRoot}
+      className={`app theme-${theme} quality-${quality} scene-${screen} ${holding ? "is-holding" : ""} ${diving ? "is-diving" : ""}`}
     >
-      <AmbientBackdrop
-        theme={theme}
-        motionValue={motionValue}
-        secret={secret}
-      />
+      <AmbientBackdrop theme={theme} secret={secret} />
       <VectorSculpture />
       <div className="webgl">
         {screen !== "home" ? null : HEADLESS_TEST ? (
@@ -1541,8 +1578,6 @@ function App() {
           <SceneBoundary>
             <Scene
               progress={progress}
-              active={holding || (motionValue.energy || 0) > 0.12}
-              motionValue={motionValue}
               theme={theme}
               quality={quality}
             />
@@ -1562,14 +1597,15 @@ function App() {
         state={state}
         onSettings={() => setSettings((v) => !v)}
       />
-      <AnimatePresence initial={false} mode="sync">
+      <TransitionPortal active={diving} />
+      <AnimatePresence initial={false} mode="wait">
         <motion.div
           className="route-stage"
           key={route}
-          initial={{ opacity: 0, scale: 1.04, filter: "blur(12px)" }}
+          initial={{ opacity: 0, scale: 1.018, filter: "blur(7px)" }}
           animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-          exit={{ opacity: 0, scale: 0.82, filter: "blur(18px)" }}
-          transition={{ duration: 0.62, ease: [0.2, 0.78, 0.18, 1] }}
+          exit={{ opacity: 0, scale: 0.94, filter: "blur(10px)" }}
+          transition={{ duration: 0.3, ease: [0.3, 0.72, 0.2, 1] }}
         >
           {page}
         </motion.div>

@@ -15,6 +15,7 @@ import {
   Activity,
   Columns2,
   FolderOpen,
+  Focus,
   House,
   Images,
   Maximize2,
@@ -686,6 +687,58 @@ function FluidProgress({ value = 0 }) {
   );
 }
 
+function KineticArchitecture({ activity = 0 }) {
+  const level = Math.max(0.08, Math.min(1, Number(activity || 0)));
+  return (
+    <div className="kinetic-architecture" style={{ "--activity": level }} aria-hidden="true">
+      <div className="architecture-planes">
+        {Array.from({ length: 7 }, (_, i) => <i key={i} style={{ "--i": i }} />)}
+      </div>
+      <div className="kinetic-equalizer">
+        {Array.from({ length: 18 }, (_, i) => <i key={i} style={{ "--i": i }} />)}
+      </div>
+    </div>
+  );
+}
+
+function LiveLaboratory({ progress = 0, busy = false, done = false, status = "" }) {
+  const [selected, setSelected] = useState(0),
+    p = Math.max(0, Math.min(1, Number(progress || 0))),
+    active = done ? 3 : busy ? Math.min(3, Math.floor(p * 4)) : 0,
+    stages = [
+      ["01", "ИМПОРТ", "Проверка PNG и подготовка безопасного превью"],
+      ["02", "АНАЛИЗ", "Измерение цвета, структуры и возможной экономии"],
+      ["03", "RGB24", "Оптимизация пикселей и адаптивное кодирование"],
+      ["04", "ГОТОВО", "Контроль результата и запись итогового файла"],
+    ];
+  return (
+    <section className="live-lab liquid-glass">
+      <div className="lab-signal">
+        <small>LIVE LAB</small>
+        <strong>{busy ? "PROCESSING" : done ? "COMPLETE" : "STANDBY"}</strong>
+        <div className="lab-wave">
+          {Array.from({ length: 12 }, (_, i) => <i key={i} style={{ "--i": i, "--p": p }} />)}
+        </div>
+      </div>
+      <div className="texture-journey">
+        {stages.map(([n, label, detail], i) => (
+          <button
+            key={label}
+            className={`${i < active || done ? "done" : ""} ${i === active ? "active" : ""} ${selected === i ? "selected" : ""}`}
+            onClick={() => setSelected(i)}
+          >
+            <i>{n}</i><span>{label}</span><b />
+          </button>
+        ))}
+      </div>
+      <div className="journey-detail">
+        <small>{stages[selected][1]}</small>
+        <span>{selected === active && status ? status : stages[selected][2]}</span>
+      </div>
+    </section>
+  );
+}
+
 function Header({ screen, backend, onSettings }) {
   const label = ROUTES.find((x) => x[0] === screen)?.[1] || "Сравнение";
   return (
@@ -696,7 +749,7 @@ function Header({ screen, backend, onSettings }) {
         </span>
         <div>
           <b>Оптимизатор текстур</b>
-          <small>ADAPTIVE RGB24 / v41</small>
+          <small>ADAPTIVE RGB24 / v42</small>
         </div>
       </div>
       <div className="route-status">
@@ -943,16 +996,39 @@ function ZoomPane({ title, src, view, setView }) {
         height = Math.max(1, Math.round(ch * dpr));
       if (target.width !== width) target.width = width;
       if (target.height !== height) target.height = height;
-      const ctx = target.getContext("2d", { alpha: true });
+      const ctx = target.getContext("2d", {
+        alpha: true,
+        willReadFrequently: true,
+      });
       if (!ctx) return;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, cw, ch);
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = "high";
       const fit = Math.min(cw / img.naturalWidth, ch / img.naturalHeight),
-        dw = img.naturalWidth * fit * view.s,
-        dh = img.naturalHeight * fit * view.s;
-      ctx.drawImage(img, cw / 2 - dw / 2 + view.x, ch / 2 - dh / 2 + view.y, dw, dh);
+        scale = fit * view.s,
+        dw = img.naturalWidth * scale,
+        dh = img.naturalHeight * scale,
+        dx = cw / 2 - dw / 2 + view.x,
+        dy = ch / 2 - dh / 2 + view.y,
+        sx = Math.max(0, Math.min(img.naturalWidth, -dx / scale)),
+        sy = Math.max(0, Math.min(img.naturalHeight, -dy / scale)),
+        ex = Math.max(0, Math.min(img.naturalWidth, (cw - dx) / scale)),
+        ey = Math.max(0, Math.min(img.naturalHeight, (ch - dy) / scale)),
+        sw = Math.max(0, ex - sx),
+        sh = Math.max(0, ey - sy);
+      if (sw > 0 && sh > 0)
+        ctx.drawImage(
+          img,
+          sx,
+          sy,
+          sw,
+          sh,
+          Math.max(0, dx),
+          Math.max(0, dy),
+          sw * scale,
+          sh * scale,
+        );
     });
   }, [view]);
   useEffect(() => {
@@ -968,8 +1044,16 @@ function ZoomPane({ title, src, view, setView }) {
   }, [draw, imageReady]);
   useEffect(() => {
     if (!HEADLESS_TEST) return;
-    const testDrag = () =>
-      setView((v) => clamp({ ...v, x: v.x + 36, y: v.y + 24 }));
+    const testDrag = (e) =>
+      setView((v) => {
+        const next = clamp({
+          ...v,
+          x: v.x + Number(e.detail?.x || 0),
+          y: v.y + Number(e.detail?.y || 0),
+        });
+        window.__AGR_TEST_VERTICAL_Y__ = next.y;
+        return next;
+      });
     addEventListener("agr-test-drag", testDrag);
     return () => removeEventListener("agr-test-drag", testDrag);
   }, [clamp, setView]);
@@ -1014,6 +1098,7 @@ function ZoomPane({ title, src, view, setView }) {
   }, [wheel]);
   const move = (e) => {
     if (!drag.current) return;
+    e.preventDefault();
     pendingMove.current = { x: e.clientX, y: e.clientY };
     if (moveFrame.current) return;
     moveFrame.current = requestAnimationFrame(() => {
@@ -1045,6 +1130,7 @@ function ZoomPane({ title, src, view, setView }) {
         onWheelCapture={wheel}
         onPointerDown={(e) => {
           if (view.s <= 1) return;
+          e.preventDefault();
           drag.current = { px: e.clientX, py: e.clientY, x: view.x, y: view.y };
           e.currentTarget.setPointerCapture(e.pointerId);
           dispatchEvent(new CustomEvent("agr-drag", { detail: true }));
@@ -1121,10 +1207,26 @@ function ZoomControl({ view, setView }) {
 function Workspace({ kind, state, backend, setScreen }) {
   const batch = kind === "batch",
     [view, setView] = useState({ s: 1, x: 0, y: 0 }),
+    [focus, setFocus] = useState(false),
     items = state.batchItems || [],
     before = state.referenceUrl || state.workingPreviewUrl || state.sourceUrl;
+  useEffect(() => {
+    if (!batch) dispatchEvent(new CustomEvent("agr-focus", { detail: focus }));
+  }, [batch, focus]);
+  useEffect(() => {
+    if (batch) return;
+    const key = (e) => {
+      if (e.key.toLowerCase() === "f") setFocus((v) => !v);
+      if (e.key === "Escape") setFocus(false);
+    };
+    addEventListener("keydown", key);
+    return () => {
+      removeEventListener("keydown", key);
+      dispatchEvent(new CustomEvent("agr-focus", { detail: false }));
+    };
+  }, [batch]);
   return (
-    <main className="workspace">
+    <main className={`workspace ${!batch && focus ? "focus-comparison" : ""}`}>
       <div className="workspace-head">
         <Button
           quiet
@@ -1196,6 +1298,12 @@ function Workspace({ kind, state, backend, setScreen }) {
               {state.batchBusy ? "ОСТАНОВИТЬ" : "ОПТИМИЗИРОВАТЬ ВСЕ"}
             </Button>
           </section>
+          <LiveLaboratory
+            progress={state.batchProgress}
+            busy={state.batchBusy}
+            done={Boolean(items.length && items.every((item) => item.done))}
+            status={state.batchStatus}
+          />
           <section className="batch-list">
             {!items.length && (
               <div className="empty">
@@ -1276,6 +1384,12 @@ function Workspace({ kind, state, backend, setScreen }) {
               color="var(--accent2)"
             />
           </section>
+          <LiveLaboratory
+            progress={state.progress}
+            busy={state.busy}
+            done={Boolean(state.outputPath && !state.busy)}
+            status={state.status}
+          />
           <section className="compare-card transparent">
             <div className="compare-title">
               <h2>СРАВНИТЕЛЬНЫЙ АНАЛИЗ</h2>
@@ -1305,6 +1419,9 @@ function Workspace({ kind, state, backend, setScreen }) {
                 ЦЕНТР
               </Button>
               <ZoomControl view={view} setView={setView} />
+              <Button quiet tip="Focus Comparison · клавиша F" onClick={() => setFocus((v) => !v)}>
+                <Focus /> {focus ? "ВЫЙТИ ИЗ FOCUS" : "FOCUS"}
+              </Button>
             </div>
           </section>
           <section className="bottom-process">
@@ -1333,7 +1450,22 @@ function Workspace({ kind, state, backend, setScreen }) {
 }
 function Compare({ index, state, backend, setScreen }) {
   const item = (state.batchItems || [])[index],
-    [view, setView] = useState({ s: 1, x: 0, y: 0 });
+    [view, setView] = useState({ s: 1, x: 0, y: 0 }),
+    [focus, setFocus] = useState(false);
+  useEffect(() => {
+    dispatchEvent(new CustomEvent("agr-focus", { detail: focus }));
+  }, [focus]);
+  useEffect(() => {
+    const key = (e) => {
+      if (e.key.toLowerCase() === "f") setFocus((v) => !v);
+      if (e.key === "Escape") setFocus(false);
+    };
+    addEventListener("keydown", key);
+    return () => {
+      removeEventListener("keydown", key);
+      dispatchEvent(new CustomEvent("agr-focus", { detail: false }));
+    };
+  }, []);
   if (!item)
     return (
       <main className="workspace">
@@ -1341,7 +1473,7 @@ function Compare({ index, state, backend, setScreen }) {
       </main>
     );
   return (
-    <main className="workspace compare-scene">
+    <main className={`workspace compare-scene ${focus ? "focus-comparison" : ""}`}>
       <div className="workspace-head">
         <Button quiet onClick={() => setScreen("batch")}>
           ← К СПИСКУ
@@ -1371,6 +1503,9 @@ function Compare({ index, state, backend, setScreen }) {
             ВПИСАТЬ
           </Button>
           <ZoomControl view={view} setView={setView} />
+          <Button quiet tip="Focus Comparison · клавиша F" onClick={() => setFocus((v) => !v)}>
+            <Focus /> {focus ? "ВЫЙТИ ИЗ FOCUS" : "FOCUS"}
+          </Button>
           <Button quiet onClick={() => backend?.openBatchOutput(index)}>
             ОТКРЫТЬ ПАПКУ
           </Button>
@@ -1497,6 +1632,11 @@ function App() {
     addEventListener("agr-drag", update);
     return () => removeEventListener("agr-drag", update);
   }, []);
+  useEffect(() => {
+    const update = (e) => appRoot.current?.classList.toggle("focus-comparison-active", Boolean(e.detail));
+    addEventListener("agr-focus", update);
+    return () => removeEventListener("agr-focus", update);
+  }, []);
   useEffect(() => () => routeTimers.current.forEach(clearTimeout), []);
   useEffect(() => localStorage.setItem("agr-theme", theme), [theme]);
   useEffect(() => localStorage.setItem("agr-quality", quality), [quality]);
@@ -1568,6 +1708,18 @@ function App() {
       className={`app theme-${theme} quality-${quality} scene-${screen} ${holding ? "is-holding" : ""} ${diving ? "is-diving" : ""}`}
     >
       <AmbientBackdrop theme={theme} secret={secret} />
+      <KineticArchitecture
+        activity={
+          holding
+            ? Math.max(0.2, progress)
+            : Number(
+                (screen === "batch"
+                  ? state.batchActivityHistory
+                  : state.activityHistory
+                )?.at?.(-1) || 0.08,
+              )
+        }
+      />
       <VectorSculpture />
       <div className="webgl">
         {screen !== "home" ? null : HEADLESS_TEST ? (

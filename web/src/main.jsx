@@ -53,8 +53,7 @@ const EMPTY = {
   batchActivityHistory: [],
 };
 const HEADLESS_TEST = new URLSearchParams(location.search).has("headless-test");
-const TEST_TEXTURE =
-  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Zl1sAAAAASUVORK5CYII=";
+const TEST_TEXTURE = "qrc:/icons/liquid.svg";
 const ROUTES = [
   ["home", "Главная", House],
   ["npm", "НПМ · 3 MB", ScanLine],

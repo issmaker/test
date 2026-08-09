@@ -129,7 +129,7 @@ int main(int argc,char**argv){
     textureScheme.setSyntax(QWebEngineUrlScheme::Syntax::HostAndPort);
     textureScheme.setFlags(QWebEngineUrlScheme::SecureScheme|QWebEngineUrlScheme::LocalScheme|QWebEngineUrlScheme::LocalAccessAllowed|QWebEngineUrlScheme::CorsEnabled);
     QWebEngineUrlScheme::registerScheme(textureScheme);
-    QApplication app(argc,argv);app.setApplicationName("Adaptive Texture Optimizer");app.setApplicationVersion("38");
+    QApplication app(argc,argv);app.setApplicationName("Adaptive Texture Optimizer");app.setApplicationVersion("39");
     app.setWindowIcon(QIcon(QStringLiteral(":/icons/liquid.svg")));
     g_startupLogPath = QCoreApplication::applicationDirPath()
         + QStringLiteral("/AdaptiveTextureOptimizer-startup.log");
@@ -137,7 +137,7 @@ int main(int argc,char**argv){
         QFile log(g_startupLogPath);
         if (log.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
             QTextStream out(&log);
-            out << "Adaptive Texture Optimizer 38 startup\n";
+            out << "Adaptive Texture Optimizer 39 startup\n";
             out << "Qt " << qVersion() << "\n";
         }
     }
@@ -151,16 +151,28 @@ int main(int argc,char**argv){
     }
     OptimizerEngine optimizer;optimizer.setObjectName(QStringLiteral("optimizer"));TextureSchemeHandler textureHandler;
     QMainWindow window;auto *view=new QWebEngineView(&window);auto *channel=new QWebChannel(view);
+    QObject::connect(&optimizer,&OptimizerEngine::fullscreenRequested,&window,[&window]{
+        if(window.isFullScreen())window.showMaximized();else window.showFullScreen();
+    });
     view->page()->profile()->installUrlSchemeHandler(QByteArrayLiteral("texture"),&textureHandler);
     channel->registerObject(QStringLiteral("optimizer"),&optimizer);view->page()->setWebChannel(channel);
     view->settings()->setAttribute(QWebEngineSettings::LocalContentCanAccessFileUrls,true);
     view->settings()->setAttribute(QWebEngineSettings::WebGLEnabled,true);
     view->settings()->setAttribute(QWebEngineSettings::Accelerated2dCanvasEnabled,true);
-    QObject::connect(view,&QWebEngineView::loadFinished,&window,[&](bool ok){
-        if(!ok)startupMessageHandler(QtCriticalMsg,QMessageLogContext(),QStringLiteral("Web interface failed to load"));
-    });
-    window.setWindowTitle(QStringLiteral("Оптимизатор текстур 38"));window.setCentralWidget(view);
     const bool startupTest=!qEnvironmentVariableIsEmpty("AGR_STARTUP_TEST");
+    QObject::connect(view,&QWebEngineView::loadFinished,&window,[&](bool ok){
+        if(!ok){startupMessageHandler(QtCriticalMsg,QMessageLogContext(),QStringLiteral("Web interface failed to load"));return;}
+        if(startupTest){
+            QTimer::singleShot(450,view,[view]{view->page()->runJavaScript(QStringLiteral("document.querySelectorAll('.right-dock button')[2]?.click()"));});
+            QTimer::singleShot(1150,view,[view]{view->page()->runJavaScript(QStringLiteral("[...document.querySelectorAll('.right-dock button')].at(-1)?.click()"));});
+            QTimer::singleShot(1900,view,[view]{
+                view->page()->runJavaScript(QStringLiteral("Boolean(document.querySelector('.workspace')&&document.querySelector('.settings-panel')&&document.querySelector('.topbar'))"),[](const QVariant &result){
+                    if(!result.toBool())qCritical("React interaction smoke test failed");
+                });
+            });
+        }
+    });
+    window.setWindowTitle(QStringLiteral("Оптимизатор текстур 39"));window.setCentralWidget(view);
     view->setUrl(QUrl(startupTest?QStringLiteral("qrc:/web/index.html?headless-test=1"):QStringLiteral("qrc:/web/index.html")));window.showFullScreen();
     if(argc>1)optimizer.load(QUrl::fromLocalFile(QString::fromLocal8Bit(argv[1])).toString());
     return app.exec();

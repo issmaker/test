@@ -164,20 +164,25 @@ int main(int argc,char**argv){
         if(!ok){startupMessageHandler(QtCriticalMsg,QMessageLogContext(),QStringLiteral("Web interface failed to load"));return;}
         if(startupTest){
             QTimer::singleShot(450,view,[view]{view->page()->runJavaScript(QStringLiteral("document.querySelectorAll('.right-dock button')[1]?.click()"));});
-            QTimer::singleShot(2700,view,[view]{view->page()->runJavaScript(QStringLiteral(R"JS((()=>{
-                const zoom=document.querySelector('.zoom-pane');
-                zoom?.dispatchEvent(new WheelEvent('wheel',{deltaY:-180,clientX:500,clientY:420,bubbles:true,cancelable:true}));
-                dispatchEvent(new CustomEvent('agr-test-drag'));
-                dispatchEvent(new CustomEvent('agr-hint',{detail:{open:true,text:'TOOLTIP TEST',x:720,y:42}}));
+            QTimer::singleShot(1200,view,[view]{view->page()->runJavaScript(QStringLiteral(R"JS((()=>{
+                const timer=setInterval(()=>{
+                    const zoom=document.querySelector('.zoom-pane');
+                    if(!zoom)return;
+                    clearInterval(timer);
+                    zoom.dispatchEvent(new WheelEvent('wheel',{deltaY:-180,clientX:500,clientY:420,bubbles:true,cancelable:true}));
+                    dispatchEvent(new CustomEvent('agr-test-drag'));
+                    dispatchEvent(new CustomEvent('agr-hint',{detail:{open:true,text:'TOOLTIP TEST',x:720,y:42}}));
+                },100);
+                setTimeout(()=>clearInterval(timer),3200);
             })())JS"));});
-            QTimer::singleShot(2100,view,[view]{view->page()->runJavaScript(QStringLiteral("[...document.querySelectorAll('.right-dock button')].at(-1)?.click()"));});
-            QTimer::singleShot(3700,view,[view]{
+            QTimer::singleShot(2500,view,[view]{view->page()->runJavaScript(QStringLiteral("[...document.querySelectorAll('.right-dock button')].at(-1)?.click()"));});
+            QTimer::singleShot(4800,view,[view]{
                 view->page()->runJavaScript(QStringLiteral(R"JS((()=>{
                     const hint=document.querySelector('.floating-hint'),box=hint?.getBoundingClientRect();
                     const zoomed=document.querySelector('.zoom-orbit span')?.textContent!=='100%';
                     const canvasReady=Boolean(document.querySelector('.zoom-pane canvas.ready'));
                     const mask=(document.querySelector('.workspace')?1:0)|(document.querySelector('.settings-panel')?2:0)|(document.querySelector('.topbar')?4:0)|(zoomed?8:0)|(box&&box.left>10&&box.top>10?16:0)|(canvasReady?32:0);
-                    return `${mask}|${document.querySelector('.zoom-orbit span')?.textContent}|${window.__AGR_WHEEL_COUNT__||0}|${window.__AGR_ZOOM_TARGET__||0}`;
+                    return `${mask}|${document.querySelector('.zoom-orbit span')?.textContent}|${window.__AGR_WHEEL_COUNT__||0}|${window.__AGR_ZOOM_TARGET__||0}|${document.querySelectorAll('.zoom-pane').length}|${document.querySelectorAll('canvas.ready').length}`;
                 })())JS"),[](const QVariant &result){
                     const QString details=result.toString();const int mask=details.section('|',0,0).toInt();
                     if(mask!=63)qCritical("React interaction smoke test failed: %s",qPrintable(details));

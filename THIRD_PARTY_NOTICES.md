@@ -21,10 +21,11 @@ THIS SOFTWARE.
 ## Web interface
 
 The bundled interface uses React, Three.js, React Three Fiber, Drei,
-react-three-postprocessing/postprocessing and GSAP. React, Three.js, React Three
-Fiber, Drei and postprocessing are distributed under their respective MIT
-licenses. GSAP is distributed under the GreenSock standard license. Complete
-package versions and dependency metadata are recorded in `web/package-lock.json`.
+react-three-postprocessing/postprocessing, Motion, Floating UI and GSAP. React,
+Three.js, React Three Fiber, Drei, postprocessing, Motion and Floating UI are
+distributed under their respective MIT licenses. GSAP is distributed under the
+GreenSock standard license. Complete package versions and dependency metadata
+are recorded in `web/package-lock.json`.
 
 ## Qt WebEngine / Chromium
 

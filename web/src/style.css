@@ -89,6 +89,8 @@ img {
   z-index: -4;
   overflow: hidden;
   pointer-events: none;
+  --motion-x: 0;
+  --motion-y: 0;
   background: radial-gradient(
     circle at var(--mx) var(--my),
     color-mix(in srgb, var(--accent) 14%, transparent),
@@ -145,8 +147,9 @@ img {
     color-mix(in srgb, var(--accent2) 9%, transparent)
   );
   filter: blur(28px);
-  transform: scale(calc(1 + var(--energy) * 0.035));
-  transition: transform 0.18s;
+  opacity: calc(0.68 + var(--energy) * 0.14);
+  transform: translate(calc(var(--motion-x) * 3px), calc(var(--motion-y) * -3px)) scale(calc(1 + var(--energy) * 0.018));
+  transition: opacity 0.12s linear;
 }
 .ambient-backdrop svg {
   position: absolute;
@@ -156,8 +159,8 @@ img {
   filter: drop-shadow(
     0 0 9px color-mix(in srgb, var(--accent) 42%, transparent)
   );
-  transform: translate(calc(var(--px) * -16px), calc(var(--py) * -11px));
-  transition: transform 0.1s linear;
+  transform: translate(calc(var(--px) * -16px + var(--motion-x) * 2px), calc(var(--py) * -11px + var(--motion-y) * 2px));
+  transition: transform 0.08s linear;
 }
 .field-lines path {
   fill: none;
@@ -228,10 +231,11 @@ img {
   width: min(82vw, 1300px);
   height: min(82vh, 820px);
   transform: translate(-50%, -50%);
+  transition: transform 0.5s cubic-bezier(0.24, 0.72, 0.24, 1), opacity 0.35s, filter 0.35s;
 }
 .vector-core {
   transform-origin: 620px 374px;
-  animation: vector-breathe 7s ease-in-out infinite alternate;
+  animation: vector-breathe 12s linear infinite;
 }
 .vector-core path:nth-child(2n) {
   animation: vector-dash 18s linear infinite;
@@ -243,7 +247,7 @@ img {
 }
 @keyframes vector-breathe {
   to {
-    transform: rotate(5deg) scale(1.035);
+    transform: rotate(360deg);
   }
 }
 @keyframes vector-dash {
@@ -253,32 +257,34 @@ img {
 }
 .side-form {
   position: absolute;
-  width: 240px;
-  height: 310px;
-  opacity: 0.38;
+  width: 310px;
+  height: 390px;
+  opacity: 0.28;
   filter: drop-shadow(
     0 0 24px color-mix(in srgb, var(--accent) 20%, transparent)
   );
-  animation: side-drift 9s ease-in-out infinite alternate;
+  animation: side-drift 14s ease-in-out infinite alternate;
+  transition: transform 0.48s cubic-bezier(0.24, 0.72, 0.24, 1), opacity 0.35s;
 }
 .side-form-left {
-  left: -108px;
-  top: 20%;
-  transform: rotate(-18deg);
+  left: -190px;
+  top: 13%;
+  transform: rotate(-28deg);
 }
 .side-form-right {
-  right: -98px;
-  bottom: 7%;
-  transform: rotate(22deg);
+  right: -195px;
+  bottom: 2%;
+  transform: rotate(31deg);
   animation-direction: alternate-reverse;
 }
 .side-form i {
   position: absolute;
   inset: calc(var(--ring, 0) * 22px);
   border: 1px solid var(--accent);
-  border-radius: 29% 71% 63% 37% / 42% 31% 69% 58%;
-  box-shadow: inset 0 0 30px color-mix(in srgb, var(--accent2) 8%, transparent);
-  animation: side-morph 6s ease-in-out infinite alternate;
+  border-radius: 38% 8% 42% 12%;
+  clip-path: polygon(8% 0, 82% 4%, 100% 29%, 88% 100%, 21% 92%, 0 67%);
+  box-shadow: inset 0 0 30px color-mix(in srgb, var(--accent2) 6%, transparent);
+  animation: side-morph 10s ease-in-out infinite alternate;
 }
 .side-form i:nth-child(2) {
   inset: 30px;
@@ -300,51 +306,53 @@ img {
 }
 @keyframes side-morph {
   to {
-    border-radius: 68% 32% 36% 64% / 29% 68% 32% 71%;
-    transform: rotate(24deg) scale(1.06);
+    border-radius: 11% 44% 9% 38%;
+    clip-path: polygon(19% 4%, 95% 0, 88% 69%, 71% 100%, 0 84%, 8% 19%);
+    transform: rotate(18deg) scale(1.035);
   }
 }
 .scene-home .vector-sculpture {
   opacity: 0.28;
 }
-.is-diving .vector-core {
-  animation: vector-intake 0.9s cubic-bezier(0.2, 0.8, 0.15, 1) both;
+.is-diving .vector-sculpture > svg {
+  transform: translate(-50%, -50%) scale(0.76);
+  filter: blur(4px);
+  opacity: 0.46;
 }
-.is-diving .ambient-backdrop svg {
-  animation: field-intake 0.9s cubic-bezier(0.2, 0.8, 0.15, 1) both;
-}
-.is-diving .side-form {
-  animation: side-intake 0.9s cubic-bezier(0.2, 0.8, 0.15, 1) both;
-}
-@keyframes vector-intake {
-  45% {
-    transform: rotate(32deg) scale(0.22);
-    opacity: 1;
-  }
-  100% {
-    transform: rotate(72deg) scale(1.06);
-  }
-}
-@keyframes field-intake {
-  45% {
-    transform: scale(0.12);
-    opacity: 0.9;
-  }
-  100% {
-    transform: scale(1.04);
-  }
-}
-@keyframes side-intake {
-  45% {
-    translate: calc(50vw - 20px) 0;
-    scale: 0.12;
-    opacity: 0;
-  }
-}
+.is-diving .side-form { opacity: 0.08; }
 .is-dragging .vector-core,
 .is-dragging .side-form,
 .is-dragging .ambient-backdrop svg {
   animation-play-state: paused;
+}
+.transition-portal {
+  position: fixed;
+  z-index: 72;
+  left: 50%;
+  top: 50%;
+  width: 36px;
+  height: 36px;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, -50%);
+}
+.transition-portal.active { opacity: 1; }
+.transition-portal i,
+.transition-portal b {
+  position: absolute;
+  inset: 0;
+  border: 1px solid color-mix(in srgb, var(--accent) 72%, white 10%);
+  border-radius: 36% 64% 44% 56%;
+  box-shadow: 0 0 24px color-mix(in srgb, var(--accent) 38%, transparent);
+}
+.transition-portal.active i { animation: portal-wave 0.72s cubic-bezier(0.2, 0.72, 0.18, 1) both; }
+.transition-portal.active i:nth-child(2) { animation-delay: 0.045s; border-color: var(--accent2); }
+.transition-portal.active i:nth-child(3) { animation-delay: 0.09s; }
+.transition-portal b { inset: 10px; background: var(--accent); filter: blur(7px); }
+@keyframes portal-wave {
+  0% { transform: scale(0.2) rotate(0); opacity: 0; }
+  38% { opacity: 0.78; }
+  100% { transform: scale(34) rotate(135deg); opacity: 0; }
 }
 .quality-eco .webgl {
   opacity: 0.42;
@@ -525,9 +533,14 @@ img {
   border-radius: 50%;
   background: var(--accent);
   box-shadow: 0 0 14px var(--accent);
+  transform: translateY(-50%);
   animation: status-pulse 1.8s ease-in-out infinite;
 }
 @keyframes status-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
   50% {
     opacity: 0.35;
     transform: translateY(-50%) scale(0.55);
@@ -837,8 +850,8 @@ img {
   right: 6.6vw;
   top: 50%;
   transform: translateY(-46%);
-  width: min(360px, 29vw);
-  padding: 20px 23px 23px;
+  width: min(450px, 34vw);
+  padding: 27px 30px 30px;
   border: 1px solid #ffffff2a;
   border-radius: 22px 9px 22px 9px;
   background: linear-gradient(140deg, #160d16d9, #09070bc2);
@@ -893,7 +906,7 @@ img {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 7px;
-  margin: 20px 0;
+  margin: 10px 0 22px;
 }
 .capabilities > div {
   position: relative;
@@ -1149,13 +1162,16 @@ img {
   position: relative;
   overflow: hidden;
   border-radius: 23px 7px 23px 7px;
-  background: transparent;
+  background:
+    radial-gradient(circle at 50% 48%, color-mix(in srgb, var(--accent) 8%, transparent), transparent 58%),
+    linear-gradient(135deg, #ffffff05, transparent 52%);
   cursor: grab;
   touch-action: none;
   box-shadow:
     0 0 0 1px color-mix(in srgb, var(--accent) 32%, #ffffff14),
     0 14px 38px #0005;
-  contain: layout paint;
+  contain: strict;
+  isolation: isolate;
 }
 .zoom-pane:after {
   content: "";
@@ -1186,17 +1202,24 @@ img {
   letter-spacing: 1px;
   backdrop-filter: blur(14px);
 }
-.zoom-pane img {
+.zoom-pane canvas {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: contain;
-  transform-origin: center;
-  transition: transform 0.16s cubic-bezier(0.2, 0.75, 0.2, 1);
   border-radius: inherit;
-  backface-visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.22s ease-out;
 }
-.zoom-pane:active img {
-  transition-duration: 0.055s;
+.zoom-pane canvas.ready {
+  opacity: 1;
+}
+.zoom-pane img.zoom-source {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
 }
 .zoom-pane > p {
   position: absolute;
@@ -1613,18 +1636,15 @@ img {
   white-space: nowrap;
 }
 .is-holding .ambient-backdrop svg {
-  filter: drop-shadow(0 0 14px var(--accent));
   transform: translate(calc(var(--px) * -21px), calc(var(--py) * -15px))
-    scale(1.02);
-}
-.is-holding .webgl {
-  filter: saturate(1.3) contrast(1.08);
+    scale(1.012);
 }
 .signature {
   position: fixed;
   z-index: 140;
-  right: 25px;
+  left: 50%;
   bottom: 17px;
+  transform: translateX(-50%);
   border: 0;
   background: transparent;
   color: var(--accent);
@@ -1638,6 +1658,7 @@ img {
 }
 .signature:hover {
   letter-spacing: 2px;
+  transform: translateX(-50%) translateY(-2px);
   filter: brightness(1.3);
 }
 .secret-scene {

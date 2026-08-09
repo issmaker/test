@@ -53,9 +53,8 @@ const EMPTY = {
   batchActivityHistory: [],
 };
 const HEADLESS_TEST = new URLSearchParams(location.search).has("headless-test");
-const TEST_TEXTURE = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
-  '<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024"><defs><linearGradient id="g"><stop stop-color="#ff3f93"/><stop offset="1" stop-color="#38175f"/></linearGradient></defs><rect width="1024" height="1024" fill="url(#g)"/><path d="M0 760L420 230 1024 690" fill="none" stroke="white" stroke-width="28"/></svg>',
-)}`;
+const TEST_TEXTURE =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Zl1sAAAAASUVORK5CYII=";
 const ROUTES = [
   ["home", "Главная", House],
   ["npm", "НПМ · 3 MB", ScanLine],

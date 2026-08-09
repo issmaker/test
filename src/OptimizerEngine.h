@@ -126,6 +126,7 @@ public:
     Q_INVOKABLE void chooseNpmFile();
     Q_INVOKABLE void chooseBatchFiles();
     Q_INVOKABLE void quitApp();
+    Q_INVOKABLE void toggleFullscreen();
 
 signals:
     void sourceUrlChanged();
@@ -148,6 +149,7 @@ signals:
     void batchProgressChanged();
     void batchStatusChanged();
     void batchTelemetryChanged();
+    void fullscreenRequested();
 
 private:
     QString localPath()const;

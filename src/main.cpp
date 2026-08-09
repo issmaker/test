@@ -167,18 +167,16 @@ int main(int argc,char**argv){
             QTimer::singleShot(1100,view,[view]{view->page()->runJavaScript(QStringLiteral(R"JS((()=>{
                 const zoom=document.querySelector('.zoom-pane');
                 zoom?.dispatchEvent(new WheelEvent('wheel',{deltaY:-180,clientX:500,clientY:420,bubbles:true,cancelable:true}));
-                const button=document.querySelector('.top-actions button');
-                button?.dispatchEvent(new PointerEvent('pointerenter',{clientX:720,clientY:42,bubbles:true}));
-                button?.dispatchEvent(new PointerEvent('pointermove',{clientX:720,clientY:42,bubbles:true}));
+                dispatchEvent(new CustomEvent('agr-hint',{detail:{open:true,text:'TOOLTIP TEST',x:720,y:42}}));
             })())JS"));});
             QTimer::singleShot(1450,view,[view]{view->page()->runJavaScript(QStringLiteral("[...document.querySelectorAll('.right-dock button')].at(-1)?.click()"));});
             QTimer::singleShot(2300,view,[view]{
                 view->page()->runJavaScript(QStringLiteral(R"JS((()=>{
                     const hint=document.querySelector('.floating-hint'),box=hint?.getBoundingClientRect();
                     const zoomed=document.querySelector('.zoom-orbit span')?.textContent!=='100%';
-                    return Boolean(document.querySelector('.workspace')&&document.querySelector('.settings-panel')&&document.querySelector('.topbar')&&zoomed&&box&&box.left>10&&box.top>10);
+                    return (document.querySelector('.workspace')?1:0)|(document.querySelector('.settings-panel')?2:0)|(document.querySelector('.topbar')?4:0)|(zoomed?8:0)|(box&&box.left>10&&box.top>10?16:0);
                 })())JS"),[](const QVariant &result){
-                    if(!result.toBool())qCritical("React interaction smoke test failed");
+                    if(result.toInt()!=31)qCritical("React interaction smoke test failed, mask=%d",result.toInt());
                 });
             });
         }

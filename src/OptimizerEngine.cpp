@@ -206,6 +206,7 @@ void OptimizerEngine::chooseBatchFiles() {
 }
 
 void OptimizerEngine::quitApp(){QCoreApplication::quit();}
+void OptimizerEngine::toggleFullscreen(){emit fullscreenRequested();}
 
 void OptimizerEngine::appendTelemetry(double progressValue,double activityValue){
     m_progressHistory.append(qBound(0.0,progressValue,1.0));m_activityHistory.append(qBound(0.0,activityValue,1.0));

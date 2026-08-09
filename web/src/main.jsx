@@ -17,14 +17,6 @@ import {
 } from "@react-three/postprocessing";
 import { BlendFunction } from "postprocessing";
 import { AnimatePresence, motion } from "motion/react";
-import {
-  FloatingPortal,
-  autoUpdate,
-  flip,
-  offset,
-  shift,
-  useFloating,
-} from "@floating-ui/react";
 import { gsap } from "gsap";
 import {
   Activity,
@@ -123,53 +115,62 @@ function useBackend() {
 }
 
 function Hint({ text, children }) {
-  const [open, setOpen] = useState(false);
-  const { refs, floatingStyles, context } = useFloating({
-    open,
-    onOpenChange: setOpen,
-    placement: "bottom",
-    whileElementsMounted: autoUpdate,
-    middleware: [offset(9), flip({ padding: 12 }), shift({ padding: 12 })],
-  });
   if (!text) return children;
   const child = React.Children.only(children);
+  const publish = (e, open = true) =>
+    dispatchEvent(
+      new CustomEvent("agr-hint", {
+        detail: { open, text, x: e?.clientX || 0, y: e?.clientY || 0 },
+      }),
+    );
+  return React.cloneElement(child, {
+    onPointerEnter: (e) => {
+      child.props.onPointerEnter?.(e);
+      publish(e);
+    },
+    onPointerMove: (e) => {
+      child.props.onPointerMove?.(e);
+      if (!e.currentTarget.hasPointerCapture?.(e.pointerId)) publish(e);
+    },
+    onPointerLeave: (e) => {
+      child.props.onPointerLeave?.(e);
+      publish(e, false);
+    },
+    onFocus: (e) => {
+      child.props.onFocus?.(e);
+      const rect = e.currentTarget.getBoundingClientRect();
+      publish({ clientX: rect.left + rect.width / 2, clientY: rect.bottom });
+    },
+    onBlur: (e) => {
+      child.props.onBlur?.(e);
+      publish(e, false);
+    },
+  });
+}
+
+function TooltipLayer() {
+  const [hint, setHint] = useState({ open: false, text: "", x: 0, y: 0 });
+  useEffect(() => {
+    const update = (e) => setHint(e.detail);
+    addEventListener("agr-hint", update);
+    return () => removeEventListener("agr-hint", update);
+  }, []);
+  const x = Math.max(12, Math.min(innerWidth - 292, hint.x + 16));
+  const y = hint.y > innerHeight - 90 ? hint.y - 48 : hint.y + 18;
   return (
-    <>
-      {React.cloneElement(child, {
-        ref: refs.setReference,
-        onPointerEnter: (e) => {
-          child.props.onPointerEnter?.(e);
-          setOpen(true);
-        },
-        onPointerLeave: (e) => {
-          child.props.onPointerLeave?.(e);
-          setOpen(false);
-        },
-        onFocus: (e) => {
-          child.props.onFocus?.(e);
-          setOpen(true);
-        },
-        onBlur: (e) => {
-          child.props.onBlur?.(e);
-          setOpen(false);
-        },
-      })}
-      <FloatingPortal>
-        {open && (
-          <motion.div
-            ref={refs.setFloating}
-            style={floatingStyles}
-            className="floating-hint"
-            role="tooltip"
-            initial={{ opacity: 0, y: -5, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            {text}
-          </motion.div>
-        )}
-      </FloatingPortal>
-    </>
+    <AnimatePresence>
+      {hint.open && (
+        <motion.div
+          className="floating-hint"
+          style={{ left: x, top: y }}
+          initial={{ opacity: 0, scale: 0.96, y: -4 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.98 }}
+        >
+          {hint.text}
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 
@@ -291,6 +292,69 @@ function AmbientBackdrop({ theme, motionValue, secret }) {
         </g>
       </svg>
       <i className="cursor-aura" />
+    </div>
+  );
+}
+
+function VectorSculpture() {
+  return (
+    <div className="vector-sculpture" aria-hidden="true">
+      <svg viewBox="0 0 1200 760" preserveAspectRatio="xMidYMid slice">
+        <defs>
+          <linearGradient id="vector-flow" x1="0" y1="0" x2="1" y2="1">
+            <stop stopColor="var(--accent2)" />
+            <stop offset=".48" stopColor="var(--accent)" />
+            <stop offset="1" stopColor="#fff" />
+          </linearGradient>
+          <filter id="vector-glow">
+            <feGaussianBlur stdDeviation="7" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+        <g className="vector-core" fill="none" strokeLinecap="round">
+          {Array.from({ length: 8 }, (_, i) => (
+            <path
+              key={i}
+              d={`M ${305 + i * 4} 390 C 365 ${135 + i * 9}, 620 ${150 - i * 5}, 690 372 C 760 ${595 - i * 8}, 1015 ${575 + i * 4}, 930 330 C 850 ${92 + i * 7}, 585 ${190 + i * 3}, 520 390 C 455 ${590 - i * 6}, 285 ${560 + i * 5}, ${305 + i * 4} 390 Z`}
+              stroke={i === 4 ? "url(#vector-flow)" : "var(--accent)"}
+              strokeWidth={i === 4 ? 3.2 : 0.8 + i * 0.18}
+              opacity={i === 4 ? 0.8 : 0.08 + i * 0.035}
+              filter={i === 4 ? "url(#vector-glow)" : undefined}
+            />
+          ))}
+          <ellipse
+            cx="620"
+            cy="374"
+            rx="104"
+            ry="214"
+            stroke="var(--accent2)"
+            strokeWidth="1"
+            opacity=".22"
+          />
+          <ellipse
+            cx="620"
+            cy="374"
+            rx="238"
+            ry="72"
+            stroke="var(--accent)"
+            strokeWidth="1"
+            opacity=".18"
+          />
+        </g>
+      </svg>
+      <div className="side-form side-form-left">
+        <i />
+        <i />
+        <i />
+      </div>
+      <div className="side-form side-form-right">
+        <i />
+        <i />
+        <i />
+      </div>
     </div>
   );
 }
@@ -479,8 +543,8 @@ function Scene({ progress, active, motionValue, theme, quality }) {
       }}
     >
       <ambientLight intensity={0.42} />
-      <pointLight position={[4, 3, 5]} color={colors[0]} intensity={38} />
-      <pointLight position={[-4, -2, 2]} color={colors[1]} intensity={22} />
+      <pointLight position={[4, 3, 5]} color={colors[0]} intensity={14} />
+      <pointLight position={[-4, -2, 2]} color={colors[1]} intensity={9} />
       <OrganicForms colors={colors} />
       <FlowSculpture
         progress={progress}
@@ -498,8 +562,8 @@ function Scene({ progress, active, motionValue, theme, quality }) {
       <CameraRig progress={progress} motionValue={motionValue} />
       <EffectComposer multisampling={0}>
         <Bloom
-          intensity={active ? 1.65 : 0.88}
-          luminanceThreshold={0.28}
+          intensity={active ? 1.05 : 0.56}
+          luminanceThreshold={0.36}
           luminanceSmoothing={0.55}
           mipmapBlur
         />
@@ -652,7 +716,7 @@ function Header({ screen, backend, onSettings }) {
         </span>
         <div>
           <b>Оптимизатор текстур</b>
-          <small>ADAPTIVE RGB24 / v39</small>
+          <small>ADAPTIVE RGB24 / v40</small>
         </div>
       </div>
       <div className="route-status">
@@ -813,12 +877,6 @@ function Home({ setScreen }) {
         </div>
       </section>
       <section className="hero-panel">
-        <small>TEXTURE INFRASTRUCTURE</small>
-        <h2>Два конвейера для production-текстур</h2>
-        <p>
-          НПМ до 3 MB или пакетная RGB24-оптимизация 2K, 4K и 8K без ручного
-          лимита.
-        </p>
         <div className="capabilities">
           <div>
             <i>01</i>
@@ -858,6 +916,7 @@ function ZoomPane({ title, src, view, setView }) {
   const drag = useRef(null),
     pane = useRef(null),
     image = useRef(null),
+    motionTick = useRef(0),
     clamp = useCallback((next) => {
       const box = pane.current,
         img = image.current;
@@ -875,13 +934,18 @@ function ZoomPane({ title, src, view, setView }) {
         y: Math.max(-maxY, Math.min(maxY, next.y || 0)),
       };
     }, []),
-    pulse = (x = 0, y = 0, energy = 0.5) =>
+    pulse = (x = 0, y = 0, energy = 0.5, force = false) => {
+      const now = performance.now();
+      if (!force && now - motionTick.current < 55) return;
+      motionTick.current = now;
       dispatchEvent(
         new CustomEvent("agr-motion", { detail: { x, y, energy } }),
       );
+    };
   useEffect(() => setView({ s: 1, x: 0, y: 0 }), [src, setView]);
   const wheel = (e) => {
     e.preventDefault();
+    if (!pane.current) return;
     const rect = pane.current.getBoundingClientRect(),
       ox = e.clientX - rect.left - rect.width / 2,
       oy = e.clientY - rect.top - rect.height / 2;
@@ -911,8 +975,10 @@ function ZoomPane({ title, src, view, setView }) {
   };
   const stop = (e) => {
     drag.current = null;
-    e?.currentTarget?.releasePointerCapture?.(e.pointerId);
-    pulse(0, 0, 0.2);
+    if (e?.currentTarget?.hasPointerCapture?.(e.pointerId))
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    pulse(0, 0, 0.2, true);
+    dispatchEvent(new CustomEvent("agr-drag", { detail: false }));
   };
   return (
     <Hint text="Колесо — зум к курсору · перетаскивание — панорама">
@@ -924,10 +990,12 @@ function ZoomPane({ title, src, view, setView }) {
           if (view.s <= 1) return;
           drag.current = { px: e.clientX, py: e.clientY, x: view.x, y: view.y };
           e.currentTarget.setPointerCapture(e.pointerId);
+          dispatchEvent(new CustomEvent("agr-drag", { detail: true }));
         }}
         onPointerMove={move}
         onPointerUp={stop}
         onPointerCancel={stop}
+        onLostPointerCapture={stop}
       >
         <span>{title}</span>
         {src ? (
@@ -1324,6 +1392,8 @@ function App() {
       y: innerHeight / 2,
     }),
     [motionValue, setMotionValue] = useState({ x: 0, y: 0, energy: 0 }),
+    [dragging, setDragging] = useState(false),
+    [diving, setDiving] = useState(false),
     [settings, setSettings] = useState(false),
     [theme, setTheme] = useState(
       () => localStorage.getItem("agr-theme") || "rose",
@@ -1334,13 +1404,27 @@ function App() {
     [secret, setSecret] = useState(false),
     progressRef = useRef({ value: 0 }),
     motionRef = useRef({ x: 0, y: 0, energy: 0 }),
+    routeTimers = useRef([]),
     screen = route.startsWith("compare") ? "compare" : route,
-    setScreen = useCallback((next) => {
-      setRoute(next);
-      setProgress(0);
-      progressRef.current.value = 0;
-      setSettings(false);
-    }, []);
+    setScreen = useCallback(
+      (next) => {
+        if (next === route || (next === "compare" && screen === "compare"))
+          return;
+        routeTimers.current.forEach(clearTimeout);
+        setDiving(true);
+        setSettings(false);
+        dispatchEvent(new CustomEvent("agr-hint", { detail: { open: false } }));
+        routeTimers.current = [
+          setTimeout(() => {
+            setRoute(next);
+            setProgress(0);
+            progressRef.current.value = 0;
+          }, 220),
+          setTimeout(() => setDiving(false), 900),
+        ];
+      },
+      [route, screen],
+    );
   useEffect(() => {
     const react = (e) => {
       Object.assign(motionRef.current, e.detail);
@@ -1358,6 +1442,12 @@ function App() {
     addEventListener("agr-motion", react);
     return () => removeEventListener("agr-motion", react);
   }, []);
+  useEffect(() => {
+    const update = (e) => setDragging(Boolean(e.detail));
+    addEventListener("agr-drag", update);
+    return () => removeEventListener("agr-drag", update);
+  }, []);
+  useEffect(() => () => routeTimers.current.forEach(clearTimeout), []);
   useEffect(() => localStorage.setItem("agr-theme", theme), [theme]);
   useEffect(() => localStorage.setItem("agr-quality", quality), [quality]);
   useEffect(() => {
@@ -1424,15 +1514,16 @@ function App() {
     );
   return (
     <div
-      className={`app theme-${theme} quality-${quality} scene-${screen} ${holding ? "is-holding" : ""}`}
+      className={`app theme-${theme} quality-${quality} scene-${screen} ${holding ? "is-holding" : ""} ${dragging ? "is-dragging" : ""} ${diving ? "is-diving" : ""}`}
     >
       <AmbientBackdrop
         theme={theme}
         motionValue={motionValue}
         secret={secret}
       />
+      <VectorSculpture />
       <div className="webgl">
-        {HEADLESS_TEST ? (
+        {screen !== "home" ? null : HEADLESS_TEST ? (
           <div className="headless-scene" />
         ) : (
           <SceneBoundary>
@@ -1447,6 +1538,7 @@ function App() {
         )}
       </div>
       <CursorTrail />
+      <TooltipLayer />
       <Header
         screen={screen}
         backend={backend}
@@ -1462,10 +1554,10 @@ function App() {
         <motion.div
           className="route-stage"
           key={route}
-          initial={{ opacity: 0, scale: 1.075, filter: "blur(15px)" }}
+          initial={{ opacity: 0, scale: 1.04, filter: "blur(12px)" }}
           animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-          exit={{ opacity: 0, scale: 0.94, filter: "blur(16px)" }}
-          transition={{ duration: 0.58, ease: [0.2, 0.78, 0.18, 1] }}
+          exit={{ opacity: 0, scale: 0.82, filter: "blur(18px)" }}
+          transition={{ duration: 0.62, ease: [0.2, 0.78, 0.18, 1] }}
         >
           {page}
         </motion.div>

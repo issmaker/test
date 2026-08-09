@@ -129,7 +129,7 @@ int main(int argc,char**argv){
     textureScheme.setSyntax(QWebEngineUrlScheme::Syntax::HostAndPort);
     textureScheme.setFlags(QWebEngineUrlScheme::SecureScheme|QWebEngineUrlScheme::LocalScheme|QWebEngineUrlScheme::LocalAccessAllowed|QWebEngineUrlScheme::CorsEnabled);
     QWebEngineUrlScheme::registerScheme(textureScheme);
-    QApplication app(argc,argv);app.setApplicationName("Adaptive Texture Optimizer");app.setApplicationVersion("41");
+    QApplication app(argc,argv);app.setApplicationName("Adaptive Texture Optimizer");app.setApplicationVersion("42");
     app.setWindowIcon(QIcon(QStringLiteral(":/icons/liquid.svg")));
     g_startupLogPath = QCoreApplication::applicationDirPath()
         + QStringLiteral("/AdaptiveTextureOptimizer-startup.log");
@@ -137,7 +137,7 @@ int main(int argc,char**argv){
         QFile log(g_startupLogPath);
         if (log.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
             QTextStream out(&log);
-            out << "Adaptive Texture Optimizer 41 startup\n";
+            out << "Adaptive Texture Optimizer 42 startup\n";
             out << "Qt " << qVersion() << "\n";
         }
     }
@@ -170,7 +170,7 @@ int main(int argc,char**argv){
                     if(!zoom)return;
                     clearInterval(timer);
                     zoom.dispatchEvent(new WheelEvent('wheel',{deltaY:-180,clientX:500,clientY:420,bubbles:true,cancelable:true}));
-                    dispatchEvent(new CustomEvent('agr-test-drag'));
+                    dispatchEvent(new CustomEvent('agr-test-drag',{detail:{x:0,y:120}}));
                     dispatchEvent(new CustomEvent('agr-hint',{detail:{open:true,text:'TOOLTIP TEST',x:720,y:42}}));
                 },100);
                 setTimeout(()=>clearInterval(timer),3200);
@@ -181,16 +181,17 @@ int main(int argc,char**argv){
                     const hint=document.querySelector('.floating-hint'),box=hint?.getBoundingClientRect();
                     const zoomed=document.querySelector('.zoom-orbit span')?.textContent!=='100%';
                     const canvasReady=Boolean(document.querySelector('.zoom-pane canvas.ready'));
-                    const mask=(document.querySelector('.workspace')?1:0)|(document.querySelector('.settings-panel')?2:0)|(document.querySelector('.topbar')?4:0)|(zoomed?8:0)|(box&&box.left>10&&box.top>10?16:0)|(canvasReady?32:0);
-                    return `${mask}|${document.querySelector('.zoom-orbit span')?.textContent}|${window.__AGR_WHEEL_COUNT__||0}|${window.__AGR_ZOOM_TARGET__||0}|${document.querySelectorAll('.zoom-pane').length}|${document.querySelectorAll('canvas.ready').length}`;
+                    const verticalSafe=Math.abs(Number(window.__AGR_TEST_VERTICAL_Y__||0))>.1;
+                    const mask=(document.querySelector('.workspace')?1:0)|(document.querySelector('.settings-panel')?2:0)|(document.querySelector('.topbar')?4:0)|(zoomed?8:0)|(box&&box.left>10&&box.top>10?16:0)|(canvasReady?32:0)|(verticalSafe?64:0);
+                    return `${mask}|${document.querySelector('.zoom-orbit span')?.textContent}|${window.__AGR_WHEEL_COUNT__||0}|${window.__AGR_ZOOM_TARGET__||0}|${document.querySelectorAll('.zoom-pane').length}|${document.querySelectorAll('canvas.ready').length}|${window.__AGR_TEST_VERTICAL_Y__||0}`;
                 })())JS"),[](const QVariant &result){
                     const QString details=result.toString();const int mask=details.section('|',0,0).toInt();
-                    if(mask!=63)qCritical("React interaction smoke test failed: %s",qPrintable(details));
+                    if(mask!=127)qCritical("React interaction smoke test failed: %s",qPrintable(details));
                 });
             });
         }
     });
-    window.setWindowTitle(QStringLiteral("Оптимизатор текстур 41"));window.setCentralWidget(view);
+    window.setWindowTitle(QStringLiteral("Оптимизатор текстур 42"));window.setCentralWidget(view);
     view->setUrl(QUrl(startupTest?QStringLiteral("qrc:/web/index.html?headless-test=1"):QStringLiteral("qrc:/web/index.html")));window.showFullScreen();
     if(argc>1)optimizer.load(QUrl::fromLocalFile(QString::fromLocal8Bit(argv[1])).toString());
     return app.exec();

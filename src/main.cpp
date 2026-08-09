@@ -164,13 +164,13 @@ int main(int argc,char**argv){
         if(!ok){startupMessageHandler(QtCriticalMsg,QMessageLogContext(),QStringLiteral("Web interface failed to load"));return;}
         if(startupTest){
             QTimer::singleShot(450,view,[view]{view->page()->runJavaScript(QStringLiteral("document.querySelectorAll('.right-dock button')[1]?.click()"));});
-            QTimer::singleShot(1500,view,[view]{view->page()->runJavaScript(QStringLiteral(R"JS((()=>{
+            QTimer::singleShot(2700,view,[view]{view->page()->runJavaScript(QStringLiteral(R"JS((()=>{
                 const zoom=document.querySelector('.zoom-pane');
                 zoom?.dispatchEvent(new WheelEvent('wheel',{deltaY:-180,clientX:500,clientY:420,bubbles:true,cancelable:true}));
                 dispatchEvent(new CustomEvent('agr-hint',{detail:{open:true,text:'TOOLTIP TEST',x:720,y:42}}));
             })())JS"));});
             QTimer::singleShot(2100,view,[view]{view->page()->runJavaScript(QStringLiteral("[...document.querySelectorAll('.right-dock button')].at(-1)?.click()"));});
-            QTimer::singleShot(3000,view,[view]{
+            QTimer::singleShot(3700,view,[view]{
                 view->page()->runJavaScript(QStringLiteral(R"JS((()=>{
                     const hint=document.querySelector('.floating-hint'),box=hint?.getBoundingClientRect();
                     const zoomed=document.querySelector('.zoom-orbit span')?.textContent!=='100%';

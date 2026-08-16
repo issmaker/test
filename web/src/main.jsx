@@ -8,7 +8,7 @@ import React, {
 } from "react";
 import { createRoot } from "react-dom/client";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Sparkles } from "@react-three/drei";
+import { Environment, Lightformer, MeshDistortMaterial, RoundedBox, Sparkles } from "@react-three/drei";
 import { AnimatePresence, motion } from "motion/react";
 import { gsap } from "gsap";
 import {
@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import * as THREE from "three";
 import "./style.css";
+import "./v47.css";
 
 const EMPTY = {
   sourceUrl: "",
@@ -185,7 +186,7 @@ function TooltipLayer() {
     return () => removeEventListener("agr-hint", update);
   }, []);
   const x = Math.max(12, Math.min(innerWidth - 392, hint.x + 18));
-  const y = hint.y > innerHeight - 90 ? hint.y - 48 : hint.y + 18;
+  const y = Math.max(76, Math.min(innerHeight - 64, hint.y - 68));
   return (
     <AnimatePresence>
       {hint.open && (
@@ -535,7 +536,52 @@ function NeuralLines({ active, motionValue, colors }) {
   );
 }
 
-function CameraRig({ progress, motionValue }) {
+function IridescentCore({ screen, quality, colors }) {
+  const group = useRef(), material = useRef();
+  const segments = quality === "eco" ? 48 : quality === "max" ? 112 : 80;
+  useFrame(({ clock, pointer }) => {
+    if (!group.current) return;
+    const t = clock.elapsedTime;
+    group.current.rotation.y = t * .13 + pointer.x * .18;
+    group.current.rotation.x = Math.sin(t * .19) * .12 - pointer.y * .1;
+    const targets = screen === "home" ? [1.25,.08,-.4,1] : screen === "npm" ? [3.7,-1.25,-1.3,.72] : screen === "batch" ? [-3.5,1.25,-1.6,.6] : [-4,-2,-2,.45];
+    group.current.position.x = THREE.MathUtils.lerp(group.current.position.x, targets[0], .025);
+    group.current.position.y = THREE.MathUtils.lerp(group.current.position.y, targets[1], .025);
+    group.current.position.z = THREE.MathUtils.lerp(group.current.position.z, targets[2], .025);
+    group.current.scale.setScalar(THREE.MathUtils.lerp(group.current.scale.x, targets[3], .025));
+  });
+  return <group ref={group} position={[1.25,.08,-.4]}>
+    <mesh castShadow>
+      <icosahedronGeometry args={[1.65, segments > 64 ? 6 : 5]} />
+      <MeshDistortMaterial ref={material} color="#826dff" roughness={.13} metalness={.08} clearcoat={1} clearcoatRoughness={.05} transmission={.34} thickness={1.8} ior={1.36} iridescence={1} iridescenceIOR={1.62} iridescenceThicknessRange={[180,620]} distort={.47} speed={quality === "eco" ? .55 : quality === "max" ? 1.15 : .82} envMapIntensity={2.1} />
+    </mesh>
+    <mesh scale={1.035}>
+      <icosahedronGeometry args={[1.65,4]} />
+      <meshBasicMaterial color={colors[0]} transparent opacity={.055} blending={THREE.AdditiveBlending} depthWrite={false} />
+    </mesh>
+    <pointLight color="#54eaff" intensity={5.2} distance={8} position={[-2,1.5,2]} />
+    <pointLight color="#ff4fae" intensity={4.8} distance={8} position={[2,-1,2]} />
+  </group>;
+}
+
+function CerebriumSculpture({ screen, colors }) {
+  const group = useRef();
+  useFrame(({ clock, pointer }) => {
+    if (!group.current) return;
+    const visible = screen !== "home" ? 1 : .82;
+    group.current.rotation.y = THREE.MathUtils.lerp(group.current.rotation.y, clock.elapsedTime*.055 + pointer.x*.12, .02);
+    group.current.rotation.z = THREE.MathUtils.lerp(group.current.rotation.z, screen === "batch" ? .58 : screen === "npm" ? -.28 : .12, .025);
+    group.current.scale.setScalar(THREE.MathUtils.lerp(group.current.scale.x, visible, .025));
+  });
+  return <group ref={group} position={[-1.5,0,-1.8]} rotation={[.2,0,.12]}>
+    <mesh scale={2.3}><sphereGeometry args={[1,64,64]} /><meshPhysicalMaterial color="#2a0929" transparent opacity={.13} transmission={.45} roughness={.1} side={THREE.BackSide} depthWrite={false} /></mesh>
+    {Array.from({length:5},(_,i)=><RoundedBox key={i} args={[3.1,.48,.52]} radius={.22} smoothness={6} position={[0,(i-2)*.55,(i-2)*.08]} rotation={[0,(i-2)*.07,(i-2)*-.06]}>
+      <meshPhysicalMaterial color={i===2?colors[0]:"#451039"} metalness={.5} roughness={.2} clearcoat={1} emissive={colors[i%2]} emissiveIntensity={i===2?.32:.08} />
+    </RoundedBox>)}
+  </group>;
+}
+
+function CameraRig({ progress, motionValue, screen }) {
   const { camera, pointer } = useThree();
   useFrame(({ clock }) => {
     camera.position.x = THREE.MathUtils.lerp(
@@ -550,18 +596,19 @@ function CameraRig({ progress, motionValue }) {
     );
     camera.position.z = THREE.MathUtils.lerp(
       camera.position.z,
-      7.1 - progress * 0.22 + Math.sin(clock.elapsedTime * 0.22) * 0.035,
+      (screen === "compare" ? 7.8 : screen === "batch" ? 7.5 : 7.1) - progress * 0.22 + Math.sin(clock.elapsedTime * 0.22) * 0.035,
       0.025,
     );
     camera.lookAt(0, 0, 0);
   });
   return null;
 }
-function Scene({ progress, theme, quality }) {
+function Scene({ progress, theme, quality, screen }) {
   const colors = THEME_COLORS[theme] || THEME_COLORS.rose;
   const density = quality === "eco" ? 45 : quality === "max" ? 125 : 80;
   return (
     <Canvas
+      shadows={quality !== "eco"}
       dpr={
         quality === "eco"
           ? [0.7, 0.9]
@@ -576,12 +623,22 @@ function Scene({ progress, theme, quality }) {
         powerPreference: "high-performance",
         preserveDrawingBuffer: false,
       }}
+      onCreated={({ gl }) => {
+        gl.toneMapping = THREE.ACESFilmicToneMapping;
+        gl.toneMappingExposure = quality === "max" ? 1.34 : 1.18;
+        gl.outputColorSpace = THREE.SRGBColorSpace;
+      }}
     >
       <ambientLight intensity={0.58} />
       <pointLight position={[4, 3, 5]} color={colors[0]} intensity={2.8} />
       <pointLight position={[-4, -2, 2]} color={colors[1]} intensity={1.8} />
-      <EdgeFrames colors={colors} />
-      <SignalLattice progress={progress} colors={colors} />
+      <Environment resolution={quality === "eco" ? 128 : 256}>
+        <Lightformer form="ring" intensity={5} color="#72ecff" scale={[5,1,1]} position={[-4,2,2]} rotation-y={Math.PI/2} />
+        <Lightformer form="rect" intensity={4} color="#ff4fa8" scale={[4,2,1]} position={[4,-1,1]} rotation-y={-Math.PI/2} />
+        <Lightformer form="circle" intensity={3} color="#ffffff" scale={2} position={[0,5,-2]} rotation-x={Math.PI/2} />
+      </Environment>
+      <IridescentCore screen={screen} quality={quality} colors={colors} />
+      <CerebriumSculpture screen={screen} colors={colors} />
       <NeuralLines active={false} motionValue={{ energy: 0 }} colors={colors} />
       <Sparkles
         count={density}
@@ -590,7 +647,7 @@ function Scene({ progress, theme, quality }) {
         speed={0.13}
         color={colors[0]}
       />
-      <CameraRig progress={progress} motionValue={motionValue} />
+      <CameraRig progress={progress} motionValue={{ x: 0, y: 0 }} screen={screen} />
     </Canvas>
   );
 }
@@ -778,7 +835,7 @@ function Header({ screen, backend, onSettings }) {
         </span>
         <div>
           <b>Оптимизатор текстур</b>
-          <small>ADAPTIVE RGB24 / v46</small>
+          <small>ADAPTIVE RGB24 / v47</small>
         </div>
       </div>
       <div className="route-status">
@@ -1859,12 +1916,9 @@ function App() {
       ref={appRoot}
       className={`app theme-${theme} quality-${quality} scene-${screen} ${holding ? "is-holding" : ""} ${diving ? "is-diving" : ""}`}
     >
-      <AmbientBackdrop theme={theme} secret={secret} active={screen === "home" && !diving} />
-      <MorphingMonolith screen={screen} quality={quality} />
-      {screen === "batch" ? <DataCathedral items={state.batchItems} quality={quality} activity={state.batchActivityHistory?.at?.(-1)} /> : <KineticArchitecture activity={holding ? Math.max(.2, progress) : Number(state.activityHistory?.at?.(-1) || .08)} />}
-      <VectorSculpture />
+      {screen === "batch" && <DataCathedral items={state.batchItems} quality={quality} activity={state.batchActivityHistory?.at?.(-1)} />}
       <div className="webgl">
-        {screen !== "home" ? null : HEADLESS_TEST ? (
+        {HEADLESS_TEST ? (
           <div className="headless-scene" />
         ) : (
           <SceneBoundary>
@@ -1872,6 +1926,7 @@ function App() {
               progress={progress}
               theme={theme}
               quality={quality}
+              screen={screen}
             />
           </SceneBoundary>
         )}
@@ -1915,7 +1970,8 @@ function App() {
         data-no-hold
         onClick={() => setSecret(true)}
       >
-        by issmaker
+        <span className="signature-wave">{[..."ISSMAKER"].map((letter,i)=><i key={i} style={{"--i":i}}>{letter}</i>)}</span>
+        <small>IMAGINED IN LIGHT</small>
       </button>
       <SecretScene
         active={secret}

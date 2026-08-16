@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(AGRAdaptiveTextureOptimizer VERSION 42.0.0 LANGUAGES CXX)
+project(AGRAdaptiveTextureOptimizer VERSION 43.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -46,6 +46,8 @@ qt_add_resources(AdaptiveTextureOptimizer app_icons
         assets/lucide/log-out.svg)
 
 target_include_directories(AdaptiveTextureOptimizer PRIVATE src)
+target_compile_definitions(AdaptiveTextureOptimizer PRIVATE
+    AGR_APP_VERSION="${PROJECT_VERSION_MAJOR}")
 target_link_libraries(AdaptiveTextureOptimizer PRIVATE
     Qt6::Widgets Qt6::WebEngineWidgets Qt6::WebChannel Qt6::Concurrent libdeflate_static)
 

@@ -1023,8 +1023,20 @@ const ZoomPane = React.memo(function ZoomPane({ title, src, view, setView }) {
         window.__AGR_TEST_VERTICAL_Y__ = next.y;
         return next;
       });
+    const testZoom = (e) => {
+      window.__AGR_WHEEL_COUNT__ = (window.__AGR_WHEEL_COUNT__ || 0) + 1;
+      setView((v) => {
+        const s = Math.max(1, Math.min(MAX_ZOOM, v.s * Number(e.detail?.factor || 1.1)));
+        window.__AGR_ZOOM_TARGET__ = s;
+        return clamp({ ...v, s });
+      });
+    };
     addEventListener("agr-test-drag", testDrag);
-    return () => removeEventListener("agr-test-drag", testDrag);
+    addEventListener("agr-test-zoom", testZoom);
+    return () => {
+      removeEventListener("agr-test-drag", testDrag);
+      removeEventListener("agr-test-zoom", testZoom);
+    };
   }, [clamp, setView]);
   useEffect(
     () => () => {

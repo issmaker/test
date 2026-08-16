@@ -207,13 +207,15 @@ int main(int argc,char**argv){
                     const zoom=document.querySelector('.zoom-pane');
                     if(!zoom)return;
                     clearInterval(timer);
-                    for(let i=0;i<40;i++)zoom.dispatchEvent(new WheelEvent('wheel',{deltaY:-180,clientX:500,clientY:420,bubbles:true,cancelable:true}));
-                    let step=0;
-                    const stress=setInterval(()=>{
-                        dispatchEvent(new CustomEvent('agr-test-drag',{detail:{x:(step%3)-1,y:9}}));
-                        if(++step>=120){clearInterval(stress);window.__AGR_STRESS_DONE__=true;}
-                    },6);
-                    dispatchEvent(new CustomEvent('agr-hint',{detail:{open:true,text:'TOOLTIP TEST',x:720,y:42}}));
+                    setTimeout(()=>{
+                        for(let i=0;i<40;i++)dispatchEvent(new CustomEvent('agr-test-zoom',{detail:{factor:1.1}}));
+                        let step=0;
+                        const stress=setInterval(()=>{
+                            dispatchEvent(new CustomEvent('agr-test-drag',{detail:{x:(step%3)-1,y:9}}));
+                            if(++step>=120){clearInterval(stress);window.__AGR_STRESS_DONE__=true;}
+                        },6);
+                        dispatchEvent(new CustomEvent('agr-hint',{detail:{open:true,text:'TOOLTIP TEST',x:720,y:42}}));
+                    },80);
                 },100);
                 setTimeout(()=>clearInterval(timer),3200);
             })())JS"));});

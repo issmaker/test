@@ -30,6 +30,7 @@ import * as THREE from "three";
 import "./style.css";
 import "./v47.css";
 import "./v48.css";
+import "./v49.css";
 
 const EMPTY = {
   sourceUrl: "",
@@ -247,10 +248,12 @@ function DecodeText({ children, trigger = 0 }) {
   );
 }
 
-function CursorTrail({ active }) {
+function MagneticCursorField({ active, fieldRef }) {
   const dots = useRef([]),
-    target = useRef({ x: innerWidth / 2, y: innerHeight / 2 }),
-    points = useRef(Array.from({ length: 12 }, () => ({ ...target.current })));
+    root = useRef(null),
+    hive = useRef(null),
+    target = useRef({ x: innerWidth * .67, y: innerHeight * .49 }),
+    points = useRef(Array.from({ length: 18 }, () => ({ ...target.current })));
   useEffect(() => {
     if (!active) return undefined;
     const move = (e) => {
@@ -258,17 +261,27 @@ function CursorTrail({ active }) {
     };
     let raf;
     const tick = () => {
+      const influence = fieldRef?.current?.influence || 0;
       let lead = target.current;
       points.current.forEach((p, i) => {
-        const ease = 0.28 - i * 0.012;
+        const ease = Math.max(.08, .34 - i * .014);
         p.x += (lead.x - p.x) * ease;
         p.y += (lead.y - p.y) * ease;
         dots.current[i]?.style.setProperty(
           "transform",
-          `translate3d(${p.x}px,${p.y}px,0) translate(-50%,-50%) scale(${1 - i / 15})`,
+          `translate3d(${p.x}px,${p.y}px,0) translate(-50%,-50%) rotate(${i * 11}deg) scale(${Math.max(.28, 1 - i / 22)})`,
         );
+        dots.current[i]?.style.setProperty("opacity", influence * Math.max(.08, .72 - i * .032));
         lead = p;
       });
+      if (hive.current) {
+        root.current?.style.setProperty("--field-energy", influence);
+        hive.current.style.setProperty("--hive-energy", influence);
+        hive.current.style.setProperty(
+          "transform",
+          `translate3d(${target.current.x}px,${target.current.y}px,0) translate(-50%,-50%) scale(${.72 + influence * .3}) rotate(${(fieldRef?.current?.x || 0) * 4}deg)`,
+        );
+      }
       raf = requestAnimationFrame(tick);
     };
     addEventListener("pointermove", move);
@@ -280,10 +293,13 @@ function CursorTrail({ active }) {
   }, [active]);
   if (!active) return null;
   return (
-    <div className="cursor-trail">
+    <div className="magnetic-cursor-field" ref={root} aria-hidden="true">
       {points.current.map((_, i) => (
-        <i key={i} ref={(el) => (dots.current[i] = el)} />
+        <i key={i} ref={(el) => (dots.current[i] = el)} style={{ "--trail-index": i }} />
       ))}
+      <div className="magnetic-hive" ref={hive}>
+        {Array.from({ length: 7 }, (_, i) => <b key={i} style={{ "--cell": i }} />)}
+      </div>
     </div>
   );
 }
@@ -545,76 +561,117 @@ function NeuralLines({ active, motionValue, colors }) {
   );
 }
 
-function makeRibbonGeometry(radius, width, phase, segments) {
-  const positions = [], uvs = [], indices = [];
-  const start = -Math.PI * .82, end = Math.PI * 1.34;
+function makeNestedBandGeometry(radius, width, gap, depth, quality) {
+  const segments = quality === "eco" ? 52 : quality === "max" ? 112 : 80;
+  const start = gap * .5;
+  const end = Math.PI * 2 - gap * .5;
+  const points = [];
   for (let i = 0; i <= segments; i++) {
-    const u = i / segments, a = THREE.MathUtils.lerp(start, end, u);
-    const center = new THREE.Vector3(
-      Math.cos(a) * radius,
-      Math.sin(a * .57 + phase) * .15,
-      Math.sin(a) * radius * .72,
-    );
-    const side = new THREE.Vector3(
-      -.16 * Math.sin(a + phase),
-      1,
-      .22 * Math.cos(a - phase),
-    ).normalize().multiplyScalar(width * .5);
-    const left = center.clone().sub(side), right = center.clone().add(side);
-    positions.push(left.x, left.y, left.z, right.x, right.y, right.z);
-    uvs.push(u, 0, u, 1);
-    if (i < segments) {
-      const n = i * 2;
-      indices.push(n, n + 1, n + 2, n + 1, n + 3, n + 2);
-    }
+    const angle = THREE.MathUtils.lerp(start, end, i / segments);
+    points.push(new THREE.Vector2(Math.cos(angle) * radius, Math.sin(angle) * radius));
   }
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-  geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
-  geometry.setIndex(indices);
+  for (let i = segments; i >= 0; i--) {
+    const angle = THREE.MathUtils.lerp(start, end, i / segments);
+    const inner = radius - width;
+    points.push(new THREE.Vector2(Math.cos(angle) * inner, Math.sin(angle) * inner));
+  }
+  const shape = new THREE.Shape(points);
+  const geometry = new THREE.ExtrudeGeometry(shape, {
+    depth,
+    steps: 1,
+    curveSegments: segments,
+    bevelEnabled: true,
+    bevelSegments: quality === "eco" ? 2 : 5,
+    bevelSize: Math.min(width * .16, .055),
+    bevelThickness: Math.min(depth * .22, .045),
+  });
+  geometry.translate(0, 0, -depth * .5);
   geometry.computeVertexNormals();
   return geometry;
 }
 
-function RibbonBand({ radius, width, phase, rotation, colors, index, quality }) {
-  const segments = quality === "eco" ? 64 : quality === "max" ? 144 : 96;
+function NestedBand({ radius, width, gap, depth, index, quality, register }) {
   const geometry = useMemo(
-    () => makeRibbonGeometry(radius, width, phase, segments),
-    [radius, width, phase, segments],
+    () => makeNestedBandGeometry(radius, width, gap, depth, quality),
+    [radius, width, gap, depth, quality],
   );
-  useEffect(() => () => geometry.dispose(), [geometry]);
+  const edges = useMemo(() => new THREE.EdgesGeometry(geometry, 24), [geometry]);
+  useEffect(() => () => {
+    geometry.dispose();
+    edges.dispose();
+  }, [geometry, edges]);
   return (
-    <mesh geometry={geometry} rotation={rotation} castShadow={quality !== "eco"}>
+    <mesh ref={register} geometry={geometry} castShadow={quality !== "eco"} receiveShadow>
       <meshPhysicalMaterial
-        color={index % 2 ? "#3a123d" : "#521449"}
-        emissive={colors[index % 2]}
-        emissiveIntensity={index === 1 ? .34 : .18}
-        metalness={.28}
-        roughness={.24}
+        color={index % 2 ? "#45112f" : "#5b163d"}
+        emissive={index % 2 ? "#9f174f" : "#c21d69"}
+        emissiveIntensity={index === 0 ? .26 : .15}
+        metalness={.12}
+        roughness={.34}
         clearcoat={1}
-        clearcoatRoughness={.1}
-        iridescence={.72}
-        iridescenceIOR={1.42}
-        side={THREE.DoubleSide}
+        clearcoatRoughness={.13}
+        sheen={.7}
+        sheenColor="#ff4d9b"
+        sheenRoughness={.28}
       />
+      <lineSegments geometry={edges} renderOrder={2}>
+        <lineBasicMaterial
+          color={index < 2 ? "#ff4b9e" : "#e72f83"}
+          transparent
+          opacity={index < 2 ? .58 : .42}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+        />
+      </lineSegments>
     </mesh>
   );
 }
 
-function GlassFieldSphere({ screen, quality, colors, fieldRef, progress }) {
-  const group = useRef(), core = useRef(), shell = useRef(), glow = useRef();
+const SHELL_VERTEX = `
+  varying vec3 vNormal;
+  varying vec3 vView;
+  varying vec3 vWorld;
+  void main() {
+    vec4 world = modelMatrix * vec4(position, 1.0);
+    vWorld = world.xyz;
+    vNormal = normalize(mat3(modelMatrix) * normal);
+    vView = cameraPosition - world.xyz;
+    gl_Position = projectionMatrix * viewMatrix * world;
+  }
+`;
+const SHELL_FRAGMENT = `
+  varying vec3 vNormal;
+  varying vec3 vView;
+  varying vec3 vWorld;
+  uniform float uEnergy;
+  void main() {
+    float facing = clamp(dot(normalize(vNormal), normalize(vView)), 0.0, 1.0);
+    float fresnel = pow(1.0 - facing, 2.35);
+    float topGlow = smoothstep(-1.5, 1.7, vWorld.y) * 0.075;
+    vec3 plum = vec3(0.34, 0.055, 0.22);
+    vec3 rose = vec3(1.0, 0.18, 0.53);
+    vec3 color = mix(plum, rose, fresnel * .78 + uEnergy * .13);
+    float alpha = .035 + fresnel * (.31 + uEnergy * .13) + topGlow;
+    gl_FragColor = vec4(color, alpha);
+  }
+`;
+
+function GlassFieldSphere({ screen, quality, fieldRef, progress }) {
+  const group = useRef(), core = useRef(), shell = useRef(), glass = useRef(), light = useRef();
+  const bands = useRef([]);
   const sphereSegments = quality === "eco" ? 40 : quality === "max" ? 88 : 64;
-  const ribbons = [
-    [1.36, .42, .1, [.12, .2, -.12]],
-    [1.08, .37, .8, [-.15, -.1, .24]],
-    [.79, .32, 1.45, [.22, .08, -.3]],
-    [.51, .27, 2.05, [-.18, .25, .18]],
+  const nested = [
+    [1.50, .33, 1.02, .24],
+    [1.25, .31, .92, .23],
+    [1.01, .29, .82, .22],
+    [.78, .26, .72, .21],
+    [.57, .22, .62, .19],
   ];
   useFrame(({ clock }) => {
     if (!group.current || !core.current) return;
     const t = clock.elapsedTime, field = fieldRef?.current || { x: 0, y: 0, influence: 0 };
     const route = screen === "home"
-      ? [1.65, .02, -.72, 1]
+      ? [1.48, .02, -.78, 1.08]
       : screen === "npm"
         ? [3.75, -1.2, -1.55, .66]
         : screen === "batch"
@@ -622,61 +679,85 @@ function GlassFieldSphere({ screen, quality, colors, fieldRef, progress }) {
           : [3.9, 1.72, -2.2, .48];
     const magnetic = screen === "home" ? field.influence || 0 : .08;
     const dive = screen === "home" ? progress : 0;
-    group.current.position.x = THREE.MathUtils.lerp(group.current.position.x, route[0] + field.x * magnetic * .22, .055);
-    group.current.position.y = THREE.MathUtils.lerp(group.current.position.y, route[1] + field.y * magnetic * .16, .055);
+    group.current.position.x = THREE.MathUtils.lerp(group.current.position.x, route[0], .055);
+    group.current.position.y = THREE.MathUtils.lerp(group.current.position.y, route[1], .055);
     group.current.position.z = THREE.MathUtils.lerp(group.current.position.z, route[2] + dive * 3.25, .045);
     const scale = route[3] * (1 + magnetic * .045 + dive * 1.72);
     group.current.scale.setScalar(THREE.MathUtils.lerp(group.current.scale.x, scale, .05));
-    group.current.rotation.x = THREE.MathUtils.lerp(group.current.rotation.x, .08 - field.y * magnetic * .18, .045);
-    group.current.rotation.y = THREE.MathUtils.lerp(group.current.rotation.y, t * .055 + field.x * magnetic * .32, .045);
-    group.current.rotation.z = THREE.MathUtils.lerp(group.current.rotation.z, -.16 + Math.sin(t * .19) * .035, .035);
-    core.current.rotation.y = t * .105 + field.x * magnetic * .28;
-    core.current.rotation.z = Math.sin(t * .16) * .12 - field.y * magnetic * .16;
+    group.current.rotation.x = THREE.MathUtils.lerp(group.current.rotation.x, .13, .045);
+    group.current.rotation.y = THREE.MathUtils.lerp(group.current.rotation.y, -.18, .045);
+    group.current.rotation.z = THREE.MathUtils.lerp(group.current.rotation.z, -.48 + Math.sin(t * .16) * .025, .035);
+    core.current.rotation.x = THREE.MathUtils.lerp(core.current.rotation.x, .42 - field.y * magnetic * .19, .035);
+    core.current.rotation.y = THREE.MathUtils.lerp(core.current.rotation.y, -.62 + t * .12 + field.x * magnetic * .34, .035);
+    core.current.rotation.z = THREE.MathUtils.lerp(core.current.rotation.z, -.24 + Math.sin(t * .18) * .1, .035);
+    bands.current.forEach((band, index) => {
+      if (!band) return;
+      const direction = index - 2;
+      band.position.z = THREE.MathUtils.lerp(band.position.z, direction * .09 + magnetic * direction * .075, .08);
+      band.rotation.x = THREE.MathUtils.lerp(band.rotation.x, magnetic * direction * .025, .07);
+      band.rotation.y = THREE.MathUtils.lerp(band.rotation.y, magnetic * direction * -.055, .07);
+      band.rotation.z = THREE.MathUtils.lerp(band.rotation.z, index * -.055 + magnetic * direction * .045, .07);
+    });
     if (shell.current) {
-      shell.current.material.opacity = .16 + magnetic * .1 + dive * .12;
-      shell.current.material.iridescence = .55 + magnetic * .4;
+      shell.current.material.opacity = .13 + magnetic * .055 + dive * .1;
     }
-    if (glow.current) glow.current.material.opacity = .035 + magnetic * .055 + dive * .06;
+    if (glass.current) glass.current.uniforms.uEnergy.value = magnetic + dive * .45;
+    if (light.current) {
+      light.current.position.x = THREE.MathUtils.lerp(light.current.position.x, field.x * 2.2, .09);
+      light.current.position.y = THREE.MathUtils.lerp(light.current.position.y, field.y * 1.7, .09);
+      light.current.intensity = (quality === "eco" ? 2.2 : 5.2) + magnetic * 5.5;
+    }
   });
   return (
-    <group ref={group} position={[1.65, .02, -.72]} rotation={[.08, 0, -.16]}>
-      <group ref={core}>
-        {ribbons.map(([radius, width, phase, rotation], index) => (
-          <RibbonBand key={radius} radius={radius} width={width} phase={phase} rotation={rotation} colors={colors} index={index} quality={quality} />
-        ))}
-        {[1.46, 1.15, .84].map((radius, index) => (
-          <mesh key={radius} rotation={[.22 + index * .12, -.28 + index * .17, .34 - index * .14]}>
-            <torusGeometry args={[radius, .018, 8, quality === "eco" ? 72 : 128, Math.PI * 1.72]} />
-            <meshBasicMaterial color={colors[index % 2]} transparent opacity={.72 - index * .12} blending={THREE.AdditiveBlending} depthWrite={false} />
-          </mesh>
+    <group ref={group} position={[1.48, .02, -.78]} rotation={[.13, -.18, -.48]}>
+      <group ref={core} rotation={[.42, -.62, -.24]}>
+        {nested.map(([radius, width, gap, depth], index) => (
+          <NestedBand
+            key={radius}
+            radius={radius}
+            width={width}
+            gap={gap}
+            depth={depth}
+            index={index}
+            quality={quality}
+            register={(node) => { bands.current[index] = node; }}
+          />
         ))}
       </group>
       <mesh ref={shell} scale={1.84} renderOrder={4}>
         <sphereGeometry args={[1, sphereSegments, sphereSegments]} />
         <meshPhysicalMaterial
-          color="#4b174f"
+          color="#7c285c"
           transparent
-          opacity={.18}
-          transmission={.86}
-          thickness={1.3}
-          roughness={.08}
+          opacity={.13}
+          transmission={.91}
+          thickness={1.7}
+          roughness={.12}
           metalness={0}
           clearcoat={1}
-          clearcoatRoughness={.04}
-          ior={1.28}
-          iridescence={.68}
-          iridescenceIOR={1.34}
-          iridescenceThicknessRange={[120, 520]}
-          envMapIntensity={1.55}
+          clearcoatRoughness={.03}
+          ior={1.23}
+          attenuationColor="#d5277d"
+          attenuationDistance={1.15}
+          envMapIntensity={1.35}
           depthWrite={false}
         />
       </mesh>
-      <mesh ref={glow} scale={1.88} renderOrder={3}>
-        <sphereGeometry args={[1, quality === "eco" ? 32 : 56, quality === "eco" ? 32 : 56]} />
-        <meshBasicMaterial color={colors[0]} transparent opacity={.045} side={THREE.BackSide} blending={THREE.AdditiveBlending} depthWrite={false} />
+      <mesh scale={1.875} renderOrder={5}>
+        <sphereGeometry args={[1, sphereSegments, sphereSegments]} />
+        <shaderMaterial
+          ref={glass}
+          vertexShader={SHELL_VERTEX}
+          fragmentShader={SHELL_FRAGMENT}
+          uniforms={{ uEnergy: { value: 0 } }}
+          transparent
+          depthWrite={false}
+          side={THREE.FrontSide}
+          blending={THREE.AdditiveBlending}
+        />
       </mesh>
-      <pointLight color={colors[0]} intensity={quality === "eco" ? 1.8 : 3.4} distance={7} position={[1.7, .9, 2]} />
-      <pointLight color={colors[1]} intensity={quality === "eco" ? 1.2 : 2.7} distance={6} position={[-1.4, -1.1, 1]} />
+      <pointLight ref={light} color="#ff3e99" intensity={quality === "eco" ? 2.2 : 5.2} distance={6} position={[1.2, .8, 2.4]} />
+      <pointLight color="#ff9bc8" intensity={quality === "eco" ? 1.1 : 2.8} distance={5} position={[-1.4, 1.5, 1.4]} />
     </group>
   );
 }
@@ -685,14 +766,15 @@ function CameraRig({ progress, fieldRef, screen }) {
   const { camera } = useThree();
   useFrame(({ clock }) => {
     const field = fieldRef?.current || { x: 0, y: 0 };
+    const parallax = screen === "home" ? 0 : 1;
     camera.position.x = THREE.MathUtils.lerp(
       camera.position.x,
-      field.x * 0.18,
+      field.x * 0.18 * parallax,
       0.03,
     );
     camera.position.y = THREE.MathUtils.lerp(
       camera.position.y,
-      field.y * 0.13,
+      field.y * 0.13 * parallax,
       0.03,
     );
     camera.position.z = THREE.MathUtils.lerp(
@@ -738,7 +820,7 @@ function Scene({ progress, theme, quality, screen, fieldRef }) {
         <Lightformer form="rect" intensity={4} color="#ff4fa8" scale={[4,2,1]} position={[4,-1,1]} rotation-y={-Math.PI/2} />
         <Lightformer form="circle" intensity={3} color="#ffffff" scale={2} position={[0,5,-2]} rotation-x={Math.PI/2} />
       </Environment>
-      <GlassFieldSphere screen={screen} quality={quality} colors={colors} fieldRef={fieldRef} progress={progress} />
+      <GlassFieldSphere screen={screen} quality={quality} fieldRef={fieldRef} progress={progress} />
       <Sparkles
         count={density}
         scale={[12, 7, 4]}
@@ -2107,7 +2189,7 @@ function App() {
           </SceneBoundary>
         )}
       </div>
-      <CursorTrail active={screen === "home" && quality !== "eco" && !diving} />
+      <MagneticCursorField active={screen === "home" && quality !== "eco" && !diving} fieldRef={fieldRef} />
       <TooltipLayer />
       <Header
         screen={screen}

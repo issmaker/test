@@ -1,12 +1,12 @@
 cmake_minimum_required(VERSION 3.24)
-project(AGRAdaptiveTextureOptimizer VERSION 1.0.0 LANGUAGES CXX)
+project(AGRAdaptiveTextureOptimizer VERSION 46.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
-find_package(Qt6 6.6 REQUIRED COMPONENTS Quick QuickControls2 Concurrent)
+find_package(Qt6 6.6 REQUIRED COMPONENTS Widgets WebEngineWidgets WebChannel Concurrent)
 
 include(FetchContent)
 set(LIBDEFLATE_BUILD_GZIP OFF CACHE BOOL "" FORCE)
@@ -25,29 +25,31 @@ qt_add_executable(AdaptiveTextureOptimizer
     src/PngEncoder.cpp
     src/TextureProcessor.cpp)
 
-qt_add_qml_module(AdaptiveTextureOptimizer
-    URI AGR.TextureOptimizer
-    VERSION 1.0
-    QML_FILES
-        qml/Main.qml
-        qml/AppButton.qml
-        qml/GlassCard.qml
-        qml/MetricChip.qml
-        qml/StarCounter.qml
-        qml/LimitSelector.qml
-        qml/ZoomView.qml
-        qml/Sparkline.qml
-        qml/SpaceBackground.qml
-        qml/MeteorOverlay.qml)
+qt_add_resources(AdaptiveTextureOptimizer web_interface
+    PREFIX "/web"
+    BASE "web/dist"
+    FILES
+        web/dist/index.html
+        web/dist/assets/app.js
+        web/dist/assets/app.css)
 
 qt_add_resources(AdaptiveTextureOptimizer app_icons
     PREFIX "/icons"
     BASE "assets"
-    FILES assets/black-hole.svg)
+    FILES
+        assets/liquid.svg
+        assets/lucide/house.svg
+        assets/lucide/scan-line.svg
+        assets/lucide/images.svg
+        assets/lucide/columns-2.svg
+        assets/lucide/activity.svg
+        assets/lucide/log-out.svg)
 
 target_include_directories(AdaptiveTextureOptimizer PRIVATE src)
+target_compile_definitions(AdaptiveTextureOptimizer PRIVATE
+    AGR_APP_VERSION="${PROJECT_VERSION_MAJOR}")
 target_link_libraries(AdaptiveTextureOptimizer PRIVATE
-    Qt6::Quick Qt6::QuickControls2 Qt6::Concurrent libdeflate_static)
+    Qt6::Widgets Qt6::WebEngineWidgets Qt6::WebChannel Qt6::Concurrent libdeflate_static)
 
 if(WIN32)
     enable_language(RC)

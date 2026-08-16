@@ -1,7 +1,7 @@
 {
   "name": "adaptive-texture-optimizer-ui",
   "private": true,
-  "version": "42.0.0",
+  "version": "43.0.0",
   "type": "module",
   "scripts": {
     "build": "vite build"

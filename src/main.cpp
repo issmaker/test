@@ -25,6 +25,10 @@
 #include <windows.h>
 #endif
 
+#ifndef AGR_APP_VERSION
+#define AGR_APP_VERSION "43"
+#endif
+
 namespace {
 QString g_startupLogPath;
 QMutex g_logMutex;
@@ -129,7 +133,7 @@ int main(int argc,char**argv){
     textureScheme.setSyntax(QWebEngineUrlScheme::Syntax::HostAndPort);
     textureScheme.setFlags(QWebEngineUrlScheme::SecureScheme|QWebEngineUrlScheme::LocalScheme|QWebEngineUrlScheme::LocalAccessAllowed|QWebEngineUrlScheme::CorsEnabled);
     QWebEngineUrlScheme::registerScheme(textureScheme);
-    QApplication app(argc,argv);app.setApplicationName("Adaptive Texture Optimizer");app.setApplicationVersion("42");
+    QApplication app(argc,argv);app.setApplicationName("Adaptive Texture Optimizer");app.setApplicationVersion(QStringLiteral(AGR_APP_VERSION));
     app.setWindowIcon(QIcon(QStringLiteral(":/icons/liquid.svg")));
     g_startupLogPath = QCoreApplication::applicationDirPath()
         + QStringLiteral("/AdaptiveTextureOptimizer-startup.log");
@@ -137,7 +141,7 @@ int main(int argc,char**argv){
         QFile log(g_startupLogPath);
         if (log.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
             QTextStream out(&log);
-            out << "Adaptive Texture Optimizer 42 startup\n";
+            out << "Adaptive Texture Optimizer " AGR_APP_VERSION " startup\n";
             out << "Qt " << qVersion() << "\n";
         }
     }
@@ -191,7 +195,7 @@ int main(int argc,char**argv){
             });
         }
     });
-    window.setWindowTitle(QStringLiteral("Оптимизатор текстур 42"));window.setCentralWidget(view);
+    window.setWindowTitle(QStringLiteral("Оптимизатор текстур " AGR_APP_VERSION));window.setCentralWidget(view);
     view->setUrl(QUrl(startupTest?QStringLiteral("qrc:/web/index.html?headless-test=1"):QStringLiteral("qrc:/web/index.html")));window.showFullScreen();
     if(argc>1)optimizer.load(QUrl::fromLocalFile(QString::fromLocal8Bit(argv[1])).toString());
     return app.exec();

@@ -8,7 +8,7 @@ import React, {
 } from "react";
 import { createRoot } from "react-dom/client";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Environment, Lightformer, MeshDistortMaterial, RoundedBox, Sparkles } from "@react-three/drei";
+import { Environment, Lightformer, Sparkles } from "@react-three/drei";
 import { AnimatePresence, motion } from "motion/react";
 import { gsap } from "gsap";
 import {
@@ -29,6 +29,7 @@ import {
 import * as THREE from "three";
 import "./style.css";
 import "./v47.css";
+import "./v48.css";
 
 const EMPTY = {
   sourceUrl: "",
@@ -204,12 +205,12 @@ function TooltipLayer() {
   );
 }
 
-function DecodeText({ children }) {
+function DecodeText({ children, trigger = 0 }) {
   const original = String(children),
     [value, setValue] = useState(original),
     frame = useRef(0),
     glyphs = "01<>/\\{}[]#%*+—";
-  const decode = () => {
+  const decode = useCallback(() => {
     cancelAnimationFrame(frame.current);
     const start = performance.now();
     const run = (now) => {
@@ -230,9 +231,17 @@ function DecodeText({ children }) {
       if (p < 1) frame.current = requestAnimationFrame(run);
     };
     frame.current = requestAnimationFrame(run);
-  };
+  }, [original]);
+  useEffect(() => () => cancelAnimationFrame(frame.current), []);
+  useEffect(() => {
+    if (trigger) decode();
+  }, [decode, trigger]);
   return (
-    <span className="decode-text" onPointerEnter={decode}>
+    <span
+      className="decode-text"
+      style={{ "--decode-chars": original.length }}
+      onPointerEnter={decode}
+    >
       {value}
     </span>
   );
@@ -536,62 +545,154 @@ function NeuralLines({ active, motionValue, colors }) {
   );
 }
 
-function IridescentCore({ screen, quality, colors }) {
-  const group = useRef(), material = useRef();
-  const segments = quality === "eco" ? 48 : quality === "max" ? 112 : 80;
-  useFrame(({ clock, pointer }) => {
-    if (!group.current) return;
-    const t = clock.elapsedTime;
-    group.current.rotation.y = t * .13 + pointer.x * .18;
-    group.current.rotation.x = Math.sin(t * .19) * .12 - pointer.y * .1;
-    const targets = screen === "home" ? [1.25,.08,-.4,1] : screen === "npm" ? [3.7,-1.25,-1.3,.72] : screen === "batch" ? [-3.5,1.25,-1.6,.6] : [-4,-2,-2,.45];
-    group.current.position.x = THREE.MathUtils.lerp(group.current.position.x, targets[0], .025);
-    group.current.position.y = THREE.MathUtils.lerp(group.current.position.y, targets[1], .025);
-    group.current.position.z = THREE.MathUtils.lerp(group.current.position.z, targets[2], .025);
-    group.current.scale.setScalar(THREE.MathUtils.lerp(group.current.scale.x, targets[3], .025));
-  });
-  return <group ref={group} position={[1.25,.08,-.4]}>
-    <mesh castShadow>
-      <icosahedronGeometry args={[1.65, segments > 64 ? 6 : 5]} />
-      <MeshDistortMaterial ref={material} color="#826dff" roughness={.13} metalness={.08} clearcoat={1} clearcoatRoughness={.05} transmission={.34} thickness={1.8} ior={1.36} iridescence={1} iridescenceIOR={1.62} iridescenceThicknessRange={[180,620]} distort={.47} speed={quality === "eco" ? .55 : quality === "max" ? 1.15 : .82} envMapIntensity={2.1} />
-    </mesh>
-    <mesh scale={1.035}>
-      <icosahedronGeometry args={[1.65,4]} />
-      <meshBasicMaterial color={colors[0]} transparent opacity={.055} blending={THREE.AdditiveBlending} depthWrite={false} />
-    </mesh>
-    <pointLight color="#54eaff" intensity={5.2} distance={8} position={[-2,1.5,2]} />
-    <pointLight color="#ff4fae" intensity={4.8} distance={8} position={[2,-1,2]} />
-  </group>;
+function makeRibbonGeometry(radius, width, phase, segments) {
+  const positions = [], uvs = [], indices = [];
+  const start = -Math.PI * .82, end = Math.PI * 1.34;
+  for (let i = 0; i <= segments; i++) {
+    const u = i / segments, a = THREE.MathUtils.lerp(start, end, u);
+    const center = new THREE.Vector3(
+      Math.cos(a) * radius,
+      Math.sin(a * .57 + phase) * .15,
+      Math.sin(a) * radius * .72,
+    );
+    const side = new THREE.Vector3(
+      -.16 * Math.sin(a + phase),
+      1,
+      .22 * Math.cos(a - phase),
+    ).normalize().multiplyScalar(width * .5);
+    const left = center.clone().sub(side), right = center.clone().add(side);
+    positions.push(left.x, left.y, left.z, right.x, right.y, right.z);
+    uvs.push(u, 0, u, 1);
+    if (i < segments) {
+      const n = i * 2;
+      indices.push(n, n + 1, n + 2, n + 1, n + 3, n + 2);
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  return geometry;
 }
 
-function CerebriumSculpture({ screen, colors }) {
-  const group = useRef();
-  useFrame(({ clock, pointer }) => {
-    if (!group.current) return;
-    const visible = screen !== "home" ? 1 : .82;
-    group.current.rotation.y = THREE.MathUtils.lerp(group.current.rotation.y, clock.elapsedTime*.055 + pointer.x*.12, .02);
-    group.current.rotation.z = THREE.MathUtils.lerp(group.current.rotation.z, screen === "batch" ? .58 : screen === "npm" ? -.28 : .12, .025);
-    group.current.scale.setScalar(THREE.MathUtils.lerp(group.current.scale.x, visible, .025));
-  });
-  return <group ref={group} position={[-1.5,0,-1.8]} rotation={[.2,0,.12]}>
-    <mesh scale={2.3}><sphereGeometry args={[1,64,64]} /><meshPhysicalMaterial color="#2a0929" transparent opacity={.13} transmission={.45} roughness={.1} side={THREE.BackSide} depthWrite={false} /></mesh>
-    {Array.from({length:5},(_,i)=><RoundedBox key={i} args={[3.1,.48,.52]} radius={.22} smoothness={6} position={[0,(i-2)*.55,(i-2)*.08]} rotation={[0,(i-2)*.07,(i-2)*-.06]}>
-      <meshPhysicalMaterial color={i===2?colors[0]:"#451039"} metalness={.5} roughness={.2} clearcoat={1} emissive={colors[i%2]} emissiveIntensity={i===2?.32:.08} />
-    </RoundedBox>)}
-  </group>;
+function RibbonBand({ radius, width, phase, rotation, colors, index, quality }) {
+  const segments = quality === "eco" ? 64 : quality === "max" ? 144 : 96;
+  const geometry = useMemo(
+    () => makeRibbonGeometry(radius, width, phase, segments),
+    [radius, width, phase, segments],
+  );
+  useEffect(() => () => geometry.dispose(), [geometry]);
+  return (
+    <mesh geometry={geometry} rotation={rotation} castShadow={quality !== "eco"}>
+      <meshPhysicalMaterial
+        color={index % 2 ? "#3a123d" : "#521449"}
+        emissive={colors[index % 2]}
+        emissiveIntensity={index === 1 ? .34 : .18}
+        metalness={.28}
+        roughness={.24}
+        clearcoat={1}
+        clearcoatRoughness={.1}
+        iridescence={.72}
+        iridescenceIOR={1.42}
+        side={THREE.DoubleSide}
+      />
+    </mesh>
+  );
 }
 
-function CameraRig({ progress, motionValue, screen }) {
-  const { camera, pointer } = useThree();
+function GlassFieldSphere({ screen, quality, colors, fieldRef, progress }) {
+  const group = useRef(), core = useRef(), shell = useRef(), glow = useRef();
+  const sphereSegments = quality === "eco" ? 40 : quality === "max" ? 88 : 64;
+  const ribbons = [
+    [1.36, .42, .1, [.12, .2, -.12]],
+    [1.08, .37, .8, [-.15, -.1, .24]],
+    [.79, .32, 1.45, [.22, .08, -.3]],
+    [.51, .27, 2.05, [-.18, .25, .18]],
+  ];
   useFrame(({ clock }) => {
+    if (!group.current || !core.current) return;
+    const t = clock.elapsedTime, field = fieldRef?.current || { x: 0, y: 0, influence: 0 };
+    const route = screen === "home"
+      ? [1.65, .02, -.72, 1]
+      : screen === "npm"
+        ? [3.75, -1.2, -1.55, .66]
+        : screen === "batch"
+          ? [-3.65, 1.25, -1.7, .58]
+          : [3.9, 1.72, -2.2, .48];
+    const magnetic = screen === "home" ? field.influence || 0 : .08;
+    const dive = screen === "home" ? progress : 0;
+    group.current.position.x = THREE.MathUtils.lerp(group.current.position.x, route[0] + field.x * magnetic * .22, .055);
+    group.current.position.y = THREE.MathUtils.lerp(group.current.position.y, route[1] + field.y * magnetic * .16, .055);
+    group.current.position.z = THREE.MathUtils.lerp(group.current.position.z, route[2] + dive * 3.25, .045);
+    const scale = route[3] * (1 + magnetic * .045 + dive * 1.72);
+    group.current.scale.setScalar(THREE.MathUtils.lerp(group.current.scale.x, scale, .05));
+    group.current.rotation.x = THREE.MathUtils.lerp(group.current.rotation.x, .08 - field.y * magnetic * .18, .045);
+    group.current.rotation.y = THREE.MathUtils.lerp(group.current.rotation.y, t * .055 + field.x * magnetic * .32, .045);
+    group.current.rotation.z = THREE.MathUtils.lerp(group.current.rotation.z, -.16 + Math.sin(t * .19) * .035, .035);
+    core.current.rotation.y = t * .105 + field.x * magnetic * .28;
+    core.current.rotation.z = Math.sin(t * .16) * .12 - field.y * magnetic * .16;
+    if (shell.current) {
+      shell.current.material.opacity = .16 + magnetic * .1 + dive * .12;
+      shell.current.material.iridescence = .55 + magnetic * .4;
+    }
+    if (glow.current) glow.current.material.opacity = .035 + magnetic * .055 + dive * .06;
+  });
+  return (
+    <group ref={group} position={[1.65, .02, -.72]} rotation={[.08, 0, -.16]}>
+      <group ref={core}>
+        {ribbons.map(([radius, width, phase, rotation], index) => (
+          <RibbonBand key={radius} radius={radius} width={width} phase={phase} rotation={rotation} colors={colors} index={index} quality={quality} />
+        ))}
+        {[1.46, 1.15, .84].map((radius, index) => (
+          <mesh key={radius} rotation={[.22 + index * .12, -.28 + index * .17, .34 - index * .14]}>
+            <torusGeometry args={[radius, .018, 8, quality === "eco" ? 72 : 128, Math.PI * 1.72]} />
+            <meshBasicMaterial color={colors[index % 2]} transparent opacity={.72 - index * .12} blending={THREE.AdditiveBlending} depthWrite={false} />
+          </mesh>
+        ))}
+      </group>
+      <mesh ref={shell} scale={1.84} renderOrder={4}>
+        <sphereGeometry args={[1, sphereSegments, sphereSegments]} />
+        <meshPhysicalMaterial
+          color="#4b174f"
+          transparent
+          opacity={.18}
+          transmission={.86}
+          thickness={1.3}
+          roughness={.08}
+          metalness={0}
+          clearcoat={1}
+          clearcoatRoughness={.04}
+          ior={1.28}
+          iridescence={.68}
+          iridescenceIOR={1.34}
+          iridescenceThicknessRange={[120, 520]}
+          envMapIntensity={1.55}
+          depthWrite={false}
+        />
+      </mesh>
+      <mesh ref={glow} scale={1.88} renderOrder={3}>
+        <sphereGeometry args={[1, quality === "eco" ? 32 : 56, quality === "eco" ? 32 : 56]} />
+        <meshBasicMaterial color={colors[0]} transparent opacity={.045} side={THREE.BackSide} blending={THREE.AdditiveBlending} depthWrite={false} />
+      </mesh>
+      <pointLight color={colors[0]} intensity={quality === "eco" ? 1.8 : 3.4} distance={7} position={[1.7, .9, 2]} />
+      <pointLight color={colors[1]} intensity={quality === "eco" ? 1.2 : 2.7} distance={6} position={[-1.4, -1.1, 1]} />
+    </group>
+  );
+}
+
+function CameraRig({ progress, fieldRef, screen }) {
+  const { camera } = useThree();
+  useFrame(({ clock }) => {
+    const field = fieldRef?.current || { x: 0, y: 0 };
     camera.position.x = THREE.MathUtils.lerp(
       camera.position.x,
-      pointer.x * 0.32 + (motionValue?.x || 0) * 0.04,
+      field.x * 0.18,
       0.03,
     );
     camera.position.y = THREE.MathUtils.lerp(
       camera.position.y,
-      pointer.y * 0.22 + (motionValue?.y || 0) * 0.04,
+      field.y * 0.13,
       0.03,
     );
     camera.position.z = THREE.MathUtils.lerp(
@@ -603,9 +704,9 @@ function CameraRig({ progress, motionValue, screen }) {
   });
   return null;
 }
-function Scene({ progress, theme, quality, screen }) {
+function Scene({ progress, theme, quality, screen, fieldRef }) {
   const colors = THEME_COLORS[theme] || THEME_COLORS.rose;
-  const density = quality === "eco" ? 45 : quality === "max" ? 125 : 80;
+  const density = quality === "eco" ? 24 : quality === "max" ? 92 : 54;
   return (
     <Canvas
       shadows={quality !== "eco"}
@@ -637,9 +738,7 @@ function Scene({ progress, theme, quality, screen }) {
         <Lightformer form="rect" intensity={4} color="#ff4fa8" scale={[4,2,1]} position={[4,-1,1]} rotation-y={-Math.PI/2} />
         <Lightformer form="circle" intensity={3} color="#ffffff" scale={2} position={[0,5,-2]} rotation-x={Math.PI/2} />
       </Environment>
-      <IridescentCore screen={screen} quality={quality} colors={colors} />
-      <CerebriumSculpture screen={screen} colors={colors} />
-      <NeuralLines active={false} motionValue={{ energy: 0 }} colors={colors} />
+      <GlassFieldSphere screen={screen} quality={quality} colors={colors} fieldRef={fieldRef} progress={progress} />
       <Sparkles
         count={density}
         scale={[12, 7, 4]}
@@ -647,7 +746,7 @@ function Scene({ progress, theme, quality, screen }) {
         speed={0.13}
         color={colors[0]}
       />
-      <CameraRig progress={progress} motionValue={{ x: 0, y: 0 }} screen={screen} />
+      <CameraRig progress={progress} fieldRef={fieldRef} screen={screen} />
     </Canvas>
   );
 }
@@ -667,7 +766,8 @@ class SceneBoundary extends React.Component {
   }
 }
 
-function Button({ children, quiet = false, danger = false, tip, className = "", ...props }) {
+function Button({ children, quiet = false, danger = false, tip, className = "", onPointerEnter, onPointerLeave, ...props }) {
+  const [decodeTick, setDecodeTick] = useState(0);
   const move = (e) => {
     const r = e.currentTarget.getBoundingClientRect();
     e.currentTarget.style.setProperty("--bx", `${e.clientX - r.left}px`);
@@ -678,10 +778,15 @@ function Button({ children, quiet = false, danger = false, tip, className = "", 
       className={`button ${quiet ? "quiet" : ""} ${danger ? "danger" : ""} ${className}`.trim()}
       data-no-hold
       onPointerMove={move}
+      onPointerEnter={(e) => {
+        setDecodeTick((value) => value + 1);
+        onPointerEnter?.(e);
+      }}
+      onPointerLeave={onPointerLeave}
       {...props}
     >
       <i />
-      <span>{children}</span>
+      <span>{typeof children === "string" ? <DecodeText trigger={decodeTick}>{children}</DecodeText> : children}</span>
     </button>
   );
   return <Hint text={tip}>{node}</Hint>;
@@ -770,7 +875,11 @@ function ProcessSignal({ progress = 0, status = "Ожидание", compact = fa
   const p = Math.max(0, Math.min(1, Number(progress || 0)));
   return <div className={`process-signal ${compact ? "compact" : ""}`} title={status}>
     <div className="signal-copy"><small>{p >= 1 ? "RGB24 VERIFIED" : p > 0 ? "ADAPTIVE PIPELINE" : "READY CHANNEL"}</small><strong>{Math.round(p * 100)}%</strong></div>
-    <div className="signal-bars">{Array.from({length:18},(_,i)=><i key={i} style={{"--h":`${20 + ((i * 37 + Math.round(p*100)) % 75)}%`,"--on":i/17<=p?1:.12}} />)}</div>
+    <div className="signal-rail" style={{ "--signal-progress": p }}>
+      <i />
+      <b />
+      <span>{Array.from({ length: 9 }, (_, i) => <em key={i} style={{ "--i": i }} />)}</span>
+    </div>
     <span>{String(status).split("·")[0].slice(0,72)}</span>
   </div>;
 }
@@ -835,7 +944,7 @@ function Header({ screen, backend, onSettings }) {
         </span>
         <div>
           <b>Оптимизатор текстур</b>
-          <small>ADAPTIVE RGB24 / v47</small>
+          <small>ADAPTIVE RGB24</small>
         </div>
       </div>
       <div className="route-status">
@@ -990,7 +1099,7 @@ function Home({ setScreen }) {
         </div>
       </section>
       <section className="hero-panel">
-        <div className="mode-console-head"><i /><span>SELECT OPERATION SPACE</span><b>AGR / 46</b></div>
+        <div className="mode-console-head"><i /><span>SELECT OPERATION SPACE</span><b>LIVE</b></div>
         <div className="capability-grid">
           <div><small>RGB24</small><strong>TRUE COLOR</strong><b>01</b></div>
           <div><small>8K READY</small><strong>SAFE PREVIEW</strong><b>02</b></div>
@@ -1001,7 +1110,7 @@ function Home({ setScreen }) {
           tip="Один PNG, результат строго меньше 3 MB"
           onClick={() => setScreen("npm")}
         >
-          <small>PRECISION CHANNEL · 01</small><b>НПМ · ДО 3 MB</b><em>ОДНА ТЕКСТУРА → ТОЧНЫЙ ЛИМИТ</em>
+          <small>PRECISION CHANNEL · 01</small><b><DecodeText>НПМ · ДО 3 MB</DecodeText></b><em>ОДНА ТЕКСТУРА → ТОЧНЫЙ ЛИМИТ</em>
         </Button>
         <Button
           className="mode-gate batch-gate"
@@ -1009,7 +1118,7 @@ function Home({ setScreen }) {
           quiet
           onClick={() => setScreen("batch")}
         >
-          <small>DATA CATHEDRAL · 02</small><b>ОПТИМИЗАТОР ТЕКСТУР</b><em>МНОГО PNG → 8K PIPELINE</em>
+          <small>DATA CATHEDRAL · 02</small><b><DecodeText>ОПТИМИЗАТОР ТЕКСТУР</DecodeText></b><em>МНОГО PNG → 8K PIPELINE</em>
         </Button>
       </section>
     </main>
@@ -1334,8 +1443,17 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before
       const fit = Math.min(fitW / img.naturalWidth, rect.height / img.naturalHeight);
       const scale = fit * c.s, dw = img.naturalWidth * scale, dh = img.naturalHeight * scale;
       const cx = modeRef.current === "pan" ? x0 + width / 2 : rect.width / 2;
-      ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = c.s > 8 ? "medium" : "high";
-      ctx.drawImage(img, cx - dw / 2 + c.x, rect.height / 2 - dh / 2 + c.y, dw, dh); ctx.restore();
+      const dx = cx - dw / 2 + c.x, dy = rect.height / 2 - dh / 2 + c.y;
+      const sx = Math.max(0, Math.min(img.naturalWidth, (x0 - dx) / scale));
+      const sy = Math.max(0, Math.min(img.naturalHeight, -dy / scale));
+      const ex = Math.max(0, Math.min(img.naturalWidth, (x0 + width - dx) / scale));
+      const ey = Math.max(0, Math.min(img.naturalHeight, (rect.height - dy) / scale));
+      const sw = Math.max(0, ex - sx), sh = Math.max(0, ey - sy);
+      ctx.imageSmoothingEnabled = scale < 1; ctx.imageSmoothingQuality = "high";
+      if (sw > 0 && sh > 0) {
+        ctx.drawImage(img, sx, sy, sw, sh, dx + sx * scale, dy + sy * scale, sw * scale, sh * scale);
+      }
+      ctx.restore();
     };
     if (modeRef.current === "wipe") {
       const cut = rect.width * c.split; draw(images.current.before, 0, rect.width); draw(images.current.after, 0, cut);
@@ -1363,7 +1481,12 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before
       if (img.complete) done();
     });
     Promise.all([load(before || (HEADLESS_TEST ? TEST_TEXTURE : "")), load(after || (HEADLESS_TEST ? TEST_TEXTURE : ""))]).then(([a,b]) => {
-      if (cancelled) return; images.current = { before: a, after: b }; loaded.current = Boolean(a || b); reset();
+      if (cancelled) return;
+      images.current = { before: a, after: b };
+      loaded.current = Boolean(a || b);
+      target.current = { s: 1, x: 0, y: 0, split: target.current.split };
+      current.current = { ...target.current };
+      reset();
     });
     return () => { cancelled = true; alive.current = false; cancelAnimationFrame(frame.current); frame.current = 0; };
   }, [before, after, reset]);
@@ -1372,13 +1495,32 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before
     return () => observer.disconnect();
   }, [wake]);
   const zoom = useCallback((factor, ox = 0, oy = 0) => {
-    const t = target.current, s = Math.max(1, Math.min(MAX_ZOOM, t.s * factor)), ratio = s / t.s;
-    target.current = clampView({ ...t, s, x: ox - (ox - t.x) * ratio, y: oy - (oy - t.y) * ratio });
+    const t = target.current, c = current.current;
+    const s = Math.max(1, Math.min(MAX_ZOOM, t.s * factor));
+    const imageX = (ox - c.x) / Math.max(.0001, c.s);
+    const imageY = (oy - c.y) / Math.max(.0001, c.s);
+    target.current = clampView({ ...t, s, x: ox - imageX * s, y: oy - imageY * s });
+    window.__AGR_ZOOM_ANCHOR_ERROR__ = Math.max(
+      Math.abs((ox - target.current.x) / target.current.s - imageX),
+      Math.abs((oy - target.current.y) / target.current.s - imageY),
+    );
     onZoom?.(s); window.__AGR_ZOOM_TARGET__ = s; wake();
   }, [clampView, onZoom, wake]);
   useEffect(() => {
     const node = host.current; if (!node) return;
-    const wheel = (e) => { e.preventDefault(); window.__AGR_WHEEL_COUNT__ = (window.__AGR_WHEEL_COUNT__ || 0) + 1; const r=node.getBoundingClientRect(); zoom(Math.exp(Math.max(-.14, Math.min(.14, -e.deltaY*.0012))), e.clientX-r.left-r.width/2, e.clientY-r.top-r.height/2); };
+    const wheel = (e) => {
+      e.preventDefault();
+      window.__AGR_WHEEL_COUNT__ = (window.__AGR_WHEEL_COUNT__ || 0) + 1;
+      const r = node.getBoundingClientRect(), px = e.clientX - r.left;
+      const paneWidth = modeRef.current === "pan" ? r.width / 2 : r.width;
+      const paneLeft = modeRef.current === "pan" && px >= r.width / 2 ? r.width / 2 : 0;
+      window.__AGR_ZOOM_LOCAL_X__ = px - paneLeft - paneWidth / 2;
+      zoom(
+        Math.exp(Math.max(-.14, Math.min(.14, -e.deltaY * .0012))),
+        window.__AGR_ZOOM_LOCAL_X__,
+        e.clientY - r.top - r.height / 2,
+      );
+    };
     node.addEventListener("wheel", wheel, { passive: false }); return () => node.removeEventListener("wheel", wheel);
   }, [zoom]);
   useEffect(() => {
@@ -1397,7 +1539,7 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before
     wake();
   }} onPointerUp={() => { drag.current=null; }} onPointerCancel={() => { drag.current=null; }}>
     <canvas ref={canvas} />
-    <span className="compare-label before">BEFORE / ORIGINAL</span><span className="compare-label after">AFTER / AGR RGB24</span>
+    <span className="compare-label before">ORIGINAL FILE · NATIVE</span><span className="compare-label after">RESULT FILE · NATIVE</span>
     <div className="viewport-actions"><button onClick={(e)=>{e.stopPropagation();reset(1)}}>ВПИСАТЬ</button><button onClick={(e)=>{e.stopPropagation();reset(4)}}>400%</button><button onClick={(e)=>{e.stopPropagation();reset(8)}}>800%</button></div>
   </div>;
 });
@@ -1426,6 +1568,10 @@ const ComparisonSurface = React.memo(function ComparisonSurface({
         </div>
       )}
       <SmoothCompareViewport before={before} after={after} mode={mode} onZoom={updateZoomLabel} />
+      <div className="comparison-truth" aria-label="Источник данных сравнения">
+        <span><i />ОРИГИНАЛ ЧИТАЕТСЯ ИЗ ИСХОДНОГО PNG</span>
+        <span><i />РЕЗУЛЬТАТ ЧИТАЕТСЯ ИЗ СОХРАНЁННОГО PNG</span>
+      </div>
       <div className="compare-tools">
         <span className="live-zoom">ZOOM {zoomLabel}% · MAX {MAX_ZOOM * 100}%</span>
         <Button quiet tip="Focus Comparison · клавиша F" onClick={onFocus}>
@@ -1441,7 +1587,7 @@ function Workspace({ kind, state, backend, setScreen }) {
   const batch = kind === "batch",
     [focus, setFocus] = useState(false),
     items = state.batchItems || [],
-    before = state.referenceUrl || state.workingPreviewUrl || state.sourceUrl;
+    before = state.sourceUrl;
   const toggleFocus = useCallback(() => setFocus((value) => !value), []);
   useEffect(() => {
     if (!batch) dispatchEvent(new CustomEvent("agr-focus", { detail: focus }));
@@ -1657,6 +1803,7 @@ function Workspace({ kind, state, backend, setScreen }) {
             after={state.resultUrl}
             focus={focus}
             onFocus={toggleFocus}
+            allowWipe
           />
         </>
       )}
@@ -1706,8 +1853,8 @@ function Compare({ index, state, backend, setScreen }) {
         <ProcessSignal compact progress={1} status={item.status || "Анализ завершён"} />
       </section>
       <ComparisonSurface
-        before={item.comparisonSourceUrl || item.sourceUrl}
-        after={item.comparisonResultUrl || item.resultUrl}
+        before={item.sourceUrl}
+        after={item.resultUrl}
         focus={focus}
         onFocus={toggleFocus}
         allowWipe
@@ -1742,6 +1889,19 @@ function HoldRitual({ holding, progress, point }) {
         </motion.div>
       )}
     </AnimatePresence>
+  );
+}
+function ShellCrossing({ active, progress }) {
+  return (
+    <div
+      className={`shell-crossing ${active ? "active" : ""}`}
+      style={{ "--shell-progress": progress }}
+      aria-hidden="true"
+    >
+      <i /><i /><i />
+      <b />
+      <span />
+    </div>
   );
 }
 function TransitionPortal({ active }) {
@@ -1791,6 +1951,7 @@ function SecretScene({ active, onDone }) {
 function App() {
   const { backend, state } = useBackend(),
     appRoot = useRef(null),
+    fieldRef = useRef({ x: 0, y: 0, influence: 0 }),
     [route, setRoute] = useState("home"),
     [progress, setProgress] = useState(0),
     [holding, setHolding] = useState(false),
@@ -1836,6 +1997,20 @@ function App() {
       },
       [route, screen],
     );
+  useEffect(() => {
+    const move = (e) => {
+      const x = (e.clientX / Math.max(1, innerWidth)) * 2 - 1;
+      const y = 1 - (e.clientY / Math.max(1, innerHeight)) * 2;
+      const distance = Math.hypot((x - .34) * .92, y - .03);
+      fieldRef.current = {
+        x,
+        y,
+        influence: Math.pow(Math.max(0, 1 - distance / .72), 1.7),
+      };
+    };
+    addEventListener("pointermove", move, { passive: true });
+    return () => removeEventListener("pointermove", move);
+  }, []);
   useEffect(() => {
     const update = (e) => appRoot.current?.classList.toggle("is-dragging", Boolean(e.detail));
     addEventListener("agr-drag", update);
@@ -1927,6 +2102,7 @@ function App() {
               theme={theme}
               quality={quality}
               screen={screen}
+              fieldRef={fieldRef}
             />
           </SceneBoundary>
         )}
@@ -1944,6 +2120,7 @@ function App() {
         state={state}
       />
       <TransitionPortal active={diving} />
+      <ShellCrossing active={holding && screen === "home"} progress={progress} />
       <AnimatePresence initial={false} mode="wait">
         <motion.div
           className="route-stage"

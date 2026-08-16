@@ -1298,7 +1298,7 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before
   }, [zoom]);
   useEffect(() => {
     if (!HEADLESS_TEST) return;
-    const z = e => zoom(Number(e.detail?.factor || 1.1));
+    const z = e => { window.__AGR_WHEEL_COUNT__ = (window.__AGR_WHEEL_COUNT__ || 0) + 1; zoom(Number(e.detail?.factor || 1.1)); };
     const d = e => { target.current.x += Number(e.detail?.x || 0); target.current.y += Number(e.detail?.y || 0); window.__AGR_TEST_VERTICAL_Y__=target.current.y; wake(); };
     addEventListener("agr-test-zoom", z); addEventListener("agr-test-drag", d); return () => { removeEventListener("agr-test-zoom", z); removeEventListener("agr-test-drag", d); };
   }, [wake, zoom]);

@@ -8,7 +8,7 @@ import React, {
 } from "react";
 import { createRoot } from "react-dom/client";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Environment, Lightformer, Sparkles } from "@react-three/drei";
+import { Sparkles } from "@react-three/drei";
 import { AnimatePresence, motion } from "motion/react";
 import { gsap } from "gsap";
 import {
@@ -32,6 +32,7 @@ import "./v47.css";
 import "./v48.css";
 import "./v49.css";
 import "./v51.css";
+import "./v52.css";
 
 const EMPTY = {
   sourceUrl: "",
@@ -63,6 +64,8 @@ const EMPTY = {
   cpuLoad: 0,
   memoryMb: 0,
   processingRate: 0,
+  performanceMode: "balanced",
+  hardwareThreads: 1,
 };
 const HEADLESS_TEST = new URLSearchParams(location.search).has("headless-test");
 const TEST_TEXTURE = "qrc:/icons/liquid.svg";
@@ -102,6 +105,60 @@ function writePreference(key, value) {
   } catch {
     // The UI remains usable when Chromium storage is disabled or unavailable.
   }
+}
+
+let textureDecodeWorker = null;
+let textureDecodeSequence = 0;
+const textureDecodeRequests = new Map();
+
+function getTextureDecodeWorker() {
+  if (textureDecodeWorker || typeof Worker === "undefined") return textureDecodeWorker;
+  const source = `
+    let queue = Promise.resolve();
+    self.onmessage = ({ data }) => {
+      queue = queue.then(async () => {
+        const { id, url } = data;
+        try {
+          const response = await fetch(url);
+          if (!response.ok) throw new Error('HTTP ' + response.status);
+          const blob = await response.blob();
+          const bitmap = await createImageBitmap(blob, { colorSpaceConversion: 'default' });
+          self.postMessage({ id, bitmap, width: bitmap.width, height: bitmap.height }, [bitmap]);
+        } catch (error) {
+          self.postMessage({ id, error: String(error && error.message || error) });
+        }
+      });
+    };
+  `;
+  textureDecodeWorker = new Worker(URL.createObjectURL(new Blob([source], { type: "text/javascript" })));
+  textureDecodeWorker.onmessage = ({ data }) => {
+    const request = textureDecodeRequests.get(data.id);
+    if (!request) { data.bitmap?.close?.(); return; }
+    textureDecodeRequests.delete(data.id);
+    if (data.error) request.reject(new Error(data.error));
+    else request.resolve({ drawable: data.bitmap, width: data.width, height: data.height });
+  };
+  return textureDecodeWorker;
+}
+
+function decodeTextureOffMainThread(src) {
+  const fallback = () => new Promise((resolve) => {
+    const img = new Image();
+    img.decoding = "async";
+    img.onload = () => resolve({ drawable: img, width: img.naturalWidth, height: img.naturalHeight });
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
+  if (HEADLESS_TEST) return fallback();
+  const worker = getTextureDecodeWorker();
+  if (worker) {
+    const id = ++textureDecodeSequence;
+    return new Promise((resolve, reject) => {
+      textureDecodeRequests.set(id, { resolve, reject });
+      worker.postMessage({ id, url: src });
+    });
+  }
+  return fallback();
 }
 
 function useBackend() {
@@ -144,6 +201,7 @@ function useBackend() {
         "batchWorkersChanged",
         "batchTelemetryChanged",
         "systemTelemetryChanged",
+        "performanceModeChanged",
       ].forEach((n) => api[n]?.connect(refresh));
       refresh();
     });
@@ -914,31 +972,117 @@ function InteractionFrameBudget() {
   return null;
 }
 
-function CameraRig({ progress, fieldRef, screen }) {
+const NEBULA_VERTEX = `
+  varying vec2 vUv;
+  varying vec3 vWorld;
+  void main() {
+    vUv = uv;
+    vec4 world = modelMatrix * vec4(position, 1.0);
+    vWorld = world.xyz;
+    gl_Position = projectionMatrix * viewMatrix * world;
+  }
+`;
+const NEBULA_FRAGMENT = `
+  varying vec2 vUv;
+  varying vec3 vWorld;
+  uniform float uTime;
+  uniform float uEnergy;
+  uniform vec2 uPointer;
+  uniform vec3 uColorA;
+  uniform vec3 uColorB;
+
+  float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123); }
+  float noise(vec2 p) {
+    vec2 i = floor(p), f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(hash(i), hash(i + vec2(1.,0.)), f.x), mix(hash(i + vec2(0.,1.)), hash(i + vec2(1.)), f.x), f.y);
+  }
+  float fbm(vec2 p) {
+    float value = 0.0, amplitude = .54;
+    for (int i = 0; i < 4; i++) {
+      value += noise(p) * amplitude;
+      p = mat2(1.58, 1.18, -1.18, 1.58) * p + .19;
+      amplitude *= .47;
+    }
+    return value;
+  }
+  void main() {
+    vec2 p = vWorld.xy * .14;
+    float t = uTime * .035;
+    float base = fbm(p + vec2(t, -t * .62));
+    float folds = fbm(p * 1.9 - vec2(t * 1.7, t));
+    float filament = pow(max(0.0, 1.0 - abs(base - folds) * 2.75), 5.0);
+    float river = pow(max(0.0, 1.0 - abs(sin((vWorld.y + sin(vWorld.x * .18 + t * 8.0) * 2.2) * .42)) * 1.42), 7.0);
+    float cursor = exp(-length((vUv - .5) - uPointer * .08) * 3.4);
+    vec3 color = mix(uColorB * .12, uColorA, base * .68 + filament * .32);
+    color += mix(uColorA, vec3(1.0), .55) * filament * (1.1 + uEnergy * .55);
+    color += uColorB * river * .55;
+    color += mix(uColorA, uColorB, .5) * cursor * .06;
+    float alpha = .10 + base * .26 + filament * .42 + river * .12;
+    gl_FragColor = vec4(color, alpha);
+  }
+`;
+
+function EnergyNebula({ theme, quality, fieldRef }) {
+  const material = useRef();
+  const colors = THEME_COLORS[theme] || THEME_COLORS.rose;
+  const uniforms = useMemo(() => ({
+    uTime: { value: 0 },
+    uEnergy: { value: 0 },
+    uPointer: { value: new THREE.Vector2() },
+    uColorA: { value: new THREE.Color(colors[0]) },
+    uColorB: { value: new THREE.Color(colors[1]) },
+  }), []);
+  useEffect(() => {
+    uniforms.uColorA.value.set(colors[0]);
+    uniforms.uColorB.value.set(colors[1]);
+  }, [colors, uniforms]);
+  useFrame(({ clock }) => {
+    if (!material.current) return;
+    const field = fieldRef?.current || { x: 0, y: 0, influence: 0 };
+    material.current.uniforms.uTime.value = clock.elapsedTime;
+    material.current.uniforms.uEnergy.value = THREE.MathUtils.lerp(material.current.uniforms.uEnergy.value, field.influence || 0, .035);
+    material.current.uniforms.uPointer.value.lerp(new THREE.Vector2(field.x, field.y), .025);
+  });
+  return (
+    <group>
+      <mesh position={[0, 0, -7.2]} scale={[1, 1, 1]}>
+        <planeGeometry args={[54, 24, quality === "max" ? 24 : 12, quality === "max" ? 12 : 6]} />
+        <shaderMaterial ref={material} vertexShader={NEBULA_VERTEX} fragmentShader={NEBULA_FRAGMENT} uniforms={uniforms} transparent depthWrite={false} blending={THREE.AdditiveBlending} />
+      </mesh>
+      <mesh position={[0, -2.3, -5.8]} rotation={[-.22, 0, -.08]}>
+        <planeGeometry args={[52, 8]} />
+        <meshBasicMaterial color={colors[0]} transparent opacity={quality === "eco" ? .025 : .055} blending={THREE.AdditiveBlending} depthWrite={false} />
+      </mesh>
+    </group>
+  );
+}
+
+function CameraRig({ fieldRef, screen }) {
   const { camera } = useThree();
   useFrame(({ clock }) => {
     const field = fieldRef?.current || { x: 0, y: 0 };
-    const parallax = screen === "home" ? 0 : 1;
+    const route = screen === "home" ? [0, 0, 7.1] : screen === "npm" ? [7.4, -.7, 7.5] : screen === "batch" ? [-7.8, .8, 7.7] : [13.8, .35, 7.65];
     camera.position.x = THREE.MathUtils.lerp(
       camera.position.x,
-      field.x * 0.18 * parallax,
-      0.03,
+      route[0] + field.x * .12,
+      0.018,
     );
     camera.position.y = THREE.MathUtils.lerp(
       camera.position.y,
-      field.y * 0.13 * parallax,
-      0.03,
+      route[1] + field.y * .09 + Math.sin(clock.elapsedTime * .13) * .045,
+      0.018,
     );
     camera.position.z = THREE.MathUtils.lerp(
       camera.position.z,
-      (screen === "compare" ? 7.8 : screen === "batch" ? 7.5 : 7.1) - progress * 0.22 + Math.sin(clock.elapsedTime * 0.22) * 0.035,
-      0.025,
+      route[2],
+      0.018,
     );
-    camera.lookAt(0, 0, 0);
+    camera.lookAt(camera.position.x * .88, camera.position.y * .55, -6.8);
   });
   return null;
 }
-function Scene({ progress, theme, quality, screen, fieldRef, verified, loading }) {
+function Scene({ theme, quality, screen, fieldRef }) {
   const colors = THEME_COLORS[theme] || THEME_COLORS.rose;
   const density = quality === "eco" ? 24 : quality === "max" ? 92 : 54;
   return (
@@ -964,15 +1108,8 @@ function Scene({ progress, theme, quality, screen, fieldRef, verified, loading }
         gl.outputColorSpace = THREE.SRGBColorSpace;
       }}
     >
-      <ambientLight intensity={0.58} />
-      <pointLight position={[4, 3, 5]} color={colors[0]} intensity={2.8} />
-      <pointLight position={[-4, -2, 2]} color={colors[1]} intensity={1.8} />
-      <Environment resolution={quality === "eco" ? 128 : 256}>
-        <Lightformer form="ring" intensity={5} color="#72ecff" scale={[5,1,1]} position={[-4,2,2]} rotation-y={Math.PI/2} />
-        <Lightformer form="rect" intensity={4} color="#ff4fa8" scale={[4,2,1]} position={[4,-1,1]} rotation-y={-Math.PI/2} />
-        <Lightformer form="circle" intensity={3} color="#ffffff" scale={2} position={[0,5,-2]} rotation-x={Math.PI/2} />
-      </Environment>
-      <GlassFieldSphere screen={screen} quality={quality} fieldRef={fieldRef} progress={progress} verified={verified} loading={loading} />
+      <ambientLight intensity={0.22} />
+      <EnergyNebula theme={theme} quality={quality} fieldRef={fieldRef} />
       <Sparkles
         count={density}
         scale={[12, 7, 4]}
@@ -981,7 +1118,7 @@ function Scene({ progress, theme, quality, screen, fieldRef, verified, loading }
         color={colors[0]}
       />
       <InteractionFrameBudget />
-      <CameraRig progress={progress} fieldRef={fieldRef} screen={screen} />
+      <CameraRig fieldRef={fieldRef} screen={screen} />
     </Canvas>
   );
 }
@@ -1143,7 +1280,7 @@ function HardwareTelemetry({ state, batch = false }) {
     <section className="hardware-strip" aria-label="Аппаратная телеметрия">
       <div><small>CPU</small><strong>{Math.round((state.cpuLoad || 0) * 100)}%</strong><Sparkline label="CPU LOAD" values={activity} /></div>
       <div><small>MEMORY</small><strong>{state.memoryMb ? `${Math.round(state.memoryMb)} MB` : "—"}</strong><i className="memory-cell" /></div>
-      <div><small>THREADS</small><strong>{batch ? state.batchWorkers || 1 : 1}</strong><i className="thread-cell" style={{ "--threads": batch ? state.batchWorkers || 1 : 1 }} /></div>
+      <div><small>THREADS</small><strong>{batch && state.batchBusy ? state.batchWorkers || 1 : state.hardwareThreads || 1}</strong><i className="thread-cell" style={{ "--threads": batch && state.batchBusy ? state.batchWorkers || 1 : state.hardwareThreads || 1 }} /></div>
       <div><small>SPEED</small><strong>{Number(state.processingRate || 0).toFixed(1)} %/s</strong><Sparkline label="PIPELINE" values={progress} color="var(--accent2)" /></div>
     </section>
   );
@@ -1299,6 +1436,7 @@ function SettingsPanel({
   setTheme,
   quality,
   setQuality,
+  backend,
 }) {
   return (
     <AnimatePresence>
@@ -1335,16 +1473,16 @@ function SettingsPanel({
               </button>
             ))}
           </div>
-          <p>Интенсивность эффектов</p>
+          <p>Режим использования железа</p>
           <div className="quality-switch">
             {[
-              ["eco", "ТИХО"],
-              ["balanced", "БАЛАНС"],
-              ["max", "МАКС"],
+              ["eco", "ТИХИЙ"],
+              ["balanced", "АВТО"],
+              ["max", "МАКСИМУМ"],
             ].map(([id, label]) => (
               <button
                 className={quality === id ? "active" : ""}
-                onClick={() => setQuality(id)}
+                onClick={() => { setQuality(id); backend?.setPerformanceMode?.(id); }}
                 key={id}
               >
                 {label}
@@ -1352,7 +1490,7 @@ function SettingsPanel({
             ))}
           </div>
           <small className="settings-note">
-            Настройки применяются сразу и не влияют на качество PNG.
+            Меняется нагрузка GPU, CPU и число рабочих потоков. Качество PNG остаётся неизменным.
           </small>
         </motion.aside>
       )}
@@ -1682,8 +1820,9 @@ function WipeCompare({ before, after }) {
   );
 }
 
-const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before, after, mode, onZoom }) {
+const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before, after, mode, onZoom, contentReady = true }) {
   const host = useRef(null), canvas = useRef(null), frame = useRef(0), drag = useRef(null);
+  const [nativeLoading, setNativeLoading] = useState(false);
   const images = useRef({ before: null, after: null });
   const target = useRef({ s: 1, x: 0, y: 0, split: 0.5, lensX: .5, lensY: .5, lensZoom: 2.4 });
   const current = useRef({ s: 1, x: 0, y: 0, split: 0.5, lensX: .5, lensY: .5, lensZoom: 2.4 });
@@ -1808,25 +1947,12 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before
   useEffect(() => {
     alive.current = true; loaded.current = false;
     let cancelled = false;
-    const load = (src) => new Promise((resolve) => {
-      if (!src) return resolve(null);
-      const img = new Image(); img.decoding = "async";
-      let settled = false;
-      const done = async () => {
-        if (settled) return;
-        settled = true;
-        if (!img.naturalWidth) return resolve(null);
-        let drawable = img;
-        try {
-          if (typeof createImageBitmap === "function") drawable = await createImageBitmap(img);
-        } catch {
-          drawable = img;
-        }
-        resolve({ drawable, width: img.naturalWidth, height: img.naturalHeight });
-      };
-      img.onload = done; img.onerror = () => { settled = true; resolve(null); }; img.src = src;
-      if (img.complete) done();
-    });
+    if (!contentReady) {
+      setNativeLoading(Boolean(before || after));
+      return () => { alive.current = false; };
+    }
+    const load = (src) => src ? decodeTextureOffMainThread(src).catch(() => null) : Promise.resolve(null);
+    setNativeLoading(Boolean(before || after));
     Promise.all([load(before || (HEADLESS_TEST ? TEST_TEXTURE : "")), load(after || (HEADLESS_TEST ? TEST_TEXTURE : ""))]).then(([a,b]) => {
       if (cancelled) {
         a?.drawable?.close?.(); b?.drawable?.close?.();
@@ -1836,6 +1962,7 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before
       loaded.current = Boolean(a || b);
       target.current = { ...target.current, s: 1, x: 0, y: 0 };
       current.current = { ...target.current };
+      setNativeLoading(false);
       reset();
     });
     return () => {
@@ -1844,7 +1971,7 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before
       images.current = { before: null, after: null };
       setInteraction(false);
     };
-  }, [before, after, reset, setInteraction]);
+  }, [before, after, contentReady, reset, setInteraction]);
   useEffect(() => {
     const observer = new ResizeObserver(wake); if (host.current) observer.observe(host.current);
     return () => observer.disconnect();
@@ -1914,6 +2041,7 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before
     wake();
   }} onPointerUp={() => { drag.current=null; setInteraction(false); dispatchEvent(new CustomEvent("agr-material-memory")); }} onPointerCancel={() => { drag.current=null; setInteraction(false); }}>
     <canvas ref={canvas} />
+    {nativeLoading && <div className="compare-native-loader"><i /><strong>{contentReady ? "ДЕКОДИРОВАНИЕ NATIVE PNG" : "ЗАВЕРШАЕМ ПЕРЕЛЁТ КАМЕРЫ"}</strong><span>Интерфейс остаётся активным</span></div>}
     <span className="compare-label before">ORIGINAL FILE · NATIVE</span><span className="compare-label after">RESULT FILE · NATIVE</span>
     <div className="viewport-actions"><button onClick={(e)=>{e.stopPropagation();reset(1)}}>ВПИСАТЬ</button><button onClick={(e)=>{e.stopPropagation();reset(4)}}>400%</button><button onClick={(e)=>{e.stopPropagation();reset(8)}}>800%</button></div>
   </div>;
@@ -1926,6 +2054,7 @@ const ComparisonSurface = React.memo(function ComparisonSurface({
   onFocus,
   allowWipe = false,
   onOpenFolder,
+  contentReady = true,
 }) {
   const [mode, setMode] = useState("pan");
   const [zoomLabel, setZoomLabel] = useState(100);
@@ -1954,7 +2083,7 @@ const ComparisonSurface = React.memo(function ComparisonSurface({
           </button>
         </div>
       )}
-      <SmoothCompareViewport before={before} after={after} mode={mode} onZoom={updateZoomLabel} />
+      <SmoothCompareViewport before={before} after={after} mode={mode} onZoom={updateZoomLabel} contentReady={contentReady} />
       <div className="comparison-truth" aria-label="Источник данных сравнения">
         <span><i />ОРИГИНАЛ ЧИТАЕТСЯ ИЗ ИСХОДНОГО PNG</span>
         <span><i />РЕЗУЛЬТАТ ЧИТАЕТСЯ ИЗ СОХРАНЁННОГО PNG</span>
@@ -1970,7 +2099,7 @@ const ComparisonSurface = React.memo(function ComparisonSurface({
   );
 });
 
-function Workspace({ kind, state, backend, setScreen }) {
+function Workspace({ kind, state, backend, setScreen, contentReady = true }) {
   const batch = kind === "batch",
     [focus, setFocus] = useState(false),
     items = state.batchItems || [],
@@ -2193,13 +2322,14 @@ function Workspace({ kind, state, backend, setScreen }) {
             focus={focus}
             onFocus={toggleFocus}
             allowWipe
+            contentReady={contentReady}
           />
         </>
       )}
     </main>
   );
 }
-function Compare({ index, state, backend, setScreen }) {
+function Compare({ index, state, backend, setScreen, contentReady = true }) {
   const item = (state.batchItems || [])[index],
     [focus, setFocus] = useState(false);
   const toggleFocus = useCallback(() => setFocus((value) => !value), []);
@@ -2248,6 +2378,7 @@ function Compare({ index, state, backend, setScreen }) {
         onFocus={toggleFocus}
         allowWipe
         onOpenFolder={openFolder}
+        contentReady={contentReady}
       />
     </main>
   );
@@ -2359,13 +2490,8 @@ function App() {
     appRoot = useRef(null),
     fieldRef = useRef({ x: 0, y: 0, influence: 0 }),
     [route, setRoute] = useState("home"),
-    [progress, setProgress] = useState(0),
-    [holding, setHolding] = useState(false),
-    [holdPoint, setHoldPoint] = useState({
-      x: innerWidth / 2,
-      y: innerHeight / 2,
-    }),
     [diving, setDiving] = useState(false),
+    [sceneSettled, setSceneSettled] = useState(true),
     [verified, setVerified] = useState(false),
     [memoryLevel, setMemoryLevel] = useState(0),
     [settings, setSettings] = useState(false),
@@ -2376,7 +2502,6 @@ function App() {
       readPreference("agr-quality", QUALITY_LEVELS, "balanced"),
     ),
     [secret, setSecret] = useState(false),
-    progressRef = useRef({ value: 0 }),
     completionRef = useRef(""),
     importRef = useRef(""),
     routeTimers = useRef([]),
@@ -2390,20 +2515,21 @@ function App() {
         if (HEADLESS_TEST) {
           setSettings(false);
           setRoute(next);
-          setProgress(0);
-          progressRef.current.value = 0;
+          setSceneSettled(true);
           return;
         }
         setDiving(true);
+        setSceneSettled(false);
         setSettings(false);
         dispatchEvent(new CustomEvent("agr-hint", { detail: { open: false } }));
         routeTimers.current = [
           setTimeout(() => {
             setRoute(next);
-            setProgress(0);
-            progressRef.current.value = 0;
-          }, 310),
-          setTimeout(() => setDiving(false), 760),
+          }, 720),
+          setTimeout(() => {
+            setDiving(false);
+            setSceneSettled(true);
+          }, 1450),
         ];
       },
       [route, screen],
@@ -2442,6 +2568,7 @@ function App() {
   useEffect(() => () => routeTimers.current.forEach(clearTimeout), []);
   useEffect(() => writePreference("agr-theme", theme), [theme]);
   useEffect(() => writePreference("agr-quality", quality), [quality]);
+  useEffect(() => { backend?.setPerformanceMode?.(quality); }, [backend, quality]);
   useEffect(() => {
     const remember = () => setMemoryLevel((value) => Math.min(8, value + 1));
     addEventListener("agr-material-memory", remember);
@@ -2462,43 +2589,6 @@ function App() {
     const timer = setTimeout(() => setVerified(false), 2100);
     return () => clearTimeout(timer);
   }, [doneCount, state.outputPath]);
-  useEffect(() => {
-    const down = (e) => {
-        if (
-          screen !== "home" ||
-          e.button !== 0 ||
-          e.target.closest("[data-no-hold]")
-        )
-          return;
-        setHoldPoint({ x: e.clientX, y: e.clientY });
-        setHolding(true);
-        gsap.killTweensOf(progressRef.current);
-        gsap.to(progressRef.current, {
-          value: 1,
-          duration: 2.7,
-          ease: "sine.inOut",
-          onUpdate: () => setProgress(progressRef.current.value),
-        });
-      },
-      up = () => {
-        setHolding(false);
-        gsap.killTweensOf(progressRef.current);
-        gsap.to(progressRef.current, {
-          value: 0,
-          duration: 0.82,
-          ease: "power3.out",
-          onUpdate: () => setProgress(progressRef.current.value),
-        });
-      };
-    addEventListener("pointerdown", down);
-    addEventListener("pointerup", up);
-    addEventListener("pointercancel", up);
-    return () => {
-      removeEventListener("pointerdown", down);
-      removeEventListener("pointerup", up);
-      removeEventListener("pointercancel", up);
-    };
-  }, [screen]);
   const page =
     screen === "home" ? (
       <Home setScreen={setScreen} />
@@ -2508,6 +2598,7 @@ function App() {
         state={state}
         backend={backend}
         setScreen={setScreen}
+        contentReady={sceneSettled}
       />
     ) : screen === "batch" ? (
       <Workspace
@@ -2515,6 +2606,7 @@ function App() {
         state={state}
         backend={backend}
         setScreen={setScreen}
+        contentReady={sceneSettled}
       />
     ) : (
       <Compare
@@ -2522,12 +2614,13 @@ function App() {
         state={state}
         backend={backend}
         setScreen={setScreen}
+        contentReady={sceneSettled}
       />
     );
   return (
     <div
       ref={appRoot}
-      className={`app theme-${theme} quality-${quality} scene-${screen} ${holding ? "is-holding" : ""} ${diving ? "is-diving" : ""} ${verified ? "is-verified" : ""} ${(state.previewBusy && state.sourceIsLarge) || state.batchImportBusy ? "is-loading-large" : ""}`}
+      className={`app theme-${theme} quality-${quality} scene-${screen} ${diving ? "is-diving" : ""} ${sceneSettled ? "scene-settled" : ""} ${verified ? "is-verified" : ""}`}
     >
       {screen === "batch" && <DataCathedral items={state.batchItems} quality={quality} activity={state.batchActivityHistory?.at?.(-1)} />}
       <div className="webgl">
@@ -2536,18 +2629,14 @@ function App() {
         ) : (
           <SceneBoundary>
             <Scene
-              progress={progress}
               theme={theme}
               quality={quality}
               screen={screen}
               fieldRef={fieldRef}
-              verified={verified}
-              loading={(state.previewBusy && state.sourceIsLarge) || state.batchImportBusy}
             />
           </SceneBoundary>
         )}
       </div>
-      <MagneticCursorField active={screen === "home" && quality !== "eco" && !diving} fieldRef={fieldRef} />
       <TooltipLayer />
       <Header
         screen={screen}
@@ -2560,12 +2649,6 @@ function App() {
         state={state}
       />
       <TransitionPortal active={diving} />
-      <ShellCrossing active={holding && screen === "home"} progress={progress} />
-      <LoadingShell
-        active={(state.previewBusy && state.sourceIsLarge) || state.batchImportBusy}
-        label={state.batchImportBusy ? state.batchImportStatus : state.status}
-        progress={state.batchImportBusy ? state.batchImportProgress : state.previewBusy ? .48 : 0}
-      />
       <CompletionRitual active={verified} />
       <MaterialMemory level={memoryLevel} />
       <AnimatePresence initial={false} mode="wait">
@@ -2575,7 +2658,7 @@ function App() {
           initial={{ opacity: 0, scale: 1.018, filter: "blur(7px)" }}
           animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
           exit={{ opacity: 0, scale: 0.94, filter: "blur(10px)" }}
-          transition={{ duration: HEADLESS_TEST ? 0 : 0.3, ease: [0.3, 0.72, 0.2, 1] }}
+          transition={{ duration: HEADLESS_TEST ? 0 : 0.72, ease: [0.2, 0.72, 0.18, 1] }}
         >
           {page}
         </motion.div>
@@ -2587,8 +2670,8 @@ function App() {
         setTheme={setTheme}
         quality={quality}
         setQuality={setQuality}
+        backend={backend}
       />
-      <HoldRitual holding={holding} progress={progress} point={holdPoint} />
       <button
         className="signature"
         data-no-hold
@@ -2600,10 +2683,6 @@ function App() {
       <SecretScene
         active={secret}
         onDone={useCallback(() => setSecret(false), [])}
-      />
-      <div
-        className="cinematic-progress"
-        style={{ transform: `scaleX(${progress})` }}
       />
     </div>
   );

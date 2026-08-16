@@ -13,6 +13,7 @@
 #include <QException>
 #include <QStandardPaths>
 #include <QThread>
+#include <QThreadPool>
 #include <QUrl>
 #include <array>
 #include <cmath>
@@ -109,6 +110,7 @@ QString browserTextureUrl(const QString &value){
 }
 
 OptimizerEngine::OptimizerEngine(QObject *parent):QObject(parent) {
+    setPerformanceMode(QStringLiteral("balanced"));
     m_systemClock.start();
     QTimer::singleShot(0,this,[this]{sampleSystemTelemetry();});
     m_telemetryTimer.setInterval(180);
@@ -228,6 +230,7 @@ QVariantMap OptimizerEngine::snapshot() const {
     state["batchImportStatus"]=m_batchImportStatus;state["batchWorkers"]=m_batchWorkers;
     state["batchProgressHistory"]=m_batchProgressHistory;state["batchActivityHistory"]=m_batchActivityHistory;
     state["cpuLoad"]=m_cpuLoad;state["memoryMb"]=m_memoryMb;state["processingRate"]=m_processingRate;
+    state["performanceMode"]=m_performanceMode;state["hardwareThreads"]=m_workerLimit;
     return state;
 }
 
@@ -246,6 +249,16 @@ void OptimizerEngine::chooseBatchFiles() {
 
 void OptimizerEngine::quitApp(){QCoreApplication::quit();}
 void OptimizerEngine::toggleFullscreen(){emit fullscreenRequested();}
+
+void OptimizerEngine::setPerformanceMode(const QString &value){
+    const QString mode=(value=="eco"||value=="max")?value:QStringLiteral("balanced");
+    const int cores=qMax(1,QThread::idealThreadCount());
+    const int limit=mode=="eco"?qMax(1,cores/4):(mode=="max"?cores:qMax(1,cores-1));
+    const bool changed=m_performanceMode!=mode||m_workerLimit!=limit;
+    m_performanceMode=mode;m_workerLimit=limit;
+    QThreadPool::globalInstance()->setMaxThreadCount(limit);
+    if(changed)emit performanceModeChanged();
+}
 
 void OptimizerEngine::appendTelemetry(double progressValue,double activityValue){
     m_progressHistory.append(qBound(0.0,progressValue,1.0));m_activityHistory.append(qBound(0.0,activityValue,1.0));
@@ -413,9 +426,10 @@ void OptimizerEngine::optimizeBatch(){
     for(const BatchEntry &entry:m_batchEntries){
         if(qMax(entry.width,entry.height)>4096||qint64(entry.width)*qint64(entry.height)>24000000){contains8K=true;break;}
     }
-    // Full-resolution 8K encoding is memory-heavy. Keep the UI responsive by
-    // processing one giant texture at a time; ordinary textures still use two workers.
-    m_batchWorkers=contains8K?1:qBound(1,qMax(1,logicalCores/2),qMin(2,int(jobs.size())));
+    // The selected hardware policy controls safe parallelism. 8K jobs retain
+    // a memory guard unless the user explicitly selects maximum throughput.
+    const int requested=m_performanceMode=="eco"?1:(m_performanceMode=="max"?qMin(4,m_workerLimit):qMin(2,qMax(1,logicalCores/2)));
+    m_batchWorkers=contains8K?qMin(m_performanceMode=="max"?2:1,int(jobs.size())):qBound(1,requested,int(jobs.size()));
     const int generation=++m_batchGeneration;
     m_batchCancelRequested=false;m_batchBusy=true;m_batchProgress=0;
     m_batchStatus=contains8K

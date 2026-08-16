@@ -100,6 +100,7 @@ class OptimizerEngine final : public QObject {
     Q_PROPERTY(double cpuLoad READ cpuLoad NOTIFY systemTelemetryChanged)
     Q_PROPERTY(double memoryMb READ memoryMb NOTIFY systemTelemetryChanged)
     Q_PROPERTY(double processingRate READ processingRate NOTIFY systemTelemetryChanged)
+    Q_PROPERTY(QString performanceMode READ performanceMode NOTIFY performanceModeChanged)
 
 public:
     explicit OptimizerEngine(QObject *parent=nullptr);
@@ -137,6 +138,7 @@ public:
     double cpuLoad()const{return m_cpuLoad;}
     double memoryMb()const{return m_memoryMb;}
     double processingRate()const{return m_processingRate;}
+    QString performanceMode()const{return m_performanceMode;}
 
     Q_INVOKABLE void load(const QString &url);
     Q_INVOKABLE void optimize(double maxMb=3.0);
@@ -155,6 +157,7 @@ public:
     Q_INVOKABLE void chooseBatchFiles();
     Q_INVOKABLE void quitApp();
     Q_INVOKABLE void toggleFullscreen();
+    Q_INVOKABLE void setPerformanceMode(const QString &mode);
 
 signals:
     void sourceUrlChanged();
@@ -182,6 +185,7 @@ signals:
     void batchWorkersChanged();
     void batchTelemetryChanged();
     void systemTelemetryChanged();
+    void performanceModeChanged();
     void fullscreenRequested();
 
 private:
@@ -218,4 +222,6 @@ private:
     quint64 m_lastProcessTicks=0;
     double m_lastTelemetryProgress=0;
     double m_cpuLoad=0,m_memoryMb=0,m_processingRate=0;
+    QString m_performanceMode="balanced";
+    int m_workerLimit=1;
 };

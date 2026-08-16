@@ -27,7 +27,7 @@
 #endif
 
 #ifndef AGR_APP_VERSION
-#define AGR_APP_VERSION "51"
+#define AGR_APP_VERSION "52"
 #endif
 
 namespace {

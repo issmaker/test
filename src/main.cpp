@@ -205,7 +205,7 @@ int main(int argc,char**argv){
             QTimer::singleShot(1200,view,[view]{view->page()->runJavaScript(QStringLiteral(R"JS((()=>{
                 const timer=setInterval(()=>{
                     const zoom=document.querySelector('.zoom-pane');
-                    if(!zoom||!document.querySelector('.zoom-pane canvas.ready'))return;
+                    if(!zoom)return;
                     clearInterval(timer);
                     for(let i=0;i<40;i++)zoom.dispatchEvent(new WheelEvent('wheel',{deltaY:-180,clientX:500,clientY:420,bubbles:true,cancelable:true}));
                     let step=0;

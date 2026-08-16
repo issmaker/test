@@ -5,7 +5,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main, version-49-reference-sphere, version-50-latest]
+    branches: [main, version-49-reference-sphere, version-50-latest, version-51-interactive-sphere-fast-compare]
     tags: ['v*']
 
 permissions:
@@ -18,7 +18,7 @@ jobs:
     env:
       QT_VERSION: 6.8.3
       BUILD_DIR: build
-      DIST_DIR: dist/AdaptiveTextureOptimizer-50-Windows
+      DIST_DIR: dist/AdaptiveTextureOptimizer-51-Windows
 
     steps:
       - name: Checkout
@@ -142,12 +142,12 @@ jobs:
 
       - name: Pack portable application
         shell: pwsh
-        run: Compress-Archive -Path "$env:DIST_DIR/*" -DestinationPath "dist/AdaptiveTextureOptimizer-50-Windows-Portable.zip" -CompressionLevel Optimal
+        run: Compress-Archive -Path "$env:DIST_DIR/*" -DestinationPath "dist/AdaptiveTextureOptimizer-51-Windows-Portable.zip" -CompressionLevel Optimal
 
       - name: Upload ready-to-run application
         uses: actions/upload-artifact@v7
         with:
-          name: AdaptiveTextureOptimizer-50-Windows-Portable
-          path: dist/AdaptiveTextureOptimizer-50-Windows-Portable.zip
+          name: AdaptiveTextureOptimizer-51-Windows-Portable
+          path: dist/AdaptiveTextureOptimizer-51-Windows-Portable.zip
           if-no-files-found: error
           retention-days: 30

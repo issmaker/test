@@ -19,6 +19,11 @@
 #include <future>
 #include <stdexcept>
 
+#ifdef Q_OS_WIN
+#include <windows.h>
+#include <psapi.h>
+#endif
+
 namespace {
 QString analyseAccent(const QImage &input) {
     const QImage image=input.scaled(144,144,Qt::KeepAspectRatio,Qt::SmoothTransformation).convertToFormat(QImage::Format_RGB888);
@@ -104,12 +109,20 @@ QString browserTextureUrl(const QString &value){
 }
 
 OptimizerEngine::OptimizerEngine(QObject *parent):QObject(parent) {
-    m_telemetryTimer.setInterval(95);
+    m_systemClock.start();
+    QTimer::singleShot(0,this,[this]{sampleSystemTelemetry();});
+    m_telemetryTimer.setInterval(180);
     connect(&m_telemetryTimer,&QTimer::timeout,this,[this]{
-        m_telemetryPhase+=.37;
-        const double pulse=.54+.30*std::sin(m_telemetryPhase)+.14*std::sin(m_telemetryPhase*2.73+.8);
-        const double visual=qBound(0.0,m_progress-.025+.025*std::sin(m_telemetryPhase*.71),1.0);
-        appendTelemetry(visual,qBound(0.04,pulse,1.0));
+        sampleSystemTelemetry();
+        if(m_batchBusy){
+            m_batchProgressHistory.append(m_batchProgress);
+            m_batchActivityHistory.append(m_cpuLoad);
+            while(m_batchProgressHistory.size()>72)m_batchProgressHistory.removeFirst();
+            while(m_batchActivityHistory.size()>72)m_batchActivityHistory.removeFirst();
+            emit batchTelemetryChanged();
+        }else{
+            appendTelemetry(m_progress,m_cpuLoad);
+        }
     });
 
     connect(&m_previewWatcher,&QFutureWatcher<SourcePreview>::finished,this,[this]{
@@ -144,7 +157,7 @@ OptimizerEngine::OptimizerEngine(QObject *parent):QObject(parent) {
         }catch(const QException&error){m_status=m_cancelRequested.load()?"Остановлено пользователем":QString("Ошибка обработки: ")+QString::fromUtf8(error.what());emit statusChanged();}
         catch(const std::exception&error){m_status=m_cancelRequested.load()?"Остановлено пользователем":QString("Ошибка обработки: ")+QString::fromUtf8(error.what());emit statusChanged();}
         catch(...){m_status="Ошибка обработки: неизвестный сбой";emit statusChanged();}
-        m_telemetryTimer.stop();m_busy=false;emit busyChanged();
+        m_busy=false;if(!m_batchBusy)m_telemetryTimer.stop();sampleSystemTelemetry();emit busyChanged();
     });
 
     connect(&m_batchImportWatcher,&QFutureWatcher<BatchImportResult>::finished,this,[this]{
@@ -191,6 +204,7 @@ OptimizerEngine::OptimizerEngine(QObject *parent):QObject(parent) {
         m_batchStatus=run.cancelled?QString("Остановлено пользователем · готово %1").arg(succeeded):(failed
             ?QString("Завершено: %1 готово, %2 с ошибкой").arg(succeeded).arg(failed)
             :QString("Готово: обработано %1 файлов").arg(succeeded));
+        if(!m_busy)m_telemetryTimer.stop();sampleSystemTelemetry();
         emit batchItemsChanged();emit batchBusyChanged();emit batchProgressChanged();emit batchStatusChanged();
     });
 }
@@ -213,6 +227,7 @@ QVariantMap OptimizerEngine::snapshot() const {
     state["batchImportBusy"]=m_batchImportBusy;state["batchImportProgress"]=m_batchImportProgress;
     state["batchImportStatus"]=m_batchImportStatus;state["batchWorkers"]=m_batchWorkers;
     state["batchProgressHistory"]=m_batchProgressHistory;state["batchActivityHistory"]=m_batchActivityHistory;
+    state["cpuLoad"]=m_cpuLoad;state["memoryMb"]=m_memoryMb;state["processingRate"]=m_processingRate;
     return state;
 }
 
@@ -235,6 +250,36 @@ void OptimizerEngine::toggleFullscreen(){emit fullscreenRequested();}
 void OptimizerEngine::appendTelemetry(double progressValue,double activityValue){
     m_progressHistory.append(qBound(0.0,progressValue,1.0));m_activityHistory.append(qBound(0.0,activityValue,1.0));
     while(m_progressHistory.size()>72)m_progressHistory.removeFirst();while(m_activityHistory.size()>72)m_activityHistory.removeFirst();emit telemetryChanged();
+}
+
+void OptimizerEngine::sampleSystemTelemetry(){
+    const qint64 now=m_systemClock.elapsed();
+    const qint64 elapsed=qMax<qint64>(1,now-m_lastSystemSample);
+    const double progressValue=m_batchBusy?m_batchProgress:m_progress;
+    const double instantRate=(m_busy||m_batchBusy)
+        ?qMax(0.0,progressValue-m_lastTelemetryProgress)*100000.0/elapsed
+        :0.0;
+    m_processingRate=m_processingRate*.72+instantRate*.28;
+    m_lastTelemetryProgress=progressValue;m_lastSystemSample=now;
+#ifdef Q_OS_WIN
+    FILETIME creation{},exit{},kernel{},user{};
+    if(GetProcessTimes(GetCurrentProcess(),&creation,&exit,&kernel,&user)){
+        ULARGE_INTEGER k{},u{};k.LowPart=kernel.dwLowDateTime;k.HighPart=kernel.dwHighDateTime;
+        u.LowPart=user.dwLowDateTime;u.HighPart=user.dwHighDateTime;
+        const quint64 ticks=k.QuadPart+u.QuadPart;
+        if(m_lastProcessTicks){
+            const double cpuMs=double(ticks-m_lastProcessTicks)/10000.0;
+            m_cpuLoad=qBound(0.0,cpuMs/(elapsed*qMax(1,QThread::idealThreadCount())),1.0);
+        }
+        m_lastProcessTicks=ticks;
+    }
+    PROCESS_MEMORY_COUNTERS_EX memory{};memory.cb=sizeof(memory);
+    if(GetProcessMemoryInfo(GetCurrentProcess(),reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&memory),sizeof(memory)))
+        m_memoryMb=double(memory.WorkingSetSize)/(1024.0*1024.0);
+#else
+    m_cpuLoad=(m_busy||m_batchBusy)?qBound(0.0,m_cpuLoad*.82+.12,1.0):m_cpuLoad*.72;
+#endif
+    emit systemTelemetryChanged();
 }
 
 void OptimizerEngine::load(const QString &value){
@@ -264,7 +309,7 @@ void OptimizerEngine::setProgress(double value,const QString &text){
 }
 
 void OptimizerEngine::optimize(double maxMb){
-    if(m_sourceUrl.isEmpty()||m_busy||m_previewBusy)return;m_cancelRequested=false;m_busy=true;m_progress=0;m_progressHistory={0.0};m_activityHistory={.18};m_telemetryPhase=0;
+    if(m_sourceUrl.isEmpty()||m_busy||m_previewBusy)return;m_cancelRequested=false;m_busy=true;m_progress=0;m_progressHistory={0.0};m_activityHistory={0.0};m_telemetryPhase=0;m_lastTelemetryProgress=0;
     const double requestedMb=qBound(.5,maxMb,20.0);
     const qint64 requestedBytes=qint64(std::llround(requestedMb*1000000.0));
     m_status=QString("Запуск с пределом %1 MB…").arg(requestedMb,0,'f',1);
@@ -376,7 +421,7 @@ void OptimizerEngine::optimizeBatch(){
     m_batchStatus=contains8K
         ? QString("8K MEMORY GUARD · 1 поток · %1 PNG").arg(jobs.size())
         : QString("Запуск %1 параллельных потоков · %2 PNG").arg(m_batchWorkers).arg(jobs.size());
-    m_batchProgressHistory={0.0};m_batchActivityHistory={.22};
+    m_batchProgressHistory={0.0};m_batchActivityHistory={0.0};m_lastTelemetryProgress=0;m_telemetryTimer.start();
     emit batchItemsChanged();emit batchBusyChanged();emit batchProgressChanged();emit batchStatusChanged();emit batchTelemetryChanged();emit batchWorkersChanged();
     m_batchWatcher.setFuture(QtConcurrent::run([this,jobs,workers=m_batchWorkers,generation]{
         BatchRunResult run;const int total=jobs.size();run.items.reserve(total);std::atomic_int next{0};
@@ -394,9 +439,6 @@ void OptimizerEngine::optimizeBatch(){
                             double aggregate=0;for(const BatchEntry &entry:m_batchEntries)if(!entry.importing&&!entry.failed)aggregate+=entry.progress;
                             m_batchProgress=qBound(0.0,aggregate/qMax(1,total),1.0);
                             m_batchStatus=QString("%1 потока · %2 · %3").arg(m_batchWorkers).arg(m_batchEntries[index].name).arg(text);
-                            m_batchProgressHistory.append(m_batchProgress);
-                            m_batchActivityHistory.append(qBound(.08,.52+.38*std::sin((m_batchProgressHistory.size()+1)*1.31),.96));
-                            while(m_batchProgressHistory.size()>72)m_batchProgressHistory.removeFirst();while(m_batchActivityHistory.size()>72)m_batchActivityHistory.removeFirst();
                             emit batchItemsChanged();emit batchProgressChanged();emit batchStatusChanged();emit batchTelemetryChanged();
                         }
                     },Qt::QueuedConnection);

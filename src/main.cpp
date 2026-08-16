@@ -27,7 +27,7 @@
 #endif
 
 #ifndef AGR_APP_VERSION
-#define AGR_APP_VERSION "50"
+#define AGR_APP_VERSION "51"
 #endif
 
 namespace {
@@ -221,6 +221,12 @@ int main(int argc,char**argv){
                 setTimeout(()=>clearInterval(timer),3200);
             })())JS"));});
             QTimer::singleShot(3500,view,[view]{view->page()->runJavaScript(QStringLiteral("document.querySelector('.top-actions [data-action=\"settings\"]')?.click()"));});
+            QTimer::singleShot(2700,view,[view]{view->page()->runJavaScript(QStringLiteral(R"JS((()=>{
+                const modes=document.querySelectorAll('.comparison-modes button');
+                modes[2]?.click();
+                const zoom=document.querySelector('.smooth-compare');
+                if(zoom){const box=zoom.getBoundingClientRect();zoom.dispatchEvent(new WheelEvent('wheel',{deltaY:-120,clientX:box.left+box.width*.58,clientY:box.top+box.height*.46,bubbles:true,cancelable:true}));}
+            })())JS"));});
             QTimer::singleShot(4800,view,[view]{
                 view->page()->runJavaScript(QStringLiteral(R"JS((()=>{
                     const hint=document.querySelector('.floating-hint'),box=hint?.getBoundingClientRect();
@@ -231,14 +237,17 @@ int main(int argc,char**argv){
                     const stressSafe=Boolean(window.__AGR_STRESS_DONE__)&&Number(window.__AGR_WHEEL_COUNT__||0)>=40&&Number(window.__AGR_ZOOM_TARGET__||0)>=15.9;
                     const anchorSafe=Number(window.__AGR_ZOOM_ANCHOR_ERROR__||0)<.001&&Math.abs(Number(window.__AGR_ZOOM_LOCAL_X__||0))<1;
                     const honestLabels=document.querySelectorAll('.comparison-truth span').length===2;
-                    const mask=(document.querySelector('.workspace')?1:0)|(document.querySelector('.settings-panel')?2:0)|(document.querySelector('.topbar')?4:0)|(zoomed?8:0)|(box&&box.left>10&&box.top>10?16:0)|(canvasReady?32:0)|(verticalSafe?64:0)|(stressSafe?128:0)|(anchorSafe?256:0)|(honestLabels?512:0);
+                    const interactionBudget=Number(window.__AGR_INTERACTION_PAUSE_COUNT__||0)>0;
+                    const lensMode=Boolean(document.querySelector('.comparison-modes button:nth-child(3).active'));
+                    const hardwareTelemetry=document.querySelectorAll('.hardware-strip>div').length===4;
+                    const mask=(document.querySelector('.workspace')?1:0)|(document.querySelector('.settings-panel')?2:0)|(document.querySelector('.topbar')?4:0)|(zoomed?8:0)|(box&&box.left>10&&box.top>10?16:0)|(canvasReady?32:0)|(verticalSafe?64:0)|(stressSafe?128:0)|(anchorSafe?256:0)|(honestLabels?512:0)|(interactionBudget?1024:0)|(lensMode?2048:0)|(hardwareTelemetry?4096:0);
                     return `${mask}|${zoomLabel?.textContent}|${window.__AGR_WHEEL_COUNT__||0}|${window.__AGR_ZOOM_TARGET__||0}|${document.querySelectorAll('.smooth-compare').length}|${document.querySelectorAll('.smooth-compare canvas').length}|${window.__AGR_TEST_VERTICAL_Y__||0}|${window.__AGR_ZOOM_ANCHOR_ERROR__||0}`;
                 })())JS"),[](const QVariant &result){
                     const QString details=result.toString();const int mask=details.section('|',0,0).toInt();
-                    constexpr int shellMask=1|2|4|128|256|512;
+                    constexpr int shellMask=1|2|4|128|256|512|1024|2048|4096;
                     if((mask&shellMask)!=shellMask)
                         qCritical("React shell smoke test failed: %s",qPrintable(details));
-                    else if(mask!=1023)
+                    else if(mask!=8191)
                         qWarning("Offscreen interaction diagnostics incomplete: %s",qPrintable(details));
                 });
             });

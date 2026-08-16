@@ -31,6 +31,7 @@ import "./style.css";
 import "./v47.css";
 import "./v48.css";
 import "./v49.css";
+import "./v51.css";
 
 const EMPTY = {
   sourceUrl: "",
@@ -59,6 +60,9 @@ const EMPTY = {
   batchWorkers: 1,
   batchProgressHistory: [],
   batchActivityHistory: [],
+  cpuLoad: 0,
+  memoryMb: 0,
+  processingRate: 0,
 };
 const HEADLESS_TEST = new URLSearchParams(location.search).has("headless-test");
 const TEST_TEXTURE = "qrc:/icons/liquid.svg";
@@ -139,6 +143,7 @@ function useBackend() {
         "batchImportStatusChanged",
         "batchWorkersChanged",
         "batchTelemetryChanged",
+        "systemTelemetryChanged",
       ].forEach((n) => api[n]?.connect(refresh));
       refresh();
     });
@@ -206,7 +211,7 @@ function TooltipLayer() {
   );
 }
 
-function DecodeText({ children, trigger = 0 }) {
+function DecodeText({ children, trigger = 0, direction = 1 }) {
   const original = String(children),
     [value, setValue] = useState(original),
     frame = useRef(0),
@@ -223,7 +228,7 @@ function DecodeText({ children, trigger = 0 }) {
           .map((c, i) =>
             c === " "
               ? c
-              : i < fixed
+              : (direction < 0 ? i >= original.length - fixed : i < fixed)
                 ? c
                 : glyphs[Math.floor(Math.random() * glyphs.length)],
           )
@@ -232,7 +237,7 @@ function DecodeText({ children, trigger = 0 }) {
       if (p < 1) frame.current = requestAnimationFrame(run);
     };
     frame.current = requestAnimationFrame(run);
-  }, [original]);
+  }, [direction, original]);
   useEffect(() => () => cancelAnimationFrame(frame.current), []);
   useEffect(() => {
     if (trigger) decode();
@@ -627,12 +632,76 @@ function NestedBand({ radius, width, gap, depth, index, quality, register }) {
   );
 }
 
+function BandSparks({ fieldRef, quality, screen }) {
+  const points = useRef(), material = useRef();
+  const count = quality === "eco" ? 18 : quality === "max" ? 54 : 34;
+  const seeds = useMemo(() => {
+    const data = [];
+    for (let i = 0; i < count; i++) {
+      const seed = (i * 12.9898) % 1;
+      data.push({
+        angle: seed * Math.PI * 2,
+        radius: .025 + ((i * 7) % 13) * .007,
+        lift: .22 + ((i * 11) % 17) * .025,
+        speed: .65 + ((i * 5) % 9) * .09,
+      });
+    }
+    return data;
+  }, [count]);
+  const positions = useMemo(() => new Float32Array(count * 3), [count]);
+  useFrame(({ clock }) => {
+    if (!points.current || !material.current) return;
+    const field = fieldRef?.current || { x: 0, y: 0, influence: 0 };
+    const energy = screen === "home" ? Math.max(0, field.influence || 0) : 0;
+    material.current.opacity = THREE.MathUtils.lerp(material.current.opacity, energy * .92, .18);
+    material.current.size = .035 + energy * .045;
+    const ox = (field.x - .34) * 2.65;
+    const oy = (field.y - .03) * 1.72;
+    const t = clock.elapsedTime;
+    seeds.forEach((seed, index) => {
+      const life = (t * seed.speed + index / count) % 1;
+      const spread = seed.radius + life * .22;
+      positions[index * 3] = ox + Math.cos(seed.angle + t * .8) * spread;
+      positions[index * 3 + 1] = oy + Math.sin(seed.angle + t * .65) * spread + life * seed.lift;
+      positions[index * 3 + 2] = .3 + Math.sin(seed.angle * 1.7 + t) * .13 + life * .16;
+    });
+    points.current.geometry.attributes.position.needsUpdate = true;
+  });
+  return (
+    <points ref={points} renderOrder={7} frustumCulled={false}>
+      <bufferGeometry>
+        <bufferAttribute attach="attributes-position" args={[positions, 3]} />
+      </bufferGeometry>
+      <pointsMaterial
+        ref={material}
+        color="#ffd8ea"
+        size={.04}
+        transparent
+        opacity={0}
+        depthWrite={false}
+        sizeAttenuation
+        blending={THREE.AdditiveBlending}
+      />
+    </points>
+  );
+}
+
 const SHELL_VERTEX = `
   varying vec3 vNormal;
   varying vec3 vView;
   varying vec3 vWorld;
+  varying float vDent;
+  uniform float uTime;
+  uniform float uEnergy;
+  uniform float uProgress;
+  uniform vec2 uPointer;
   void main() {
-    vec4 world = modelMatrix * vec4(position, 1.0);
+    vec3 p = position;
+    float breath = sin(uTime * 1.12 + position.y * 3.4 + position.x * 1.7) * (.012 + uEnergy * .018);
+    float cursorDistance = length(position.xy - uPointer);
+    vDent = exp(-cursorDistance * cursorDistance * 7.5) * uEnergy;
+    p += normal * (breath - vDent * .12 + sin(uProgress * 3.14159) * .018);
+    vec4 world = modelMatrix * vec4(p, 1.0);
     vWorld = world.xyz;
     vNormal = normalize(mat3(modelMatrix) * normal);
     vView = cameraPosition - world.xyz;
@@ -643,20 +712,47 @@ const SHELL_FRAGMENT = `
   varying vec3 vNormal;
   varying vec3 vView;
   varying vec3 vWorld;
+  varying float vDent;
   uniform float uEnergy;
+  uniform float uTime;
+  uniform float uProgress;
   void main() {
     float facing = clamp(dot(normalize(vNormal), normalize(vView)), 0.0, 1.0);
     float fresnel = pow(1.0 - facing, 2.35);
     float topGlow = smoothstep(-1.5, 1.7, vWorld.y) * 0.075;
     vec3 plum = vec3(0.34, 0.055, 0.22);
     vec3 rose = vec3(1.0, 0.18, 0.53);
-    vec3 color = mix(plum, rose, fresnel * .78 + uEnergy * .13);
-    float alpha = .035 + fresnel * (.31 + uEnergy * .13) + topGlow;
+    float wave = sin(vDent * 24.0 - uTime * 4.2) * vDent;
+    vec3 rgbSplit = vec3(.12, -.03, .15) * smoothstep(.58, .92, uProgress) * fresnel;
+    vec3 color = mix(plum, rose, fresnel * .78 + uEnergy * .13 + wave * .18) + rgbSplit;
+    float alpha = .035 + fresnel * (.31 + uEnergy * .13) + topGlow + abs(wave) * .11;
     gl_FragColor = vec4(color, alpha);
   }
 `;
 
-function GlassFieldSphere({ screen, quality, fieldRef, progress }) {
+function SurfaceWaves({ fieldRef, screen }) {
+  const rings = useRef([]);
+  useFrame(({ clock }) => {
+    const field = fieldRef?.current || { x: 0, y: 0, influence: 0 };
+    const energy = screen === "home" ? Math.max(0, field.influence || 0) : 0;
+    rings.current.forEach((ring, index) => {
+      if (!ring) return;
+      const phase = (clock.elapsedTime * (.44 + index * .035) + index / 3) % 1;
+      ring.position.set((field.x - .34) * 2.65, (field.y - .03) * 1.72, .55 + index * .025);
+      ring.scale.setScalar(.18 + phase * 1.35);
+      ring.material.opacity = energy * (1 - phase) * .68;
+      ring.rotation.z = field.x * .28 + index * .18;
+    });
+  });
+  return <group renderOrder={6}>
+    {Array.from({ length: 3 }, (_, index) => <mesh key={index} ref={(node) => { rings.current[index] = node; }}>
+      <ringGeometry args={[.2, .214, 72]} />
+      <meshBasicMaterial color={index === 1 ? "#ff76b3" : "#fff2f8"} transparent opacity={0} depthWrite={false} blending={THREE.AdditiveBlending} side={THREE.DoubleSide} />
+    </mesh>)}
+  </group>;
+}
+
+function GlassFieldSphere({ screen, quality, fieldRef, progress, verified = false, loading = false }) {
   const group = useRef(), core = useRef(), shell = useRef(), glass = useRef(), light = useRef();
   const bands = useRef([]);
   const sphereSegments = quality === "eco" ? 40 : quality === "max" ? 88 : 64;
@@ -679,6 +775,7 @@ function GlassFieldSphere({ screen, quality, fieldRef, progress }) {
           : [3.9, 1.72, -2.2, .48];
     const magnetic = screen === "home" ? field.influence || 0 : .08;
     const dive = screen === "home" ? progress : 0;
+    const breath = Math.sin(t * .92) * .012 + Math.sin(t * .41) * .007;
     group.current.position.x = THREE.MathUtils.lerp(group.current.position.x, route[0], .055);
     group.current.position.y = THREE.MathUtils.lerp(group.current.position.y, route[1], .055);
     group.current.position.z = THREE.MathUtils.lerp(group.current.position.z, route[2] + dive * 3.25, .045);
@@ -693,15 +790,41 @@ function GlassFieldSphere({ screen, quality, fieldRef, progress }) {
     bands.current.forEach((band, index) => {
       if (!band) return;
       const direction = index - 2;
-      band.position.z = THREE.MathUtils.lerp(band.position.z, direction * .09 + magnetic * direction * .075, .08);
+      const distance = Math.hypot((field.x - .34) * .92, field.y - .03);
+      const hoveredBand = Math.max(0, Math.min(nested.length - 1, Math.round((distance / .72) * nested.length - .5)));
+      const selected = magnetic > .035 && index === hoveredBand ? magnetic : 0;
+      const sealed = loading ? .22 : 1;
+      const ritualOpen = verified ? direction * .18 : 0;
+      band.position.z = THREE.MathUtils.lerp(band.position.z, direction * .09 * sealed + magnetic * direction * .075 + ritualOpen, .08);
       band.rotation.x = THREE.MathUtils.lerp(band.rotation.x, magnetic * direction * .025, .07);
       band.rotation.y = THREE.MathUtils.lerp(band.rotation.y, magnetic * direction * -.055, .07);
       band.rotation.z = THREE.MathUtils.lerp(band.rotation.z, index * -.055 + magnetic * direction * .045, .07);
+      band.material.emissiveIntensity = THREE.MathUtils.lerp(
+        band.material.emissiveIntensity,
+        (index === 0 ? .26 : .15) + selected * 2.8,
+        .16,
+      );
+      const edgeMaterial = band.children[0]?.material;
+      if (edgeMaterial) {
+        edgeMaterial.opacity = THREE.MathUtils.lerp(
+          edgeMaterial.opacity,
+          (index < 2 ? .58 : .42) + selected * .4,
+          .16,
+        );
+      }
     });
     if (shell.current) {
       shell.current.material.opacity = .13 + magnetic * .055 + dive * .1;
+      shell.current.scale.setScalar(1.84 * (1 + breath + magnetic * .006));
+      shell.current.material.thickness = 1.62 + Math.sin(t * .7) * .12 + magnetic * .22;
+      shell.current.material.ior = 1.2 + magnetic * .08 + dive * .06;
     }
-    if (glass.current) glass.current.uniforms.uEnergy.value = magnetic + dive * .45;
+    if (glass.current) {
+      glass.current.uniforms.uEnergy.value = magnetic + dive * .45;
+      glass.current.uniforms.uTime.value = t;
+      glass.current.uniforms.uProgress.value = dive;
+      glass.current.uniforms.uPointer.value.set((field.x - .34) * 1.16, (field.y - .03) * .94);
+    }
     if (light.current) {
       light.current.position.x = THREE.MathUtils.lerp(light.current.position.x, field.x * 2.2, .09);
       light.current.position.y = THREE.MathUtils.lerp(light.current.position.y, field.y * 1.7, .09);
@@ -724,6 +847,8 @@ function GlassFieldSphere({ screen, quality, fieldRef, progress }) {
           />
         ))}
       </group>
+      <BandSparks fieldRef={fieldRef} quality={quality} screen={screen} />
+      <SurfaceWaves fieldRef={fieldRef} screen={screen} />
       <mesh ref={shell} scale={1.84} renderOrder={4}>
         <sphereGeometry args={[1, sphereSegments, sphereSegments]} />
         <meshPhysicalMaterial
@@ -749,7 +874,12 @@ function GlassFieldSphere({ screen, quality, fieldRef, progress }) {
           ref={glass}
           vertexShader={SHELL_VERTEX}
           fragmentShader={SHELL_FRAGMENT}
-          uniforms={{ uEnergy: { value: 0 } }}
+          uniforms={{
+            uEnergy: { value: 0 },
+            uTime: { value: 0 },
+            uProgress: { value: 0 },
+            uPointer: { value: new THREE.Vector2(0, 0) },
+          }}
           transparent
           depthWrite={false}
           side={THREE.FrontSide}
@@ -760,6 +890,28 @@ function GlassFieldSphere({ screen, quality, fieldRef, progress }) {
       <pointLight color="#ff9bc8" intensity={quality === "eco" ? 1.1 : 2.8} distance={5} position={[-1.4, 1.5, 1.4]} />
     </group>
   );
+}
+
+function InteractionFrameBudget() {
+  const setFrameloop = useThree((state) => state.setFrameloop);
+  const invalidate = useThree((state) => state.invalidate);
+  useEffect(() => {
+    const update = (event) => {
+      if (event.detail) {
+        setFrameloop("never");
+      }
+      else {
+        setFrameloop("always");
+        invalidate();
+      }
+    };
+    addEventListener("agr-drag", update);
+    return () => {
+      removeEventListener("agr-drag", update);
+      setFrameloop("always");
+    };
+  }, [invalidate, setFrameloop]);
+  return null;
 }
 
 function CameraRig({ progress, fieldRef, screen }) {
@@ -786,7 +938,7 @@ function CameraRig({ progress, fieldRef, screen }) {
   });
   return null;
 }
-function Scene({ progress, theme, quality, screen, fieldRef }) {
+function Scene({ progress, theme, quality, screen, fieldRef, verified, loading }) {
   const colors = THEME_COLORS[theme] || THEME_COLORS.rose;
   const density = quality === "eco" ? 24 : quality === "max" ? 92 : 54;
   return (
@@ -820,7 +972,7 @@ function Scene({ progress, theme, quality, screen, fieldRef }) {
         <Lightformer form="rect" intensity={4} color="#ff4fa8" scale={[4,2,1]} position={[4,-1,1]} rotation-y={-Math.PI/2} />
         <Lightformer form="circle" intensity={3} color="#ffffff" scale={2} position={[0,5,-2]} rotation-x={Math.PI/2} />
       </Environment>
-      <GlassFieldSphere screen={screen} quality={quality} fieldRef={fieldRef} progress={progress} />
+      <GlassFieldSphere screen={screen} quality={quality} fieldRef={fieldRef} progress={progress} verified={verified} loading={loading} />
       <Sparkles
         count={density}
         scale={[12, 7, 4]}
@@ -828,6 +980,7 @@ function Scene({ progress, theme, quality, screen, fieldRef }) {
         speed={0.13}
         color={colors[0]}
       />
+      <InteractionFrameBudget />
       <CameraRig progress={progress} fieldRef={fieldRef} screen={screen} />
     </Canvas>
   );
@@ -850,6 +1003,7 @@ class SceneBoundary extends React.Component {
 
 function Button({ children, quiet = false, danger = false, tip, className = "", onPointerEnter, onPointerLeave, ...props }) {
   const [decodeTick, setDecodeTick] = useState(0);
+  const [decodeDirection, setDecodeDirection] = useState(1);
   const move = (e) => {
     const r = e.currentTarget.getBoundingClientRect();
     e.currentTarget.style.setProperty("--bx", `${e.clientX - r.left}px`);
@@ -861,6 +1015,8 @@ function Button({ children, quiet = false, danger = false, tip, className = "", 
       data-no-hold
       onPointerMove={move}
       onPointerEnter={(e) => {
+        const rect = e.currentTarget.getBoundingClientRect();
+        setDecodeDirection(e.clientX >= rect.left + rect.width / 2 ? -1 : 1);
         setDecodeTick((value) => value + 1);
         onPointerEnter?.(e);
       }}
@@ -868,7 +1024,7 @@ function Button({ children, quiet = false, danger = false, tip, className = "", 
       {...props}
     >
       <i />
-      <span>{typeof children === "string" ? <DecodeText trigger={decodeTick}>{children}</DecodeText> : children}</span>
+      <span>{typeof children === "string" ? <DecodeText trigger={decodeTick} direction={decodeDirection}>{children}</DecodeText> : children}</span>
     </button>
   );
   return <Hint text={tip}>{node}</Hint>;
@@ -953,9 +1109,9 @@ function Sparkline({ values = [], label, color = "var(--accent)" }) {
     </Hint>
   );
 }
-function ProcessSignal({ progress = 0, status = "Ожидание", compact = false }) {
+function ProcessSignal({ progress = 0, status = "Ожидание", compact = false, activity = 0 }) {
   const p = Math.max(0, Math.min(1, Number(progress || 0)));
-  return <div className={`process-signal ${compact ? "compact" : ""}`} title={status}>
+  return <div className={`process-signal ${compact ? "compact" : ""}`} title={status} style={{ "--flow-rate": `${Math.max(.42, 1.8 - Math.max(0, Math.min(1, activity)) * 1.28)}s` }}>
     <div className="signal-copy"><small>{p >= 1 ? "RGB24 VERIFIED" : p > 0 ? "ADAPTIVE PIPELINE" : "READY CHANNEL"}</small><strong>{Math.round(p * 100)}%</strong></div>
     <div className="signal-rail" style={{ "--signal-progress": p }}>
       <i />
@@ -965,15 +1121,31 @@ function ProcessSignal({ progress = 0, status = "Ожидание", compact = fa
     <span>{String(status).split("·")[0].slice(0,72)}</span>
   </div>;
 }
-function FluidProgress({ value = 0 }) {
+function FluidProgress({ value = 0, activity = 0 }) {
   return (
     <div
       className="fluid-progress"
-      style={{ "--value": Math.max(0, Math.min(1, value)) }}
+      style={{
+        "--value": Math.max(0, Math.min(1, value)),
+        "--flow-rate": `${Math.max(.42, 1.7 - Math.max(0, Math.min(1, activity)) * 1.18)}s`,
+      }}
     >
       <i />
       <b />
     </div>
+  );
+}
+
+function HardwareTelemetry({ state, batch = false }) {
+  const activity = batch ? state.batchActivityHistory : state.activityHistory;
+  const progress = batch ? state.batchProgressHistory : state.progressHistory;
+  return (
+    <section className="hardware-strip" aria-label="Аппаратная телеметрия">
+      <div><small>CPU</small><strong>{Math.round((state.cpuLoad || 0) * 100)}%</strong><Sparkline label="CPU LOAD" values={activity} /></div>
+      <div><small>MEMORY</small><strong>{state.memoryMb ? `${Math.round(state.memoryMb)} MB` : "—"}</strong><i className="memory-cell" /></div>
+      <div><small>THREADS</small><strong>{batch ? state.batchWorkers || 1 : 1}</strong><i className="thread-cell" style={{ "--threads": batch ? state.batchWorkers || 1 : 1 }} /></div>
+      <div><small>SPEED</small><strong>{Number(state.processingRate || 0).toFixed(1)} %/s</strong><Sparkline label="PIPELINE" values={progress} color="var(--accent2)" /></div>
+    </section>
   );
 }
 
@@ -997,8 +1169,32 @@ function DataCathedral({ items = [], activity = 0, quality = "balanced" }) {
     <div className="data-cathedral" style={{ "--activity": Math.max(.08, Number(activity || 0)) }} aria-hidden="true">
       <div className="cathedral-vault"><i /><i /><i /><i /></div>
       <div className="cathedral-floor" />
+      <div className="cathedral-links">{Array.from({ length: Math.max(6, Math.min(18, visible.length)) }, (_, i) => <i key={i} style={{ "--i": i, "--count": Math.max(6, visible.length) }} />)}</div>
       <div className="cathedral-modules">
-        {visible.map((item, i) => <div key={`${item.sourceUrl || item.name}-${i}`} className={`cathedral-module ${item.done ? "done" : item.importing ? "loading" : "queued"}`} style={{ "--i": i, "--count": visible.length }}><i /><b>{String(i + 1).padStart(2,"0")}</b><span>{item.name}</span></div>)}
+        <AnimatePresence initial={false}>
+          {visible.map((item, i) => {
+            const processing = !item.done && !item.importing && Number(item.progress || 0) > 0;
+            return <motion.div
+              layout
+              key={item.sourceUrl || item.name}
+              className="cathedral-slot"
+              style={{
+                "--orbit-x": `${Math.cos((i / Math.max(1, visible.length)) * Math.PI * 2) * (250 + (i % 3) * 42)}px`,
+                "--orbit-y": `${Math.sin((i / Math.max(1, visible.length)) * Math.PI * 2) * (112 + (i % 2) * 24)}px`,
+                "--orbit-z": `${(i % 5) * 28 - 56}px`,
+              }}
+              initial={{ opacity: 0, scale: .35, "--burst": 0 }}
+              animate={{ opacity: 1, scale: 1, "--burst": 0 }}
+              exit={{ opacity: 0, scale: .18, rotate: 28, filter: "blur(12px)", "--burst": 1 }}
+              transition={{ duration: .62, ease: [0.2, 0.75, 0.2, 1] }}
+            >
+              <div className={`cathedral-module ${item.done ? "done" : item.importing ? "loading" : processing ? "processing" : "queued"}`} style={{ "--i": i, "--count": visible.length }}>
+                <i /><em /><b>{String(i + 1).padStart(2,"0")}</b><span>{item.name}</span>
+                <div className="module-particles">{Array.from({ length: 9 }, (_, p) => <i key={p} style={{ "--p": p }} />)}</div>
+              </div>
+            </motion.div>;
+          })}
+        </AnimatePresence>
       </div>
       <div className="cathedral-core"><span>{items.length}</span><small>TEXTURE NODES</small></div>
     </div>
@@ -1110,10 +1306,11 @@ function SettingsPanel({
         <motion.aside
           className="settings-panel"
           data-no-hold
-          initial={{ x: 390, opacity: 0, filter: "blur(12px)" }}
-          animate={{ x: 0, opacity: 1, filter: "blur(0)" }}
-          exit={{ x: 390, opacity: 0 }}
-          transition={{ type: "spring", stiffness: 220, damping: 25 }}
+          style={{ transformOrigin: "92% 4%" }}
+          initial={{ opacity: 0, scale: .08, borderRadius: "50%", filter: "blur(18px) brightness(1.8)" }}
+          animate={{ opacity: 1, scale: 1, borderRadius: "25px 8px 25px 8px", filter: "blur(0px) brightness(1)" }}
+          exit={{ opacity: 0, scale: .12, borderRadius: "50%", filter: "blur(16px) brightness(1.7)" }}
+          transition={{ duration: .72, ease: [0.16, 0.82, 0.18, 1] }}
         >
           <div className="settings-head">
             <div>
@@ -1488,22 +1685,45 @@ function WipeCompare({ before, after }) {
 const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before, after, mode, onZoom }) {
   const host = useRef(null), canvas = useRef(null), frame = useRef(0), drag = useRef(null);
   const images = useRef({ before: null, after: null });
-  const target = useRef({ s: 1, x: 0, y: 0, split: 0.5 });
-  const current = useRef({ s: 1, x: 0, y: 0, split: 0.5 });
-  const alive = useRef(true), loaded = useRef(false), modeRef = useRef(mode);
+  const target = useRef({ s: 1, x: 0, y: 0, split: 0.5, lensX: .5, lensY: .5, lensZoom: 2.4 });
+  const current = useRef({ s: 1, x: 0, y: 0, split: 0.5, lensX: .5, lensY: .5, lensZoom: 2.4 });
+  const alive = useRef(true), loaded = useRef(false), modeRef = useRef(mode), interactionTimer = useRef(0);
+
+  const sourceSize = useCallback((source) => ({
+    width: source?.width || source?.naturalWidth || 0,
+    height: source?.height || source?.naturalHeight || 0,
+  }), []);
+
+  const setInteraction = useCallback((active, releaseDelay = 0) => {
+    clearTimeout(interactionTimer.current);
+    if (active) {
+      window.__AGR_INTERACTION_PAUSE_COUNT__ = (window.__AGR_INTERACTION_PAUSE_COUNT__ || 0) + 1;
+      dispatchEvent(new CustomEvent("agr-drag", { detail: true }));
+    }
+    else if (releaseDelay) {
+      interactionTimer.current = setTimeout(
+        () => {
+          dispatchEvent(new CustomEvent("agr-drag", { detail: false }));
+          dispatchEvent(new CustomEvent("agr-material-memory"));
+        },
+        releaseDelay,
+      );
+    } else dispatchEvent(new CustomEvent("agr-drag", { detail: false }));
+  }, []);
 
   const clampView = useCallback((view) => {
     const node = host.current, img = images.current.before || images.current.after;
-    if (!node || !img?.naturalWidth) return { ...view, x: 0, y: 0 };
+    const size = sourceSize(img);
+    if (!node || !size.width) return { ...view, x: 0, y: 0 };
     const rect = node.getBoundingClientRect(), viewWidth = modeRef.current === "pan" ? rect.width / 2 : rect.width;
-    const fit = Math.min(viewWidth / img.naturalWidth, rect.height / img.naturalHeight);
-    const renderedWidth = img.naturalWidth * fit * view.s, renderedHeight = img.naturalHeight * fit * view.s;
+    const fit = Math.min(viewWidth / size.width, rect.height / size.height);
+    const renderedWidth = size.width * fit * view.s, renderedHeight = size.height * fit * view.s;
     // Keep at least one full viewport edge covered: the image can be inspected,
     // but it can never be thrown completely into an infinite empty field.
     const maxX = Math.max(0, (renderedWidth - viewWidth) / 2);
     const maxY = Math.max(0, (renderedHeight - rect.height) / 2);
     return { ...view, x: Math.max(-maxX, Math.min(maxX, view.x)), y: Math.max(-maxY, Math.min(maxY, view.y)) };
-  }, []);
+  }, [sourceSize]);
 
   const render = useCallback(() => {
     frame.current = 0;
@@ -1517,61 +1737,114 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before
     target.current = clampView(target.current);
     const c = current.current, t = target.current;
     c.s += (t.s - c.s) * .19; c.x += (t.x - c.x) * .19; c.y += (t.y - c.y) * .19; c.split += (t.split - c.split) * .22;
+    c.lensX += (t.lensX - c.lensX) * .34; c.lensY += (t.lensY - c.lensY) * .34; c.lensZoom += (t.lensZoom - c.lensZoom) * .22;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, rect.width, rect.height);
     const draw = (img, x0, width) => {
-      if (!img?.naturalWidth || width <= 0) return;
+      const size = sourceSize(img);
+      if (!size.width || width <= 0) return;
       ctx.save(); ctx.beginPath(); ctx.rect(x0, 0, width, rect.height); ctx.clip();
       const fitW = modeRef.current === "pan" ? rect.width / 2 : rect.width;
-      const fit = Math.min(fitW / img.naturalWidth, rect.height / img.naturalHeight);
-      const scale = fit * c.s, dw = img.naturalWidth * scale, dh = img.naturalHeight * scale;
+      const fit = Math.min(fitW / size.width, rect.height / size.height);
+      const scale = fit * c.s, dw = size.width * scale, dh = size.height * scale;
       const cx = modeRef.current === "pan" ? x0 + width / 2 : rect.width / 2;
       const dx = cx - dw / 2 + c.x, dy = rect.height / 2 - dh / 2 + c.y;
-      const sx = Math.max(0, Math.min(img.naturalWidth, (x0 - dx) / scale));
-      const sy = Math.max(0, Math.min(img.naturalHeight, -dy / scale));
-      const ex = Math.max(0, Math.min(img.naturalWidth, (x0 + width - dx) / scale));
-      const ey = Math.max(0, Math.min(img.naturalHeight, (rect.height - dy) / scale));
+      const sx = Math.max(0, Math.min(size.width, (x0 - dx) / scale));
+      const sy = Math.max(0, Math.min(size.height, -dy / scale));
+      const ex = Math.max(0, Math.min(size.width, (x0 + width - dx) / scale));
+      const ey = Math.max(0, Math.min(size.height, (rect.height - dy) / scale));
       const sw = Math.max(0, ex - sx), sh = Math.max(0, ey - sy);
       ctx.imageSmoothingEnabled = scale < 1; ctx.imageSmoothingQuality = "high";
       if (sw > 0 && sh > 0) {
-        ctx.drawImage(img, sx, sy, sw, sh, dx + sx * scale, dy + sy * scale, sw * scale, sh * scale);
+        ctx.drawImage(img.drawable || img, sx, sy, sw, sh, dx + sx * scale, dy + sy * scale, sw * scale, sh * scale);
       }
       ctx.restore();
     };
     if (modeRef.current === "wipe") {
       const cut = rect.width * c.split; draw(images.current.before, 0, rect.width); draw(images.current.after, 0, cut);
       ctx.fillStyle = "rgba(255,255,255,.9)"; ctx.fillRect(cut - .5, 0, 1, rect.height);
+    } else if (modeRef.current === "lens") {
+      draw(images.current.before, 0, rect.width);
+      const img = images.current.after, size = sourceSize(img);
+      const lx = c.lensX * rect.width, ly = c.lensY * rect.height;
+      const radius = Math.max(72, Math.min(164, Math.min(rect.width, rect.height) * .18));
+      if (size.width) {
+        const fit = Math.min(rect.width / size.width, rect.height / size.height);
+        const baseScale = fit * c.s, lensScale = baseScale * c.lensZoom;
+        const baseDx = rect.width / 2 - size.width * baseScale / 2 + c.x;
+        const baseDy = rect.height / 2 - size.height * baseScale / 2 + c.y;
+        const imageX = (lx - baseDx) / baseScale, imageY = (ly - baseDy) / baseScale;
+        const lensDx = lx - imageX * lensScale, lensDy = ly - imageY * lensScale;
+        const sx = Math.max(0, Math.min(size.width, (lx - radius - lensDx) / lensScale));
+        const sy = Math.max(0, Math.min(size.height, (ly - radius - lensDy) / lensScale));
+        const ex = Math.max(0, Math.min(size.width, (lx + radius - lensDx) / lensScale));
+        const ey = Math.max(0, Math.min(size.height, (ly + radius - lensDy) / lensScale));
+        const sw = Math.max(0, ex - sx), sh = Math.max(0, ey - sy);
+        ctx.save(); ctx.beginPath(); ctx.arc(lx, ly, radius, 0, Math.PI * 2); ctx.clip();
+        ctx.fillStyle = "#030205"; ctx.fillRect(lx - radius, ly - radius, radius * 2, radius * 2);
+        ctx.imageSmoothingEnabled = lensScale < 1;
+        if (sw > 0 && sh > 0) ctx.drawImage(img.drawable || img, sx, sy, sw, sh, lensDx + sx * lensScale, lensDy + sy * lensScale, sw * lensScale, sh * lensScale);
+        const glare = ctx.createRadialGradient(lx - radius * .34, ly - radius * .38, 0, lx, ly, radius);
+        glare.addColorStop(0, "rgba(255,255,255,.15)"); glare.addColorStop(.42, "rgba(255,255,255,0)"); glare.addColorStop(1, "rgba(255,60,145,.12)");
+        ctx.fillStyle = glare; ctx.fillRect(lx - radius, ly - radius, radius * 2, radius * 2); ctx.restore();
+        ctx.beginPath(); ctx.arc(lx, ly, radius, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(255,235,247,.92)"; ctx.lineWidth = 1.4; ctx.shadowBlur = 22; ctx.shadowColor = "rgba(255,55,148,.9)"; ctx.stroke(); ctx.shadowBlur = 0;
+      }
     } else {
       draw(images.current.before, 0, rect.width / 2); draw(images.current.after, rect.width / 2, rect.width / 2);
     }
-    const moving = Math.abs(t.s-c.s) > .001 || Math.abs(t.x-c.x) > .08 || Math.abs(t.y-c.y) > .08 || Math.abs(t.split-c.split) > .001;
+    const moving = Math.abs(t.s-c.s) > .001 || Math.abs(t.x-c.x) > .08 || Math.abs(t.y-c.y) > .08 || Math.abs(t.split-c.split) > .001 || Math.abs(t.lensX-c.lensX) > .0005 || Math.abs(t.lensY-c.lensY) > .0005 || Math.abs(t.lensZoom-c.lensZoom) > .002;
     if (moving && alive.current) frame.current = requestAnimationFrame(render);
-  }, [clampView]);
+  }, [clampView, sourceSize]);
   const wake = useCallback(() => { if (!frame.current) frame.current = requestAnimationFrame(render); }, [render]);
   const reset = useCallback((scale = 1) => {
     target.current = { ...target.current, s: scale, x: 0, y: 0 };
     onZoom?.(scale); wake();
   }, [onZoom, wake]);
-  useEffect(() => { modeRef.current = mode; wake(); }, [mode, wake]);
+  useEffect(() => {
+    modeRef.current = mode;
+    onZoom?.(mode === "lens" ? target.current.lensZoom : target.current.s);
+    wake();
+  }, [mode, onZoom, wake]);
   useEffect(() => {
     alive.current = true; loaded.current = false;
     let cancelled = false;
     const load = (src) => new Promise((resolve) => {
       if (!src) return resolve(null);
       const img = new Image(); img.decoding = "async";
-      const done = () => resolve(img.naturalWidth ? img : null);
-      img.onload = done; img.onerror = () => resolve(null); img.src = src;
+      let settled = false;
+      const done = async () => {
+        if (settled) return;
+        settled = true;
+        if (!img.naturalWidth) return resolve(null);
+        let drawable = img;
+        try {
+          if (typeof createImageBitmap === "function") drawable = await createImageBitmap(img);
+        } catch {
+          drawable = img;
+        }
+        resolve({ drawable, width: img.naturalWidth, height: img.naturalHeight });
+      };
+      img.onload = done; img.onerror = () => { settled = true; resolve(null); }; img.src = src;
       if (img.complete) done();
     });
     Promise.all([load(before || (HEADLESS_TEST ? TEST_TEXTURE : "")), load(after || (HEADLESS_TEST ? TEST_TEXTURE : ""))]).then(([a,b]) => {
-      if (cancelled) return;
+      if (cancelled) {
+        a?.drawable?.close?.(); b?.drawable?.close?.();
+        return;
+      }
       images.current = { before: a, after: b };
       loaded.current = Boolean(a || b);
-      target.current = { s: 1, x: 0, y: 0, split: target.current.split };
+      target.current = { ...target.current, s: 1, x: 0, y: 0 };
       current.current = { ...target.current };
       reset();
     });
-    return () => { cancelled = true; alive.current = false; cancelAnimationFrame(frame.current); frame.current = 0; };
-  }, [before, after, reset]);
+    return () => {
+      cancelled = true; alive.current = false; cancelAnimationFrame(frame.current); frame.current = 0;
+      Object.values(images.current).forEach((source) => source?.drawable?.close?.());
+      images.current = { before: null, after: null };
+      setInteraction(false);
+    };
+  }, [before, after, reset, setInteraction]);
   useEffect(() => {
     const observer = new ResizeObserver(wake); if (host.current) observer.observe(host.current);
     return () => observer.disconnect();
@@ -1592,8 +1865,18 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before
     const node = host.current; if (!node) return;
     const wheel = (e) => {
       e.preventDefault();
+      setInteraction(true);
+      setInteraction(false, 150);
       window.__AGR_WHEEL_COUNT__ = (window.__AGR_WHEEL_COUNT__ || 0) + 1;
       const r = node.getBoundingClientRect(), px = e.clientX - r.left;
+      if (modeRef.current === "lens") {
+        const factor = Math.exp(Math.max(-.16, Math.min(.16, -e.deltaY * .0013)));
+        target.current.lensZoom = Math.max(1, Math.min(8, target.current.lensZoom * factor));
+        target.current.lensX = Math.max(0, Math.min(1, px / r.width));
+        target.current.lensY = Math.max(0, Math.min(1, (e.clientY - r.top) / r.height));
+        onZoom?.(target.current.lensZoom); wake();
+        return;
+      }
       const paneWidth = modeRef.current === "pan" ? r.width / 2 : r.width;
       const paneLeft = modeRef.current === "pan" && px >= r.width / 2 ? r.width / 2 : 0;
       window.__AGR_ZOOM_LOCAL_X__ = px - paneLeft - paneWidth / 2;
@@ -1604,22 +1887,32 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before
       );
     };
     node.addEventListener("wheel", wheel, { passive: false }); return () => node.removeEventListener("wheel", wheel);
-  }, [zoom]);
+  }, [setInteraction, zoom]);
   useEffect(() => {
     if (!HEADLESS_TEST) return;
     const z = e => { window.__AGR_WHEEL_COUNT__ = (window.__AGR_WHEEL_COUNT__ || 0) + 1; zoom(Number(e.detail?.factor || 1.1)); };
-    const d = e => { target.current.x += Number(e.detail?.x || 0); target.current.y += Number(e.detail?.y || 0); window.__AGR_TEST_VERTICAL_Y__=target.current.y; wake(); };
+    const d = e => {
+      target.current.x += Number(e.detail?.x || 0); target.current.y += Number(e.detail?.y || 0);
+      window.__AGR_TEST_VERTICAL_Y__=target.current.y; setInteraction(true); setInteraction(false, 60); wake();
+    };
     addEventListener("agr-test-zoom", z); addEventListener("agr-test-drag", d); return () => { removeEventListener("agr-test-zoom", z); removeEventListener("agr-test-drag", d); };
-  }, [wake, zoom]);
-  return <div ref={host} className="smooth-compare" onPointerDown={(e) => {
+  }, [setInteraction, wake, zoom]);
+  return <div ref={host} className={`smooth-compare mode-${mode}`} onPointerDown={(e) => {
     const r=host.current.getBoundingClientRect(), near=mode==="wipe" && Math.abs(e.clientX-r.left-r.width*target.current.split)<34;
-    drag.current={ px:e.clientX, py:e.clientY, x:target.current.x, y:target.current.y, wipe:near }; e.currentTarget.setPointerCapture(e.pointerId);
+    drag.current={ px:e.clientX, py:e.clientY, x:target.current.x, y:target.current.y, wipe:near }; e.currentTarget.setPointerCapture(e.pointerId); setInteraction(true);
   }} onPointerMove={(e) => {
-    if (!drag.current) return; const r=host.current.getBoundingClientRect();
+    const r=host.current.getBoundingClientRect();
+    if (mode === "lens") {
+      target.current.lensX=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));
+      target.current.lensY=Math.max(0,Math.min(1,(e.clientY-r.top)/r.height));
+      setInteraction(true); setInteraction(false, 120); wake();
+      return;
+    }
+    if (!drag.current) return;
     if (drag.current.wipe) target.current.split=Math.max(.02,Math.min(.98,(e.clientX-r.left)/r.width));
     else target.current=clampView({ ...target.current, x:drag.current.x+e.clientX-drag.current.px, y:drag.current.y+e.clientY-drag.current.py });
     wake();
-  }} onPointerUp={() => { drag.current=null; }} onPointerCancel={() => { drag.current=null; }}>
+  }} onPointerUp={() => { drag.current=null; setInteraction(false); dispatchEvent(new CustomEvent("agr-material-memory")); }} onPointerCancel={() => { drag.current=null; setInteraction(false); }}>
     <canvas ref={canvas} />
     <span className="compare-label before">ORIGINAL FILE · NATIVE</span><span className="compare-label after">RESULT FILE · NATIVE</span>
     <div className="viewport-actions"><button onClick={(e)=>{e.stopPropagation();reset(1)}}>ВПИСАТЬ</button><button onClick={(e)=>{e.stopPropagation();reset(4)}}>400%</button><button onClick={(e)=>{e.stopPropagation();reset(8)}}>800%</button></div>
@@ -1636,16 +1929,28 @@ const ComparisonSurface = React.memo(function ComparisonSurface({
 }) {
   const [mode, setMode] = useState("pan");
   const [zoomLabel, setZoomLabel] = useState(100);
-  const updateZoomLabel = useCallback((s) => setZoomLabel(Math.round(s * 100)), []);
+  const zoomFrame = useRef(0), pendingZoom = useRef(100);
+  const updateZoomLabel = useCallback((s) => {
+    pendingZoom.current = Math.round(s * 100);
+    if (zoomFrame.current) return;
+    zoomFrame.current = requestAnimationFrame(() => {
+      zoomFrame.current = 0;
+      setZoomLabel((value) => value === pendingZoom.current ? value : pendingZoom.current);
+    });
+  }, []);
+  useEffect(() => () => cancelAnimationFrame(zoomFrame.current), []);
   return (
     <section className="compare-card transparent">
-      {allowWipe && after && (
+      {allowWipe && (after || HEADLESS_TEST) && (
         <div className="comparison-modes">
           <button className={mode === "pan" ? "active" : ""} onClick={() => setMode("pan")}>
             СИНХРОННЫЙ ZOOM
           </button>
           <button className={mode === "wipe" ? "active" : ""} onClick={() => setMode("wipe")}>
             ШТОРКА ДО / ПОСЛЕ
+          </button>
+          <button className={mode === "lens" ? "active" : ""} onClick={() => setMode("lens")}>
+            СТЕКЛЯННАЯ ЛИНЗА
           </button>
         </div>
       )}
@@ -1655,7 +1960,7 @@ const ComparisonSurface = React.memo(function ComparisonSurface({
         <span><i />РЕЗУЛЬТАТ ЧИТАЕТСЯ ИЗ СОХРАНЁННОГО PNG</span>
       </div>
       <div className="compare-tools">
-        <span className="live-zoom">ZOOM {zoomLabel}% · MAX {MAX_ZOOM * 100}%</span>
+        <span className="live-zoom">{mode === "lens" ? `LENS ×${(zoomLabel / 100).toFixed(1)} · WHEEL` : `ZOOM ${zoomLabel}% · MAX ${MAX_ZOOM * 100}%`}</span>
         <Button quiet tip="Focus Comparison · клавиша F" onClick={onFocus}>
           <Focus /> {focus ? "ВЫЙТИ ИЗ FOCUS" : "FOCUS"}
         </Button>
@@ -1762,6 +2067,7 @@ function Workspace({ kind, state, backend, setScreen }) {
               {state.batchBusy ? "ОСТАНОВИТЬ" : "ОПТИМИЗИРОВАТЬ ВСЕ"}
             </Button>
           </section>
+          <HardwareTelemetry state={state} batch />
           <section className={`batch-import-panel ${state.batchImportBusy ? "active" : ""}`}>
             <div className="import-copy">
               <Cpu />
@@ -1770,7 +2076,7 @@ function Workspace({ kind, state, backend, setScreen }) {
                 <strong>{state.batchImportBusy ? state.batchImportStatus : state.batchStatus}</strong>
               </div>
             </div>
-            <FluidProgress value={state.batchImportBusy ? state.batchImportProgress : state.batchProgress} />
+            <FluidProgress value={state.batchImportBusy ? state.batchImportProgress : state.batchProgress} activity={state.cpuLoad} />
             <div className="import-names">
               {items.slice(-6).map((item) => (
                 <span key={item.sourceUrl} className={item.importing ? "loading" : item.failed ? "failed" : "ready"}>
@@ -1823,7 +2129,7 @@ function Workspace({ kind, state, backend, setScreen }) {
                     {item.done && `→ ${mb(item.outputMb)}`}
                   </p>
                   <FluidProgress value={item.progress || 0} />
-                  <ProcessSignal compact progress={item.progress || (item.done ? 1 : 0)} status={item.status || item.report} />
+                  <ProcessSignal compact progress={item.progress || (item.done ? 1 : 0)} status={item.status || item.report} activity={state.cpuLoad} />
                   <div>
                     <Button
                       disabled={!item.done}
@@ -1870,8 +2176,9 @@ function Workspace({ kind, state, backend, setScreen }) {
               color="var(--accent2)"
             />
           </section>
+          <HardwareTelemetry state={state} />
           <section className="npm-command-deck">
-            <ProcessSignal progress={state.progress} status={state.status || state.report} />
+            <ProcessSignal progress={state.progress} status={state.status || state.report} activity={state.cpuLoad} />
             <Button danger={state.busy} disabled={!state.sourceUrl && !state.busy} onClick={() => state.busy ? backend?.stopCurrent() : backend?.optimize(2.99)}>
               {state.busy ? "ОСТАНОВИТЬ" : "ОПТИМИЗИРОВАТЬ ДО 3 MB"}
             </Button>
@@ -1993,6 +2300,23 @@ function TransitionPortal({ active }) {
     </div>
   );
 }
+function LoadingShell({ active, label, progress = 0 }) {
+  return <div className={`loading-shell ${active ? "active" : ""}`} style={{ "--load-progress": Math.max(0, Math.min(1, progress)) }} aria-hidden="true">
+    <i /><i /><i />
+    <div><small>8K NATIVE SCAN</small><strong>{label || "PNG"}</strong><span>{Math.round(progress * 100)}%</span></div>
+  </div>;
+}
+function CompletionRitual({ active }) {
+  return <div className={`completion-ritual ${active ? "active" : ""}`} aria-hidden="true">
+    <div className="verified-shell"><i /><i /><i /><b>RGB24</b><strong>VERIFIED</strong></div>
+    <span />
+  </div>;
+}
+function MaterialMemory({ level = 0 }) {
+  return <div className="material-memory" style={{ "--memory-level": Math.min(1, level / 8) }} aria-hidden="true">
+    {Array.from({ length: 6 }, (_, i) => <i key={i} style={{ "--i": i }} />)}
+  </div>;
+}
 function SecretScene({ active, onDone }) {
   useEffect(() => {
     if (!active) return;
@@ -2042,6 +2366,8 @@ function App() {
       y: innerHeight / 2,
     }),
     [diving, setDiving] = useState(false),
+    [verified, setVerified] = useState(false),
+    [memoryLevel, setMemoryLevel] = useState(0),
     [settings, setSettings] = useState(false),
     [theme, setTheme] = useState(() =>
       readPreference("agr-theme", Object.keys(THEME_COLORS), "rose"),
@@ -2051,8 +2377,11 @@ function App() {
     ),
     [secret, setSecret] = useState(false),
     progressRef = useRef({ value: 0 }),
+    completionRef = useRef(""),
+    importRef = useRef(""),
     routeTimers = useRef([]),
     screen = route.startsWith("compare") ? "compare" : route,
+    doneCount = (state.batchItems || []).filter((item) => item.done).length,
     setScreen = useCallback(
       (next) => {
         if (next === route || (next === "compare" && screen === "compare"))
@@ -2081,9 +2410,16 @@ function App() {
     );
   useEffect(() => {
     const move = (e) => {
+      const cursorX = e.clientX / Math.max(1, innerWidth);
+      const cursorY = e.clientY / Math.max(1, innerHeight);
       const x = (e.clientX / Math.max(1, innerWidth)) * 2 - 1;
       const y = 1 - (e.clientY / Math.max(1, innerHeight)) * 2;
       const distance = Math.hypot((x - .34) * .92, y - .03);
+      appRoot.current?.style.setProperty("--cursor-x", cursorX);
+      appRoot.current?.style.setProperty("--cursor-y", cursorY);
+      appRoot.current?.style.setProperty("--edge-angle", `${cursorX * 180 + cursorY * 90}deg`);
+      appRoot.current?.style.setProperty("--title-x", `${(cursorX - .5) * 5}px`);
+      appRoot.current?.style.setProperty("--title-y", `${(cursorY - .5) * 3}px`);
       fieldRef.current = {
         x,
         y,
@@ -2106,6 +2442,26 @@ function App() {
   useEffect(() => () => routeTimers.current.forEach(clearTimeout), []);
   useEffect(() => writePreference("agr-theme", theme), [theme]);
   useEffect(() => writePreference("agr-quality", quality), [quality]);
+  useEffect(() => {
+    const remember = () => setMemoryLevel((value) => Math.min(8, value + 1));
+    addEventListener("agr-material-memory", remember);
+    return () => removeEventListener("agr-material-memory", remember);
+  }, []);
+  useEffect(() => {
+    const token = `${state.sourceUrl || ""}|${(state.batchItems || []).length}`;
+    if (token !== importRef.current && (state.sourceUrl || state.batchItems?.length)) {
+      importRef.current = token;
+      setMemoryLevel((value) => Math.min(8, value + 1));
+    }
+  }, [state.batchItems, state.sourceUrl]);
+  useEffect(() => {
+    const token = `${state.outputPath || ""}|${doneCount}`;
+    if (token === "|0" || token === completionRef.current) return undefined;
+    completionRef.current = token;
+    setVerified(true); setMemoryLevel((value) => Math.min(8, value + 2));
+    const timer = setTimeout(() => setVerified(false), 2100);
+    return () => clearTimeout(timer);
+  }, [doneCount, state.outputPath]);
   useEffect(() => {
     const down = (e) => {
         if (
@@ -2171,7 +2527,7 @@ function App() {
   return (
     <div
       ref={appRoot}
-      className={`app theme-${theme} quality-${quality} scene-${screen} ${holding ? "is-holding" : ""} ${diving ? "is-diving" : ""}`}
+      className={`app theme-${theme} quality-${quality} scene-${screen} ${holding ? "is-holding" : ""} ${diving ? "is-diving" : ""} ${verified ? "is-verified" : ""} ${(state.previewBusy && state.sourceIsLarge) || state.batchImportBusy ? "is-loading-large" : ""}`}
     >
       {screen === "batch" && <DataCathedral items={state.batchItems} quality={quality} activity={state.batchActivityHistory?.at?.(-1)} />}
       <div className="webgl">
@@ -2185,6 +2541,8 @@ function App() {
               quality={quality}
               screen={screen}
               fieldRef={fieldRef}
+              verified={verified}
+              loading={(state.previewBusy && state.sourceIsLarge) || state.batchImportBusy}
             />
           </SceneBoundary>
         )}
@@ -2203,6 +2561,13 @@ function App() {
       />
       <TransitionPortal active={diving} />
       <ShellCrossing active={holding && screen === "home"} progress={progress} />
+      <LoadingShell
+        active={(state.previewBusy && state.sourceIsLarge) || state.batchImportBusy}
+        label={state.batchImportBusy ? state.batchImportStatus : state.status}
+        progress={state.batchImportBusy ? state.batchImportProgress : state.previewBusy ? .48 : 0}
+      />
+      <CompletionRitual active={verified} />
+      <MaterialMemory level={memoryLevel} />
       <AnimatePresence initial={false} mode="wait">
         <motion.div
           className="route-stage"

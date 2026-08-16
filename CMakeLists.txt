@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(AGRAdaptiveTextureOptimizer VERSION 50.0.0 LANGUAGES CXX)
+project(AGRAdaptiveTextureOptimizer VERSION 51.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -57,6 +57,7 @@ if(WIN32)
         ${CMAKE_CURRENT_BINARY_DIR}/app_icon.rc @ONLY)
     target_sources(AdaptiveTextureOptimizer PRIVATE
         ${CMAKE_CURRENT_BINARY_DIR}/app_icon.rc)
+    target_link_libraries(AdaptiveTextureOptimizer PRIVATE Psapi)
     set_target_properties(AdaptiveTextureOptimizer PROPERTIES WIN32_EXECUTABLE TRUE)
 endif()
 

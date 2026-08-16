@@ -2,6 +2,7 @@
 
 #include <QObject>
 #include <QFutureWatcher>
+#include <QElapsedTimer>
 #include <QTimer>
 #include <QVariantList>
 #include <QVariantMap>
@@ -96,6 +97,9 @@ class OptimizerEngine final : public QObject {
     Q_PROPERTY(int batchWorkers READ batchWorkers NOTIFY batchWorkersChanged)
     Q_PROPERTY(QVariantList batchProgressHistory READ batchProgressHistory NOTIFY batchTelemetryChanged)
     Q_PROPERTY(QVariantList batchActivityHistory READ batchActivityHistory NOTIFY batchTelemetryChanged)
+    Q_PROPERTY(double cpuLoad READ cpuLoad NOTIFY systemTelemetryChanged)
+    Q_PROPERTY(double memoryMb READ memoryMb NOTIFY systemTelemetryChanged)
+    Q_PROPERTY(double processingRate READ processingRate NOTIFY systemTelemetryChanged)
 
 public:
     explicit OptimizerEngine(QObject *parent=nullptr);
@@ -130,6 +134,9 @@ public:
     int batchWorkers()const{return m_batchWorkers;}
     QVariantList batchProgressHistory()const{return m_batchProgressHistory;}
     QVariantList batchActivityHistory()const{return m_batchActivityHistory;}
+    double cpuLoad()const{return m_cpuLoad;}
+    double memoryMb()const{return m_memoryMb;}
+    double processingRate()const{return m_processingRate;}
 
     Q_INVOKABLE void load(const QString &url);
     Q_INVOKABLE void optimize(double maxMb=3.0);
@@ -174,12 +181,14 @@ signals:
     void batchImportStatusChanged();
     void batchWorkersChanged();
     void batchTelemetryChanged();
+    void systemTelemetryChanged();
     void fullscreenRequested();
 
 private:
     QString localPath()const;
     void setProgress(double,const QString&);
     void appendTelemetry(double,double);
+    void sampleSystemTelemetry();
     QString m_sourceUrl,m_resultUrl,m_referenceUrl,m_workingPreviewUrl;
     QString m_accentColor="#ff641f",m_status="Перетащите PNG",m_report,m_outputPath;
     double m_progress=0,m_sourceFileMb=0,m_outputFileMb=0,m_telemetryPhase=0;
@@ -204,4 +213,9 @@ private:
     int m_batchGeneration=0;
     std::atomic_bool m_cancelRequested{false};
     std::atomic_bool m_batchCancelRequested{false};
+    QElapsedTimer m_systemClock;
+    qint64 m_lastSystemSample=0;
+    quint64 m_lastProcessTicks=0;
+    double m_lastTelemetryProgress=0;
+    double m_cpuLoad=0,m_memoryMb=0,m_processingRate=0;
 };

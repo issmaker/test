@@ -167,7 +167,7 @@ int main(int argc,char**argv){
     QObject::connect(view,&QWebEngineView::loadFinished,&window,[&](bool ok){
         if(!ok){startupMessageHandler(QtCriticalMsg,QMessageLogContext(),QStringLiteral("Web interface failed to load"));return;}
         if(startupTest){
-            QTimer::singleShot(450,view,[view]{view->page()->runJavaScript(QStringLiteral("document.querySelectorAll('.right-dock button')[1]?.click()"));});
+            QTimer::singleShot(450,view,[view]{view->page()->runJavaScript(QStringLiteral("document.querySelector('.right-dock [data-route=\"npm\"]')?.click()"));});
             QTimer::singleShot(1200,view,[view]{view->page()->runJavaScript(QStringLiteral(R"JS((()=>{
                 const timer=setInterval(()=>{
                     const zoom=document.querySelector('.zoom-pane');
@@ -179,7 +179,7 @@ int main(int argc,char**argv){
                 },100);
                 setTimeout(()=>clearInterval(timer),3200);
             })())JS"));});
-            QTimer::singleShot(2500,view,[view]{view->page()->runJavaScript(QStringLiteral("[...document.querySelectorAll('.right-dock button')].at(-1)?.click()"));});
+            QTimer::singleShot(2500,view,[view]{view->page()->runJavaScript(QStringLiteral("document.querySelector('.right-dock [data-action=\"settings\"]')?.click()"));});
             QTimer::singleShot(4800,view,[view]{
                 view->page()->runJavaScript(QStringLiteral(R"JS((()=>{
                     const hint=document.querySelector('.floating-hint'),box=hint?.getBoundingClientRect();

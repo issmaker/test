@@ -1639,6 +1639,13 @@ function App() {
         if (next === route || (next === "compare" && screen === "compare"))
           return;
         routeTimers.current.forEach(clearTimeout);
+        if (HEADLESS_TEST) {
+          setSettings(false);
+          setRoute(next);
+          setProgress(0);
+          progressRef.current.value = 0;
+          return;
+        }
         setDiving(true);
         setSettings(false);
         dispatchEvent(new CustomEvent("agr-hint", { detail: { open: false } }));
@@ -1780,7 +1787,7 @@ function App() {
           initial={{ opacity: 0, scale: 1.018, filter: "blur(7px)" }}
           animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
           exit={{ opacity: 0, scale: 0.94, filter: "blur(10px)" }}
-          transition={{ duration: 0.3, ease: [0.3, 0.72, 0.2, 1] }}
+          transition={{ duration: HEADLESS_TEST ? 0 : 0.3, ease: [0.3, 0.72, 0.2, 1] }}
         >
           {page}
         </motion.div>

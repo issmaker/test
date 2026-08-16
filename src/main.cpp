@@ -2,6 +2,7 @@
 #include <QDateTime>
 #include <QColor>
 #include <QFile>
+#include <QEventLoop>
 #include <QIcon>
 #include <QImageReader>
 #include <QMutex>
@@ -26,7 +27,7 @@
 #endif
 
 #ifndef AGR_APP_VERSION
-#define AGR_APP_VERSION "43"
+#define AGR_APP_VERSION "44"
 #endif
 
 namespace {
@@ -119,11 +120,37 @@ int runSelfTest() {
     const QString widePath=directory.filePath(QStringLiteral("self-test-8k-width.png"));
     if(!wide.save(widePath,"PNG"))return 11;
     OptimizerEngine previewEngine;QVariantList previewFiles;previewFiles.append(QUrl::fromLocalFile(widePath));previewEngine.addBatchFiles(previewFiles);
+    QEventLoop importLoop;QTimer importTimeout;importTimeout.setSingleShot(true);
+    QObject::connect(&previewEngine,&OptimizerEngine::batchImportBusyChanged,&importLoop,[&]{if(!previewEngine.batchImportBusy())importLoop.quit();});
+    QObject::connect(&importTimeout,&QTimer::timeout,&importLoop,&QEventLoop::quit);importTimeout.start(15000);
+    if(previewEngine.batchImportBusy())importLoop.exec();if(previewEngine.batchImportBusy())return 12;
     const QVariantList previewItems=previewEngine.batchItems();if(previewItems.size()!=1)return 12;
     const QString comparisonUrl=previewItems.constFirst().toMap().value("comparisonSourceUrl").toString();
     QImageReader comparisonReader(QUrl(comparisonUrl).toLocalFile(),"PNG");
     const QSize comparisonSize=comparisonReader.size();
     if(!comparisonSize.isValid()||qMax(comparisonSize.width(),comparisonSize.height())!=2048||comparisonSize.width()<=comparisonSize.height())return 13;
+    previewEngine.removeBatchItem(0);if(!previewEngine.batchItems().isEmpty())return 14;
+
+    const QString copyPath=directory.filePath(QStringLiteral("self-test-copy.png"));
+    if(!input.save(copyPath,"PNG"))return 15;
+    QVariantList batchFiles;batchFiles.append(QUrl::fromLocalFile(inputPath));batchFiles.append(QUrl::fromLocalFile(copyPath));
+    QEventLoop batchImportLoop;QTimer batchImportTimeout;batchImportTimeout.setSingleShot(true);
+    QObject::connect(&previewEngine,&OptimizerEngine::batchImportBusyChanged,&batchImportLoop,[&]{if(!previewEngine.batchImportBusy())batchImportLoop.quit();});
+    QObject::connect(&batchImportTimeout,&QTimer::timeout,&batchImportLoop,&QEventLoop::quit);
+    previewEngine.addBatchFiles(batchFiles);batchImportTimeout.start(15000);
+    if(previewEngine.batchImportBusy())batchImportLoop.exec();if(previewEngine.batchImportBusy()||previewEngine.batchItems().size()!=2)return 16;
+
+    QEventLoop batchLoop;QTimer batchTimeout;batchTimeout.setSingleShot(true);
+    QObject::connect(&previewEngine,&OptimizerEngine::batchBusyChanged,&batchLoop,[&]{if(!previewEngine.batchBusy())batchLoop.quit();});
+    QObject::connect(&batchTimeout,&QTimer::timeout,&batchLoop,&QEventLoop::quit);
+    previewEngine.optimizeBatch();batchTimeout.start(60000);
+    if(previewEngine.batchBusy())batchLoop.exec();if(previewEngine.batchBusy())return 17;
+    if(previewEngine.batchWorkers()<1||previewEngine.batchWorkers()>2)return 18;
+    for(const QVariant &value:previewEngine.batchItems()){
+        const QVariantMap item=value.toMap();
+        if(!item.value("done").toBool()||item.value("failed").toBool())return 19;
+        if(!QFileInfo::exists(QUrl(item.value("resultUrl").toString()).toLocalFile()))return 20;
+    }
     return 0;
 }
 } // namespace
@@ -178,15 +205,19 @@ int main(int argc,char**argv){
             QTimer::singleShot(1200,view,[view]{view->page()->runJavaScript(QStringLiteral(R"JS((()=>{
                 const timer=setInterval(()=>{
                     const zoom=document.querySelector('.zoom-pane');
-                    if(!zoom)return;
+                    if(!zoom||!document.querySelector('.zoom-pane canvas.ready'))return;
                     clearInterval(timer);
-                    zoom.dispatchEvent(new WheelEvent('wheel',{deltaY:-180,clientX:500,clientY:420,bubbles:true,cancelable:true}));
-                    dispatchEvent(new CustomEvent('agr-test-drag',{detail:{x:0,y:120}}));
+                    for(let i=0;i<40;i++)zoom.dispatchEvent(new WheelEvent('wheel',{deltaY:-180,clientX:500,clientY:420,bubbles:true,cancelable:true}));
+                    let step=0;
+                    const stress=setInterval(()=>{
+                        dispatchEvent(new CustomEvent('agr-test-drag',{detail:{x:(step%3)-1,y:9}}));
+                        if(++step>=120){clearInterval(stress);window.__AGR_STRESS_DONE__=true;}
+                    },6);
                     dispatchEvent(new CustomEvent('agr-hint',{detail:{open:true,text:'TOOLTIP TEST',x:720,y:42}}));
                 },100);
                 setTimeout(()=>clearInterval(timer),3200);
             })())JS"));});
-            QTimer::singleShot(3500,view,[view]{view->page()->runJavaScript(QStringLiteral("document.querySelector('.right-dock [data-action=\"settings\"]')?.click()"));});
+            QTimer::singleShot(3500,view,[view]{view->page()->runJavaScript(QStringLiteral("document.querySelector('.top-actions [data-action=\"settings\"]')?.click()"));});
             QTimer::singleShot(4800,view,[view]{
                 view->page()->runJavaScript(QStringLiteral(R"JS((()=>{
                     const hint=document.querySelector('.floating-hint'),box=hint?.getBoundingClientRect();
@@ -194,14 +225,15 @@ int main(int argc,char**argv){
                     const zoomed=Boolean(zoomLabel&&zoomLabel.textContent!=='100%');
                     const canvasReady=Boolean(document.querySelector('.zoom-pane canvas.ready'));
                     const verticalSafe=Math.abs(Number(window.__AGR_TEST_VERTICAL_Y__||0))>.1;
-                    const mask=(document.querySelector('.workspace')?1:0)|(document.querySelector('.settings-panel')?2:0)|(document.querySelector('.topbar')?4:0)|(zoomed?8:0)|(box&&box.left>10&&box.top>10?16:0)|(canvasReady?32:0)|(verticalSafe?64:0);
+                    const stressSafe=Boolean(window.__AGR_STRESS_DONE__)&&Number(window.__AGR_WHEEL_COUNT__||0)>=40&&Number(window.__AGR_ZOOM_TARGET__||0)>=15.9;
+                    const mask=(document.querySelector('.workspace')?1:0)|(document.querySelector('.settings-panel')?2:0)|(document.querySelector('.topbar')?4:0)|(zoomed?8:0)|(box&&box.left>10&&box.top>10?16:0)|(canvasReady?32:0)|(verticalSafe?64:0)|(stressSafe?128:0);
                     return `${mask}|${document.querySelector('.zoom-orbit span')?.textContent}|${window.__AGR_WHEEL_COUNT__||0}|${window.__AGR_ZOOM_TARGET__||0}|${document.querySelectorAll('.zoom-pane').length}|${document.querySelectorAll('canvas.ready').length}|${window.__AGR_TEST_VERTICAL_Y__||0}`;
                 })())JS"),[](const QVariant &result){
                     const QString details=result.toString();const int mask=details.section('|',0,0).toInt();
-                    constexpr int shellMask=1|2|4;
+                    constexpr int shellMask=1|2|4|128;
                     if((mask&shellMask)!=shellMask)
                         qCritical("React shell smoke test failed: %s",qPrintable(details));
-                    else if(mask!=127)
+                    else if(mask!=255)
                         qWarning("Offscreen interaction diagnostics incomplete: %s",qPrintable(details));
                 });
             });

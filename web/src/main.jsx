@@ -14,6 +14,7 @@ import { gsap } from "gsap";
 import {
   Activity,
   Columns2,
+  Cpu,
   FolderOpen,
   Focus,
   House,
@@ -23,7 +24,6 @@ import {
   Palette,
   Plus,
   ScanLine,
-  Settings,
   X,
 } from "lucide-react";
 import * as THREE from "three";
@@ -50,6 +50,10 @@ const EMPTY = {
   batchBusy: false,
   batchProgress: 0,
   batchStatus: "Добавьте PNG-файлы",
+  batchImportBusy: false,
+  batchImportProgress: 0,
+  batchImportStatus: "PNG не выбраны",
+  batchWorkers: 1,
   batchProgressHistory: [],
   batchActivityHistory: [],
 };
@@ -73,7 +77,8 @@ const THEME_COLORS = {
   violet: ["#a67cff", "#f05dff"],
   amber: ["#ffad42", "#ff4f73"],
 };
-const QUALITY_LEVELS = ["quiet", "balanced", "ultra"];
+const QUALITY_LEVELS = ["eco", "balanced", "max"];
+const MAX_ZOOM = 16;
 
 function readPreference(key, allowed, fallback) {
   try {
@@ -100,7 +105,14 @@ function useBackend() {
     new window.QWebChannel(window.qt.webChannelTransport, (channel) => {
       const api = channel.objects.optimizer;
       setBackend(api);
-      const refresh = () => api.snapshot((v) => setState({ ...EMPTY, ...v }));
+      let frame = 0;
+      const refresh = () => {
+        if (frame) return;
+        frame = requestAnimationFrame(() => {
+          frame = 0;
+          api.snapshot((v) => setState({ ...EMPTY, ...v }));
+        });
+      };
       [
         "sourceUrlChanged",
         "resultUrlChanged",
@@ -119,6 +131,10 @@ function useBackend() {
         "batchBusyChanged",
         "batchProgressChanged",
         "batchStatusChanged",
+        "batchImportBusyChanged",
+        "batchImportProgressChanged",
+        "batchImportStatusChanged",
+        "batchWorkersChanged",
         "batchTelemetryChanged",
       ].forEach((n) => api[n]?.connect(refresh));
       refresh();
@@ -168,7 +184,7 @@ function TooltipLayer() {
     addEventListener("agr-hint", update);
     return () => removeEventListener("agr-hint", update);
   }, []);
-  const x = Math.max(12, Math.min(innerWidth - 292, hint.x + 16));
+  const x = Math.max(12, Math.min(innerWidth - 392, hint.x + 18));
   const y = hint.y > innerHeight - 90 ? hint.y - 48 : hint.y + 18;
   return (
     <AnimatePresence>
@@ -221,11 +237,12 @@ function DecodeText({ children }) {
   );
 }
 
-function CursorTrail() {
+function CursorTrail({ active }) {
   const dots = useRef([]),
     target = useRef({ x: innerWidth / 2, y: innerHeight / 2 }),
     points = useRef(Array.from({ length: 12 }, () => ({ ...target.current })));
   useEffect(() => {
+    if (!active) return undefined;
     const move = (e) => {
       target.current = { x: e.clientX, y: e.clientY };
     };
@@ -250,7 +267,8 @@ function CursorTrail() {
       removeEventListener("pointermove", move);
       cancelAnimationFrame(raf);
     };
-  }, []);
+  }, [active]);
+  if (!active) return null;
   return (
     <div className="cursor-trail">
       {points.current.map((_, i) => (
@@ -260,12 +278,16 @@ function CursorTrail() {
   );
 }
 
-function AmbientBackdrop({ theme, secret }) {
+function AmbientBackdrop({ theme, secret, active }) {
   const [p, setP] = useState({ x: 0.5, y: 0.5 }),
     raf = useRef(0),
     root = useRef(null),
     energy = useRef({ value: 0 });
   useEffect(() => {
+    if (!active) {
+      setP({ x: 0.5, y: 0.5 });
+      return undefined;
+    }
     const move = (e) => {
       cancelAnimationFrame(raf.current);
       raf.current = requestAnimationFrame(() =>
@@ -274,7 +296,7 @@ function AmbientBackdrop({ theme, secret }) {
     };
     addEventListener("pointermove", move);
     return () => removeEventListener("pointermove", move);
-  }, []);
+  }, [active]);
   useEffect(() => {
     const react = (e) => {
       const node = root.current;
@@ -584,17 +606,11 @@ class SceneBoundary extends React.Component {
     console.error("WebGL scene isolated:", error);
   }
   render() {
-    return this.state.failed ? (
-      <div className="scene-safe-mode">
-        <span>VISUAL SAFE MODE</span>
-      </div>
-    ) : (
-      this.props.children
-    );
+    return this.state.failed ? null : this.props.children;
   }
 }
 
-function Button({ children, quiet = false, danger = false, tip, ...props }) {
+function Button({ children, quiet = false, danger = false, tip, className = "", ...props }) {
   const move = (e) => {
     const r = e.currentTarget.getBoundingClientRect();
     e.currentTarget.style.setProperty("--bx", `${e.clientX - r.left}px`);
@@ -602,7 +618,7 @@ function Button({ children, quiet = false, danger = false, tip, ...props }) {
   };
   const node = (
     <button
-      className={`button ${quiet ? "quiet" : ""} ${danger ? "danger" : ""}`}
+      className={`button ${quiet ? "quiet" : ""} ${danger ? "danger" : ""} ${className}`.trim()}
       data-no-hold
       onPointerMove={move}
       {...props}
@@ -719,44 +735,6 @@ function KineticArchitecture({ activity = 0 }) {
   );
 }
 
-function LiveLaboratory({ progress = 0, busy = false, done = false, status = "" }) {
-  const [selected, setSelected] = useState(0),
-    p = Math.max(0, Math.min(1, Number(progress || 0))),
-    active = done ? 3 : busy ? Math.min(3, Math.floor(p * 4)) : 0,
-    stages = [
-      ["01", "ИМПОРТ", "Проверка PNG и подготовка безопасного превью"],
-      ["02", "АНАЛИЗ", "Измерение цвета, структуры и возможной экономии"],
-      ["03", "RGB24", "Оптимизация пикселей и адаптивное кодирование"],
-      ["04", "ГОТОВО", "Контроль результата и запись итогового файла"],
-    ];
-  return (
-    <section className="live-lab liquid-glass">
-      <div className="lab-signal">
-        <small>LIVE LAB</small>
-        <strong>{busy ? "PROCESSING" : done ? "COMPLETE" : "STANDBY"}</strong>
-        <div className="lab-wave">
-          {Array.from({ length: 12 }, (_, i) => <i key={i} style={{ "--i": i, "--p": p }} />)}
-        </div>
-      </div>
-      <div className="texture-journey">
-        {stages.map(([n, label, detail], i) => (
-          <button
-            key={label}
-            className={`${i < active || done ? "done" : ""} ${i === active ? "active" : ""} ${selected === i ? "selected" : ""}`}
-            onClick={() => setSelected(i)}
-          >
-            <i>{n}</i><span>{label}</span><b />
-          </button>
-        ))}
-      </div>
-      <div className="journey-detail">
-        <small>{stages[selected][1]}</small>
-        <span>{selected === active && status ? status : stages[selected][2]}</span>
-      </div>
-    </section>
-  );
-}
-
 function Header({ screen, backend, onSettings }) {
   const label = ROUTES.find((x) => x[0] === screen)?.[1] || "Сравнение";
   return (
@@ -767,7 +745,7 @@ function Header({ screen, backend, onSettings }) {
         </span>
         <div>
           <b>Оптимизатор текстур</b>
-          <small>ADAPTIVE RGB24 / v43</small>
+          <small>ADAPTIVE RGB24 / v44</small>
         </div>
       </div>
       <div className="route-status">
@@ -776,7 +754,7 @@ function Header({ screen, backend, onSettings }) {
         <strong>{label}</strong>
       </div>
       <div className="top-actions">
-        <Button tip="Цвет, эффекты и интерфейс" quiet onClick={onSettings}>
+        <Button data-action="settings" tip="Цвет, эффекты и интерфейс" quiet onClick={onSettings}>
           <Palette />
         </Button>
         <Button
@@ -804,7 +782,8 @@ function Header({ screen, backend, onSettings }) {
     </header>
   );
 }
-function RightDock({ screen, setScreen, state, onSettings }) {
+function RightDock({ screen, setScreen, state }) {
+  const firstDone = state.batchItems?.findIndex((item) => item.done) ?? -1;
   return (
     <motion.aside
       className="right-dock"
@@ -815,8 +794,7 @@ function RightDock({ screen, setScreen, state, onSettings }) {
     >
       <div className="dock-edge" />
       {ROUTES.map(([id, label, I]) => {
-        const disabled =
-          id === "compare" && !state.batchItems?.some((x) => x.done);
+        const disabled = id === "compare" && firstDone < 0;
         return (
           <Hint
             text={disabled ? "Сначала оптимизируйте текстуру" : label}
@@ -826,7 +804,7 @@ function RightDock({ screen, setScreen, state, onSettings }) {
               data-route={id}
               disabled={disabled}
               className={screen === id ? "active" : ""}
-              onClick={() => setScreen(id)}
+              onClick={() => setScreen(id === "compare" ? `compare:${firstDone}` : id)}
             >
               <I />
               <span>{label}</span>
@@ -834,13 +812,6 @@ function RightDock({ screen, setScreen, state, onSettings }) {
           </Hint>
         );
       })}
-      <i className="dock-separator" />
-      <Hint text="Настройки">
-        <button data-action="settings" onClick={onSettings}>
-          <Settings />
-          <span>Настройки</span>
-        </button>
-      </Hint>
     </motion.aside>
   );
 }
@@ -929,22 +900,10 @@ function Home({ setScreen }) {
         </div>
       </section>
       <section className="hero-panel">
-        <div className="capabilities">
-          <div>
-            <i>01</i>
-            <strong>RGB24</strong>
-            <small>TRUE COLOR</small>
-          </div>
-          <div>
-            <i>02</i>
-            <strong>8K READY</strong>
-            <small>SAFE PREVIEW</small>
-          </div>
-          <div>
-            <i>03</i>
-            <strong>BATCH</strong>
-            <small>MULTI FLOW</small>
-          </div>
+        <div className="mode-manifest">
+          <small>ВЫБЕРИТЕ СЦЕНАРИЙ</small>
+          <h2>Один движок.<br />Два точных режима.</h2>
+          <p>RGB24 сохраняет структуру текстуры, а интерфейс показывает каждый этап без ожидания вслепую.</p>
         </div>
         <Button
           tip="Один PNG, результат строго меньше 3 MB"
@@ -964,7 +923,7 @@ function Home({ setScreen }) {
   );
 }
 
-function ZoomPane({ title, src, view, setView }) {
+const ZoomPane = React.memo(function ZoomPane({ title, src, view, setView }) {
   const drag = useRef(null),
     pane = useRef(null),
     image = useRef(null),
@@ -973,18 +932,17 @@ function ZoomPane({ title, src, view, setView }) {
     [imageReady, setImageReady] = useState(false),
     moveFrame = useRef(0),
     pendingMove = useRef(null),
-    motionTick = useRef(0),
-    wheelEvents = useRef(new WeakSet()),
+    interactionTimer = useRef(0),
     displaySrc = src || (HEADLESS_TEST ? TEST_TEXTURE : ""),
     clamp = useCallback((next) => {
       const box = pane.current,
         img = image.current;
       if (!box || !img?.naturalWidth)
-        return { ...next, x: 0, y: 0, s: Math.max(1, Math.min(6, next.s)) };
+        return { ...next, x: 0, y: 0, s: Math.max(1, Math.min(MAX_ZOOM, next.s)) };
       const cw = box.clientWidth,
         ch = box.clientHeight,
         fit = Math.min(cw / img.naturalWidth, ch / img.naturalHeight),
-        s = Math.max(1, Math.min(6, next.s)),
+        s = Math.max(1, Math.min(MAX_ZOOM, next.s)),
         maxX = Math.max(0, (img.naturalWidth * fit * s - cw) / 2),
         maxY = Math.max(0, (img.naturalHeight * fit * s - ch) / 2);
       return {
@@ -992,15 +950,7 @@ function ZoomPane({ title, src, view, setView }) {
         x: Math.max(-maxX, Math.min(maxX, next.x || 0)),
         y: Math.max(-maxY, Math.min(maxY, next.y || 0)),
       };
-    }, []),
-    pulse = (x = 0, y = 0, energy = 0.5, force = false) => {
-      const now = performance.now();
-      if (!force && now - motionTick.current < 55) return;
-      motionTick.current = now;
-      dispatchEvent(
-        new CustomEvent("agr-motion", { detail: { x, y, energy } }),
-      );
-    };
+    }, []);
   const draw = useCallback(() => {
     cancelAnimationFrame(drawFrame.current);
     drawFrame.current = requestAnimationFrame(() => {
@@ -1010,7 +960,7 @@ function ZoomPane({ title, src, view, setView }) {
       if (!box || !target || !img?.naturalWidth) return;
       const cw = box.clientWidth,
         ch = box.clientHeight,
-        dpr = Math.min(devicePixelRatio || 1, 1.5),
+        dpr = 1,
         width = Math.max(1, Math.round(cw * dpr)),
         height = Math.max(1, Math.round(ch * dpr));
       if (target.width !== width) target.width = width;
@@ -1023,7 +973,7 @@ function ZoomPane({ title, src, view, setView }) {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, cw, ch);
       ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = "high";
+      ctx.imageSmoothingQuality = view.s > 8 ? "medium" : "high";
       const fit = Math.min(cw / img.naturalWidth, ch / img.naturalHeight),
         scale = fit * view.s,
         dw = img.naturalWidth * scale,
@@ -1080,15 +1030,13 @@ function ZoomPane({ title, src, view, setView }) {
     () => () => {
       cancelAnimationFrame(moveFrame.current);
       cancelAnimationFrame(drawFrame.current);
+      clearTimeout(interactionTimer.current);
     },
     [],
   );
-  const wheel = (e) => {
-    const nativeEvent = e.nativeEvent || e;
-    if (wheelEvents.current.has(nativeEvent)) return;
-    wheelEvents.current.add(nativeEvent);
+  const wheel = useCallback((e) => {
     window.__AGR_WHEEL_COUNT__ = (window.__AGR_WHEEL_COUNT__ || 0) + 1;
-    if (!e.nativeEvent) e.preventDefault();
+    e.preventDefault();
     if (!pane.current) return;
     const rect = pane.current.getBoundingClientRect(),
       ox = e.clientX - rect.left - rect.width / 2,
@@ -1098,7 +1046,7 @@ function ZoomPane({ title, src, view, setView }) {
           0.91,
           Math.min(1.1, Math.exp(-e.deltaY * 0.0011)),
         ),
-        s = Math.max(1, Math.min(6, v.s * factor)),
+        s = Math.max(1, Math.min(MAX_ZOOM, v.s * factor)),
         ratio = s / v.s;
       window.__AGR_ZOOM_TARGET__ = s;
       return clamp({
@@ -1107,8 +1055,13 @@ function ZoomPane({ title, src, view, setView }) {
         y: oy - (oy - v.y) * ratio,
       });
     });
-    pulse(-e.deltaX * 0.004, -e.deltaY * 0.0025, 0.9);
-  };
+    dispatchEvent(new CustomEvent("agr-drag", { detail: true }));
+    clearTimeout(interactionTimer.current);
+    interactionTimer.current = setTimeout(
+      () => dispatchEvent(new CustomEvent("agr-drag", { detail: false })),
+      180,
+    );
+  }, [clamp, setView]);
   useEffect(() => {
     const node = pane.current;
     if (!node) return;
@@ -1128,7 +1081,6 @@ function ZoomPane({ title, src, view, setView }) {
       setView((v) =>
         clamp({ ...v, x: drag.current.x + dx, y: drag.current.y + dy }),
       );
-      pulse(dx * 0.008, -dy * 0.008, 0.48);
     });
   };
   const stop = (e) => {
@@ -1138,7 +1090,6 @@ function ZoomPane({ title, src, view, setView }) {
     drag.current = null;
     if (e?.currentTarget?.hasPointerCapture?.(e.pointerId))
       e.currentTarget.releasePointerCapture(e.pointerId);
-    pulse(0, 0, 0.2, true);
     dispatchEvent(new CustomEvent("agr-drag", { detail: false }));
   };
   return (
@@ -1146,7 +1097,6 @@ function ZoomPane({ title, src, view, setView }) {
       <div
         ref={pane}
         className="zoom-pane"
-        onWheelCapture={wheel}
         onPointerDown={(e) => {
           if (view.s <= 1) return;
           e.preventDefault();
@@ -1180,37 +1130,32 @@ function ZoomPane({ title, src, view, setView }) {
       </div>
     </Hint>
   );
-}
+});
 function ZoomControl({ view, setView }) {
   const set = (s) => {
-    const value = Math.max(1, Math.min(6, s));
+    const value = Math.max(1, Math.min(MAX_ZOOM, s));
     setView((v) => ({
       ...v,
       s: value,
       x: value === 1 ? 0 : v.x,
       y: value === 1 ? 0 : v.y,
     }));
-    dispatchEvent(
-      new CustomEvent("agr-motion", {
-        detail: { x: 0, y: (value - view.s) * 1.3, energy: 0.9 },
-      }),
-    );
   };
   return (
     <div className="zoom-control">
       <Button tip="Уменьшить масштаб" quiet onClick={() => set(view.s - 0.25)}>
         <Minus />
       </Button>
-      <div className="zoom-orbit" style={{ "--zoom": (view.s - 1) / 5 }}>
+      <div className="zoom-orbit" style={{ "--zoom": (view.s - 1) / (MAX_ZOOM - 1) }}>
         <span>{Math.round(view.s * 100)}%</span>
         <i />
       </div>
-      <Hint text="Плавный масштаб от «Вписать» до 600%">
+      <Hint text="Плавный масштаб от «Вписать» до 1600%">
         <input
           aria-label="Масштаб"
           type="range"
           min="1"
-          max="6"
+          max={MAX_ZOOM}
           step=".01"
           value={view.s}
           onChange={(e) => set(Number(e.target.value))}
@@ -1223,12 +1168,81 @@ function ZoomControl({ view, setView }) {
   );
 }
 
+function WipeCompare({ before, after }) {
+  const [split, setSplit] = useState(50);
+  return (
+    <div className="wipe-compare">
+      <img src={before} draggable="false" alt="До оптимизации" />
+      <img className="wipe-after-image" style={{ clipPath: `inset(0 ${100 - split}% 0 0)` }} src={after} draggable="false" alt="После оптимизации" />
+      <div className="wipe-divider" style={{ left: `${split}%` }}><i /></div>
+      <span className="wipe-label before">ДО</span>
+      <span className="wipe-label after">ПОСЛЕ</span>
+      <input
+        aria-label="Граница сравнения до и после"
+        type="range"
+        min="0"
+        max="100"
+        value={split}
+        onChange={(e) => setSplit(Number(e.target.value))}
+      />
+    </div>
+  );
+}
+
+const ComparisonSurface = React.memo(function ComparisonSurface({
+  before,
+  after,
+  focus,
+  onFocus,
+  allowWipe = false,
+  onOpenFolder,
+}) {
+  const [view, setView] = useState({ s: 1, x: 0, y: 0 });
+  const [mode, setMode] = useState("pan");
+  return (
+    <section className="compare-card transparent">
+      {allowWipe && after && (
+        <div className="comparison-modes">
+          <button className={mode === "pan" ? "active" : ""} onClick={() => setMode("pan")}>
+            СИНХРОННЫЙ ZOOM
+          </button>
+          <button className={mode === "wipe" ? "active" : ""} onClick={() => setMode("wipe")}>
+            ШТОРКА ДО / ПОСЛЕ
+          </button>
+        </div>
+      )}
+      {mode === "wipe" && after ? (
+        <WipeCompare before={before} after={after} />
+      ) : (
+        <div className="compare-grid">
+          <ZoomPane title="BEFORE / ORIGINAL" src={before} view={view} setView={setView} />
+          <ZoomPane title="AFTER / AGR RGB24" src={after} view={view} setView={setView} />
+        </div>
+      )}
+      <div className="compare-tools">
+        {mode === "pan" && (
+          <>
+            <Button quiet onClick={() => setView({ s: 1, x: 0, y: 0 })}>ВПИСАТЬ</Button>
+            <Button quiet onClick={() => setView((v) => ({ ...v, s: 4, x: 0, y: 0 }))}>400%</Button>
+            <Button quiet onClick={() => setView((v) => ({ ...v, s: 8, x: 0, y: 0 }))}>800%</Button>
+            <ZoomControl view={view} setView={setView} />
+          </>
+        )}
+        <Button quiet tip="Focus Comparison · клавиша F" onClick={onFocus}>
+          <Focus /> {focus ? "ВЫЙТИ ИЗ FOCUS" : "FOCUS"}
+        </Button>
+        {onOpenFolder && <Button quiet onClick={onOpenFolder}>ОТКРЫТЬ ПАПКУ</Button>}
+      </div>
+    </section>
+  );
+});
+
 function Workspace({ kind, state, backend, setScreen }) {
   const batch = kind === "batch",
-    [view, setView] = useState({ s: 1, x: 0, y: 0 }),
     [focus, setFocus] = useState(false),
     items = state.batchItems || [],
     before = state.referenceUrl || state.workingPreviewUrl || state.sourceUrl;
+  const toggleFocus = useCallback(() => setFocus((value) => !value), []);
   useEffect(() => {
     if (!batch) dispatchEvent(new CustomEvent("agr-focus", { detail: focus }));
   }, [batch, focus]);
@@ -1264,6 +1278,7 @@ function Workspace({ kind, state, backend, setScreen }) {
           {batch && (
             <Button
               quiet
+              disabled={state.batchBusy || state.batchImportBusy}
               tip="Очистить очередь"
               onClick={() => backend?.clearBatch()}
             >
@@ -1271,6 +1286,7 @@ function Workspace({ kind, state, backend, setScreen }) {
             </Button>
           )}
           <Button
+            disabled={batch ? state.batchBusy || state.batchImportBusy : state.busy}
             tip={batch ? "Выбрать несколько PNG" : "Выбрать PNG"}
             onClick={() =>
               batch ? backend?.chooseBatchFiles() : backend?.chooseNpmFile()
@@ -1303,6 +1319,7 @@ function Workspace({ kind, state, backend, setScreen }) {
             />
             <Button
               danger={state.batchBusy}
+              disabled={state.batchImportBusy || (!items.some((item) => !item.failed && !item.importing) && !state.batchBusy)}
               tip={
                 state.batchBusy
                   ? "Остановить после безопасного шага"
@@ -1317,12 +1334,23 @@ function Workspace({ kind, state, backend, setScreen }) {
               {state.batchBusy ? "ОСТАНОВИТЬ" : "ОПТИМИЗИРОВАТЬ ВСЕ"}
             </Button>
           </section>
-          <LiveLaboratory
-            progress={state.batchProgress}
-            busy={state.batchBusy}
-            done={Boolean(items.length && items.every((item) => item.done))}
-            status={state.batchStatus}
-          />
+          <section className={`batch-import-panel ${state.batchImportBusy ? "active" : ""}`}>
+            <div className="import-copy">
+              <Cpu />
+              <div>
+                <small>{state.batchImportBusy ? "ФОНОВАЯ ЗАГРУЗКА PNG" : `АППАРАТНАЯ ОЧЕРЕДЬ · ${state.batchWorkers || 1} ${state.batchWorkers === 1 ? "ПОТОК" : "ПОТОКА"}`}</small>
+                <strong>{state.batchImportBusy ? state.batchImportStatus : state.batchStatus}</strong>
+              </div>
+            </div>
+            <FluidProgress value={state.batchImportBusy ? state.batchImportProgress : state.batchProgress} />
+            <div className="import-names">
+              {items.slice(-6).map((item) => (
+                <span key={item.sourceUrl} className={item.importing ? "loading" : item.failed ? "failed" : "ready"}>
+                  {item.name}
+                </span>
+              ))}
+            </div>
+          </section>
           <section className="batch-list">
             {!items.length && (
               <div className="empty">
@@ -1332,9 +1360,20 @@ function Workspace({ kind, state, backend, setScreen }) {
               </div>
             )}
             {items.map((item, i) => (
-              <article className="batch-row" key={item.sourceUrl || i}>
+              <article className={`batch-row ${item.importing ? "is-importing" : ""} ${item.failed ? "has-error" : ""}`} key={item.sourceUrl || i}>
+                <Button
+                  className="remove-file"
+                  quiet
+                  danger
+                  disabled={state.batchBusy || state.batchImportBusy}
+                  tip={`Удалить ${item.name} из очереди`}
+                  aria-label={`Удалить ${item.name}`}
+                  onClick={() => backend?.removeBatchItem(i)}
+                >
+                  <X />
+                </Button>
                 <div className="thumb">
-                  <img src={item.comparisonSourceUrl || item.sourceUrl} />
+                  {item.importing ? <div className="preview-loader"><i /><span>ПОДГОТОВКА</span></div> : <img src={item.comparisonSourceUrl || item.sourceUrl} />}
                   <span>BEFORE</span>
                 </div>
                 <div className="thumb">
@@ -1352,7 +1391,7 @@ function Workspace({ kind, state, backend, setScreen }) {
                 <div className="file-data">
                   <h3>{item.name}</h3>
                   <p>
-                    {item.width} × {item.height} · {mb(item.sourceMb)}{" "}
+                    {item.width ? `${item.width} × ${item.height} · ` : ""}{mb(item.sourceMb)}{" "}
                     {item.done && `→ ${mb(item.outputMb)}`}
                   </p>
                   <FluidProgress value={item.progress || 0} />
@@ -1403,46 +1442,15 @@ function Workspace({ kind, state, backend, setScreen }) {
               color="var(--accent2)"
             />
           </section>
-          <LiveLaboratory
-            progress={state.progress}
-            busy={state.busy}
-            done={Boolean(state.outputPath && !state.busy)}
-            status={state.status}
+          <div className="compare-title">
+            <h2>СРАВНИТЕЛЬНЫЙ АНАЛИЗ · СИНХРОННОЕ ПЕРЕМЕЩЕНИЕ</h2>
+          </div>
+          <ComparisonSurface
+            before={before}
+            after={state.resultUrl}
+            focus={focus}
+            onFocus={toggleFocus}
           />
-          <section className="compare-card transparent">
-            <div className="compare-title">
-              <h2>СРАВНИТЕЛЬНЫЙ АНАЛИЗ</h2>
-            </div>
-            <div className="compare-grid">
-              <ZoomPane
-                title="BEFORE / ORIGINAL"
-                src={before}
-                view={view}
-                setView={setView}
-              />
-              <ZoomPane
-                title="AFTER / AGR RGB24"
-                src={state.resultUrl}
-                view={view}
-                setView={setView}
-              />
-            </div>
-            <div className="compare-tools">
-              <Button quiet onClick={() => setView({ s: 1, x: 0, y: 0 })}>
-                ВПИСАТЬ
-              </Button>
-              <Button
-                quiet
-                onClick={() => setView((v) => ({ ...v, x: 0, y: 0 }))}
-              >
-                ЦЕНТР
-              </Button>
-              <ZoomControl view={view} setView={setView} />
-              <Button quiet tip="Focus Comparison · клавиша F" onClick={() => setFocus((v) => !v)}>
-                <Focus /> {focus ? "ВЫЙТИ ИЗ FOCUS" : "FOCUS"}
-              </Button>
-            </div>
-          </section>
           <section className="bottom-process">
             <p>{state.report || state.status}</p>
             <Button
@@ -1469,8 +1477,9 @@ function Workspace({ kind, state, backend, setScreen }) {
 }
 function Compare({ index, state, backend, setScreen }) {
   const item = (state.batchItems || [])[index],
-    [view, setView] = useState({ s: 1, x: 0, y: 0 }),
     [focus, setFocus] = useState(false);
+  const toggleFocus = useCallback(() => setFocus((value) => !value), []);
+  const openFolder = useCallback(() => backend?.openBatchOutput(index), [backend, index]);
   useEffect(() => {
     dispatchEvent(new CustomEvent("agr-focus", { detail: focus }));
   }, [focus]);
@@ -1502,34 +1511,20 @@ function Compare({ index, state, backend, setScreen }) {
           <h1>{item.name}</h1>
         </div>
       </div>
-      <section className="compare-card transparent">
-        <div className="compare-grid">
-          <ZoomPane
-            title="BEFORE"
-            src={item.comparisonSourceUrl || item.sourceUrl}
-            view={view}
-            setView={setView}
-          />
-          <ZoomPane
-            title="AFTER"
-            src={item.comparisonResultUrl || item.resultUrl}
-            view={view}
-            setView={setView}
-          />
-        </div>
-        <div className="compare-tools">
-          <Button quiet onClick={() => setView({ s: 1, x: 0, y: 0 })}>
-            ВПИСАТЬ
-          </Button>
-          <ZoomControl view={view} setView={setView} />
-          <Button quiet tip="Focus Comparison · клавиша F" onClick={() => setFocus((v) => !v)}>
-            <Focus /> {focus ? "ВЫЙТИ ИЗ FOCUS" : "FOCUS"}
-          </Button>
-          <Button quiet onClick={() => backend?.openBatchOutput(index)}>
-            ОТКРЫТЬ ПАПКУ
-          </Button>
-        </div>
+      <section className="analysis-summary">
+        <div><small>ИСХОДНИК</small><strong>{mb(item.sourceMb)}</strong></div>
+        <div><small>РЕЗУЛЬТАТ</small><strong>{mb(item.outputMb)}</strong></div>
+        <div><small>ЭКОНОМИЯ</small><strong>{item.sourceMb ? `${Math.max(0, Math.round((1 - item.outputMb / item.sourceMb) * 100))}%` : "—"}</strong></div>
+        <p>{item.report || item.status}</p>
       </section>
+      <ComparisonSurface
+        before={item.comparisonSourceUrl || item.sourceUrl}
+        after={item.comparisonResultUrl || item.resultUrl}
+        focus={focus}
+        onFocus={toggleFocus}
+        allowWipe
+        onOpenFolder={openFolder}
+      />
     </main>
   );
 }
@@ -1726,7 +1721,7 @@ function App() {
       ref={appRoot}
       className={`app theme-${theme} quality-${quality} scene-${screen} ${holding ? "is-holding" : ""} ${diving ? "is-diving" : ""}`}
     >
-      <AmbientBackdrop theme={theme} secret={secret} />
+      <AmbientBackdrop theme={theme} secret={secret} active={screen === "home" && !diving} />
       <KineticArchitecture
         activity={
           holding
@@ -1753,7 +1748,7 @@ function App() {
           </SceneBoundary>
         )}
       </div>
-      <CursorTrail />
+      <CursorTrail active={screen === "home" && quality !== "eco" && !diving} />
       <TooltipLayer />
       <Header
         screen={screen}
@@ -1764,7 +1759,6 @@ function App() {
         screen={screen}
         setScreen={setScreen}
         state={state}
-        onSettings={() => setSettings((v) => !v)}
       />
       <TransitionPortal active={diving} />
       <AnimatePresence initial={false} mode="wait">

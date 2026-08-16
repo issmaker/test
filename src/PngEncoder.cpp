@@ -4,6 +4,7 @@
 #include <array>
 #include <cstring>
 #include <limits>
+#include <stdexcept>
 
 namespace {
 quint32 crc32(const QByteArray &data) {
@@ -73,6 +74,7 @@ EncodedPng PngEncoder::encodeRgb24(const QImage &input, int level) {
     for (int strategy : {0, 1, 2, 4, 5}) {
         const QByteArray rows = filtered(image, strategy);
         libdeflate_compressor *c = libdeflate_alloc_compressor(qBound(1, level, 12));
+        if (!c) throw std::runtime_error("Не удалось выделить память для PNG-сжатия");
         const size_t bound = libdeflate_zlib_compress_bound(c, size_t(rows.size()));
         QByteArray packed(qsizetype(bound), Qt::Uninitialized);
         const size_t written = libdeflate_zlib_compress(c, rows.constData(), size_t(rows.size()),
@@ -82,6 +84,7 @@ EncodedPng PngEncoder::encodeRgb24(const QImage &input, int level) {
         packed.resize(qsizetype(written));
         if (best.isEmpty() || packed.size() < best.size()) { best=packed; bestFilter=strategy; }
     }
+    if (best.isEmpty()) throw std::runtime_error("Не удалось сжать данные PNG");
     QByteArray png("\x89PNG\r\n\x1a\n", 8), ihdr;
     append32(ihdr, quint32(image.width())); append32(ihdr, quint32(image.height()));
     ihdr.append(char(8)); ihdr.append(char(2)); ihdr.append(char(0)); ihdr.append(char(0)); ihdr.append(char(0));

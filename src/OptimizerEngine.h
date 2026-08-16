@@ -4,6 +4,9 @@
 #include <QFutureWatcher>
 #include <QTimer>
 #include <QVariantList>
+#include <QVariantMap>
+#include <QVector>
+#include <atomic>
 #include "TextureProcessor.h"
 
 struct SourcePreview {
@@ -16,6 +19,49 @@ struct SourcePreview {
     QString accent = "#ff641f";
     QString error;
 };
+
+struct BatchEntry {
+    QString sourceUrl;
+    QString resultUrl;
+    QString comparisonSourceUrl;
+    QString comparisonResultUrl;
+    QString outputPath;
+    QString name;
+    QString status;
+    QString report;
+    QString accent = "#765cff";
+    double sourceMb = 0;
+    double outputMb = 0;
+    double progress = 0;
+    int width = 0;
+    int height = 0;
+    bool done = false;
+    bool failed = false;
+    bool importing = false;
+};
+
+struct BatchImportItem {
+    int index = -1;
+    BatchEntry entry;
+    QString error;
+};
+
+struct BatchImportResult {
+    QVector<BatchImportItem> items;
+    int skipped = 0;
+};
+
+struct BatchRunItem {
+    int index = -1;
+    QString resultUrl;
+    QString comparisonResultUrl;
+    QString outputPath;
+    QString report;
+    QString error;
+    double outputMb = 0;
+};
+
+struct BatchRunResult { QVector<BatchRunItem> items; bool cancelled = false; };
 
 class OptimizerEngine final : public QObject {
     Q_OBJECT
@@ -40,6 +86,16 @@ class OptimizerEngine final : public QObject {
     Q_PROPERTY(bool busy READ busy NOTIFY busyChanged)
     Q_PROPERTY(QVariantList progressHistory READ progressHistory NOTIFY telemetryChanged)
     Q_PROPERTY(QVariantList activityHistory READ activityHistory NOTIFY telemetryChanged)
+    Q_PROPERTY(QVariantList batchItems READ batchItems NOTIFY batchItemsChanged)
+    Q_PROPERTY(bool batchBusy READ batchBusy NOTIFY batchBusyChanged)
+    Q_PROPERTY(double batchProgress READ batchProgress NOTIFY batchProgressChanged)
+    Q_PROPERTY(QString batchStatus READ batchStatus NOTIFY batchStatusChanged)
+    Q_PROPERTY(bool batchImportBusy READ batchImportBusy NOTIFY batchImportBusyChanged)
+    Q_PROPERTY(double batchImportProgress READ batchImportProgress NOTIFY batchImportProgressChanged)
+    Q_PROPERTY(QString batchImportStatus READ batchImportStatus NOTIFY batchImportStatusChanged)
+    Q_PROPERTY(int batchWorkers READ batchWorkers NOTIFY batchWorkersChanged)
+    Q_PROPERTY(QVariantList batchProgressHistory READ batchProgressHistory NOTIFY batchTelemetryChanged)
+    Q_PROPERTY(QVariantList batchActivityHistory READ batchActivityHistory NOTIFY batchTelemetryChanged)
 
 public:
     explicit OptimizerEngine(QObject *parent=nullptr);
@@ -64,12 +120,34 @@ public:
     bool busy()const{return m_busy;}
     QVariantList progressHistory()const{return m_progressHistory;}
     QVariantList activityHistory()const{return m_activityHistory;}
+    QVariantList batchItems()const;
+    bool batchBusy()const{return m_batchBusy;}
+    double batchProgress()const{return m_batchProgress;}
+    QString batchStatus()const{return m_batchStatus;}
+    bool batchImportBusy()const{return m_batchImportBusy;}
+    double batchImportProgress()const{return m_batchImportProgress;}
+    QString batchImportStatus()const{return m_batchImportStatus;}
+    int batchWorkers()const{return m_batchWorkers;}
+    QVariantList batchProgressHistory()const{return m_batchProgressHistory;}
+    QVariantList batchActivityHistory()const{return m_batchActivityHistory;}
 
     Q_INVOKABLE void load(const QString &url);
-    Q_INVOKABLE void optimize(double maxMb=3.0,int algorithmId=1);
+    Q_INVOKABLE void optimize(double maxMb=3.0);
     Q_INVOKABLE void toggleMasterView();
     Q_INVOKABLE void openSourceFolder();
     Q_INVOKABLE void openOutputFolder();
+    Q_INVOKABLE void addBatchFiles(const QVariantList &urls);
+    Q_INVOKABLE void clearBatch();
+    Q_INVOKABLE void removeBatchItem(int index);
+    Q_INVOKABLE void optimizeBatch();
+    Q_INVOKABLE void openBatchOutput(int index);
+    Q_INVOKABLE void stopCurrent();
+    Q_INVOKABLE void stopBatch();
+    Q_INVOKABLE QVariantMap snapshot() const;
+    Q_INVOKABLE void chooseNpmFile();
+    Q_INVOKABLE void chooseBatchFiles();
+    Q_INVOKABLE void quitApp();
+    Q_INVOKABLE void toggleFullscreen();
 
 signals:
     void sourceUrlChanged();
@@ -87,6 +165,16 @@ signals:
     void progressChanged();
     void busyChanged();
     void telemetryChanged();
+    void batchItemsChanged();
+    void batchBusyChanged();
+    void batchProgressChanged();
+    void batchStatusChanged();
+    void batchImportBusyChanged();
+    void batchImportProgressChanged();
+    void batchImportStatusChanged();
+    void batchWorkersChanged();
+    void batchTelemetryChanged();
+    void fullscreenRequested();
 
 private:
     QString localPath()const;
@@ -101,4 +189,19 @@ private:
     QTimer m_telemetryTimer;
     QFutureWatcher<TextureResult> m_watcher;
     QFutureWatcher<SourcePreview> m_previewWatcher;
+    QVector<BatchEntry> m_batchEntries;
+    bool m_batchBusy=false;
+    double m_batchProgress=0;
+    QString m_batchStatus="Добавьте PNG-файлы";
+    QFutureWatcher<BatchRunResult> m_batchWatcher;
+    QFutureWatcher<BatchImportResult> m_batchImportWatcher;
+    QVariantList m_batchProgressHistory,m_batchActivityHistory;
+    bool m_batchImportBusy=false;
+    double m_batchImportProgress=0;
+    QString m_batchImportStatus="PNG не выбраны";
+    int m_batchWorkers=1;
+    int m_batchImportGeneration=0;
+    int m_batchGeneration=0;
+    std::atomic_bool m_cancelRequested{false};
+    std::atomic_bool m_batchCancelRequested{false};
 };

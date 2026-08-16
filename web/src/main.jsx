@@ -73,6 +73,24 @@ const THEME_COLORS = {
   violet: ["#a67cff", "#f05dff"],
   amber: ["#ffad42", "#ff4f73"],
 };
+const QUALITY_LEVELS = ["quiet", "balanced", "ultra"];
+
+function readPreference(key, allowed, fallback) {
+  try {
+    const value = localStorage.getItem(key);
+    return allowed.includes(value) ? value : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function writePreference(key, value) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // The UI remains usable when Chromium storage is disabled or unavailable.
+  }
+}
 
 function useBackend() {
   const [backend, setBackend] = useState(null),
@@ -749,7 +767,7 @@ function Header({ screen, backend, onSettings }) {
         </span>
         <div>
           <b>Оптимизатор текстур</b>
-          <small>ADAPTIVE RGB24 / v42</small>
+          <small>ADAPTIVE RGB24 / v43</small>
         </div>
       </div>
       <div className="route-status">
@@ -1598,11 +1616,11 @@ function App() {
     }),
     [diving, setDiving] = useState(false),
     [settings, setSettings] = useState(false),
-    [theme, setTheme] = useState(
-      () => localStorage.getItem("agr-theme") || "rose",
+    [theme, setTheme] = useState(() =>
+      readPreference("agr-theme", Object.keys(THEME_COLORS), "rose"),
     ),
-    [quality, setQuality] = useState(
-      () => localStorage.getItem("agr-quality") || "balanced",
+    [quality, setQuality] = useState(() =>
+      readPreference("agr-quality", QUALITY_LEVELS, "balanced"),
     ),
     [secret, setSecret] = useState(false),
     progressRef = useRef({ value: 0 }),
@@ -1638,8 +1656,8 @@ function App() {
     return () => removeEventListener("agr-focus", update);
   }, []);
   useEffect(() => () => routeTimers.current.forEach(clearTimeout), []);
-  useEffect(() => localStorage.setItem("agr-theme", theme), [theme]);
-  useEffect(() => localStorage.setItem("agr-quality", quality), [quality]);
+  useEffect(() => writePreference("agr-theme", theme), [theme]);
+  useEffect(() => writePreference("agr-quality", quality), [quality]);
   useEffect(() => {
     const down = (e) => {
         if (

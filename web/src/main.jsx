@@ -757,6 +757,17 @@ function DataCathedral({ items = [], activity = 0, quality = "balanced" }) {
   );
 }
 
+function MorphingMonolith({ screen, quality }) {
+  const nodes = quality === "eco" ? 6 : quality === "max" ? 28 : 16;
+  return <div className="morphing-monolith" data-space={screen} aria-hidden="true">
+    <div className="monolith-aura" />
+    <div className="monolith-orb"><i /><i /><i /></div>
+    <div className="monolith-ribbons">{Array.from({length:5},(_,i)=><i key={i} style={{"--i":i}} />)}</div>
+    <div className="monolith-nodes">{Array.from({length:nodes},(_,i)=><i key={i} style={{"--i":i,"--x":`${(i*47)%101}%`,"--y":`${(i*71)%97}%`}} />)}</div>
+    <div className="monolith-grain" />
+  </div>;
+}
+
 function Header({ screen, backend, onSettings }) {
   const label = ROUTES.find((x) => x[0] === screen)?.[1] || "Сравнение";
   return (
@@ -767,7 +778,7 @@ function Header({ screen, backend, onSettings }) {
         </span>
         <div>
           <b>Оптимизатор текстур</b>
-          <small>ADAPTIVE RGB24 / v45</small>
+          <small>ADAPTIVE RGB24 / v46</small>
         </div>
       </div>
       <div className="route-status">
@@ -922,23 +933,26 @@ function Home({ setScreen }) {
         </div>
       </section>
       <section className="hero-panel">
+        <div className="mode-console-head"><i /><span>SELECT OPERATION SPACE</span><b>AGR / 46</b></div>
         <div className="capability-grid">
           <div><small>RGB24</small><strong>TRUE COLOR</strong><b>01</b></div>
           <div><small>8K READY</small><strong>SAFE PREVIEW</strong><b>02</b></div>
           <div><small>BATCH</small><strong>DATA CATHEDRAL</strong><b>03</b></div>
         </div>
         <Button
+          className="mode-gate npm-gate"
           tip="Один PNG, результат строго меньше 3 MB"
           onClick={() => setScreen("npm")}
         >
-          НПМ · ОПТИМИЗИРОВАТЬ ДО 3 MB
+          <small>PRECISION CHANNEL · 01</small><b>НПМ · ДО 3 MB</b><em>ОДНА ТЕКСТУРА → ТОЧНЫЙ ЛИМИТ</em>
         </Button>
         <Button
+          className="mode-gate batch-gate"
           tip="Несколько PNG без лимита итогового размера"
           quiet
           onClick={() => setScreen("batch")}
         >
-          ОТКРЫТЬ ОПТИМИЗАТОР ТЕКСТУР
+          <small>DATA CATHEDRAL · 02</small><b>ОПТИМИЗАТОР ТЕКСТУР</b><em>МНОГО PNG → 8K PIPELINE</em>
         </Button>
       </section>
     </main>
@@ -1230,6 +1244,19 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before
   const current = useRef({ s: 1, x: 0, y: 0, split: 0.5 });
   const alive = useRef(true), loaded = useRef(false), modeRef = useRef(mode);
 
+  const clampView = useCallback((view) => {
+    const node = host.current, img = images.current.before || images.current.after;
+    if (!node || !img?.naturalWidth) return { ...view, x: 0, y: 0 };
+    const rect = node.getBoundingClientRect(), viewWidth = modeRef.current === "pan" ? rect.width / 2 : rect.width;
+    const fit = Math.min(viewWidth / img.naturalWidth, rect.height / img.naturalHeight);
+    const renderedWidth = img.naturalWidth * fit * view.s, renderedHeight = img.naturalHeight * fit * view.s;
+    // Keep at least one full viewport edge covered: the image can be inspected,
+    // but it can never be thrown completely into an infinite empty field.
+    const maxX = Math.max(0, (renderedWidth - viewWidth) / 2);
+    const maxY = Math.max(0, (renderedHeight - rect.height) / 2);
+    return { ...view, x: Math.max(-maxX, Math.min(maxX, view.x)), y: Math.max(-maxY, Math.min(maxY, view.y)) };
+  }, []);
+
   const render = useCallback(() => {
     frame.current = 0;
     const node = host.current, out = canvas.current;
@@ -1237,11 +1264,12 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before
     const rect = node.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 1.5);
     const w = Math.max(1, Math.round(rect.width * dpr)), h = Math.max(1, Math.round(rect.height * dpr));
     if (out.width !== w || out.height !== h) { out.width = w; out.height = h; }
-    const ctx = out.getContext("2d", { alpha: false, desynchronized: true });
+    const ctx = out.getContext("2d", { alpha: true, desynchronized: true });
     if (!ctx) return;
+    target.current = clampView(target.current);
     const c = current.current, t = target.current;
     c.s += (t.s - c.s) * .19; c.x += (t.x - c.x) * .19; c.y += (t.y - c.y) * .19; c.split += (t.split - c.split) * .22;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.fillStyle = "#030205"; ctx.fillRect(0, 0, rect.width, rect.height);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, rect.width, rect.height);
     const draw = (img, x0, width) => {
       if (!img?.naturalWidth || width <= 0) return;
       ctx.save(); ctx.beginPath(); ctx.rect(x0, 0, width, rect.height); ctx.clip();
@@ -1260,7 +1288,7 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before
     }
     const moving = Math.abs(t.s-c.s) > .001 || Math.abs(t.x-c.x) > .08 || Math.abs(t.y-c.y) > .08 || Math.abs(t.split-c.split) > .001;
     if (moving && alive.current) frame.current = requestAnimationFrame(render);
-  }, []);
+  }, [clampView]);
   const wake = useCallback(() => { if (!frame.current) frame.current = requestAnimationFrame(render); }, [render]);
   const reset = useCallback((scale = 1) => {
     target.current = { ...target.current, s: scale, x: 0, y: 0 };
@@ -1288,9 +1316,9 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before
   }, [wake]);
   const zoom = useCallback((factor, ox = 0, oy = 0) => {
     const t = target.current, s = Math.max(1, Math.min(MAX_ZOOM, t.s * factor)), ratio = s / t.s;
-    target.current = { ...t, s, x: ox - (ox - t.x) * ratio, y: oy - (oy - t.y) * ratio };
+    target.current = clampView({ ...t, s, x: ox - (ox - t.x) * ratio, y: oy - (oy - t.y) * ratio });
     onZoom?.(s); window.__AGR_ZOOM_TARGET__ = s; wake();
-  }, [onZoom, wake]);
+  }, [clampView, onZoom, wake]);
   useEffect(() => {
     const node = host.current; if (!node) return;
     const wheel = (e) => { e.preventDefault(); window.__AGR_WHEEL_COUNT__ = (window.__AGR_WHEEL_COUNT__ || 0) + 1; const r=node.getBoundingClientRect(); zoom(Math.exp(Math.max(-.14, Math.min(.14, -e.deltaY*.0012))), e.clientX-r.left-r.width/2, e.clientY-r.top-r.height/2); };
@@ -1308,7 +1336,7 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before
   }} onPointerMove={(e) => {
     if (!drag.current) return; const r=host.current.getBoundingClientRect();
     if (drag.current.wipe) target.current.split=Math.max(.02,Math.min(.98,(e.clientX-r.left)/r.width));
-    else { target.current.x=drag.current.x+e.clientX-drag.current.px; target.current.y=drag.current.y+e.clientY-drag.current.py; }
+    else target.current=clampView({ ...target.current, x:drag.current.x+e.clientX-drag.current.px, y:drag.current.y+e.clientY-drag.current.py });
     wake();
   }} onPointerUp={() => { drag.current=null; }} onPointerCancel={() => { drag.current=null; }}>
     <canvas ref={canvas} />
@@ -1557,6 +1585,13 @@ function Workspace({ kind, state, backend, setScreen }) {
               color="var(--accent2)"
             />
           </section>
+          <section className="npm-command-deck">
+            <ProcessSignal progress={state.progress} status={state.status || state.report} />
+            <Button danger={state.busy} disabled={!state.sourceUrl && !state.busy} onClick={() => state.busy ? backend?.stopCurrent() : backend?.optimize(2.99)}>
+              {state.busy ? "ОСТАНОВИТЬ" : "ОПТИМИЗИРОВАТЬ ДО 3 MB"}
+            </Button>
+            <Button quiet disabled={!state.outputPath} onClick={() => backend?.openOutputFolder()}><FolderOpen /> ПАПКА РЕЗУЛЬТАТА</Button>
+          </section>
           <div className="compare-title">
             <h2>СРАВНИТЕЛЬНЫЙ АНАЛИЗ · СИНХРОННОЕ ПЕРЕМЕЩЕНИЕ</h2>
           </div>
@@ -1566,25 +1601,6 @@ function Workspace({ kind, state, backend, setScreen }) {
             focus={focus}
             onFocus={toggleFocus}
           />
-          <section className="bottom-process">
-            <ProcessSignal progress={state.progress} status={state.status || state.report} />
-            <Button
-              danger={state.busy}
-              disabled={!state.sourceUrl && !state.busy}
-              onClick={() =>
-                state.busy ? backend?.stopCurrent() : backend?.optimize(2.99)
-              }
-            >
-              {state.busy ? "ОСТАНОВИТЬ" : "ОПТИМИЗИРОВАТЬ ДО 3 MB"}
-            </Button>
-            <Button
-              quiet
-              disabled={!state.outputPath}
-              onClick={() => backend?.openOutputFolder()}
-            >
-              <FolderOpen /> ПАПКА РЕЗУЛЬТАТА
-            </Button>
-          </section>
         </>
       )}
     </main>
@@ -1844,6 +1860,7 @@ function App() {
       className={`app theme-${theme} quality-${quality} scene-${screen} ${holding ? "is-holding" : ""} ${diving ? "is-diving" : ""}`}
     >
       <AmbientBackdrop theme={theme} secret={secret} active={screen === "home" && !diving} />
+      <MorphingMonolith screen={screen} quality={quality} />
       {screen === "batch" ? <DataCathedral items={state.batchItems} quality={quality} activity={state.batchActivityHistory?.at?.(-1)} /> : <KineticArchitecture activity={holding ? Math.max(.2, progress) : Number(state.activityHistory?.at?.(-1) || .08)} />}
       <VectorSculpture />
       <div className="webgl">

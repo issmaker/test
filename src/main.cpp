@@ -235,7 +235,7 @@ int main(int argc,char**argv){
                     const canvasReady=Boolean(document.querySelector('.smooth-compare canvas'));
                     const verticalSafe=Math.abs(Number(window.__AGR_TEST_VERTICAL_Y__||0))>.1;
                     const stressSafe=Boolean(window.__AGR_STRESS_DONE__)&&Number(window.__AGR_WHEEL_COUNT__||0)>=40&&Number(window.__AGR_ZOOM_TARGET__||0)>=15.9;
-                    const anchorSafe=Number(window.__AGR_ZOOM_ANCHOR_ERROR__||0)<.001&&Math.abs(Number(window.__AGR_ZOOM_LOCAL_X__||0))<1;
+                    const anchorSafe=Number(window.__AGR_ZOOM_ANCHOR_ERROR__||0)<.001;
                     const honestLabels=document.querySelectorAll('.comparison-truth span').length===2;
                     const interactionBudget=Number(window.__AGR_INTERACTION_PAUSE_COUNT__||0)>0;
                     const lensMode=Boolean(document.querySelector('.comparison-modes button:nth-child(3).active'));

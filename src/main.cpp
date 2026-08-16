@@ -167,7 +167,14 @@ int main(int argc,char**argv){
     QObject::connect(view,&QWebEngineView::loadFinished,&window,[&](bool ok){
         if(!ok){startupMessageHandler(QtCriticalMsg,QMessageLogContext(),QStringLiteral("Web interface failed to load"));return;}
         if(startupTest){
-            QTimer::singleShot(450,view,[view]{view->page()->runJavaScript(QStringLiteral("document.querySelector('.right-dock [data-route=\"npm\"]')?.click()"));});
+            QTimer::singleShot(450,view,[view]{view->page()->runJavaScript(QStringLiteral(R"JS((()=>{
+                const timer=setInterval(()=>{
+                    const target=document.querySelector('.right-dock [data-route="npm"]');
+                    if(!target)return;
+                    clearInterval(timer);target.click();
+                },100);
+                setTimeout(()=>clearInterval(timer),3000);
+            })())JS"));});
             QTimer::singleShot(1200,view,[view]{view->page()->runJavaScript(QStringLiteral(R"JS((()=>{
                 const timer=setInterval(()=>{
                     const zoom=document.querySelector('.zoom-pane');
@@ -179,11 +186,12 @@ int main(int argc,char**argv){
                 },100);
                 setTimeout(()=>clearInterval(timer),3200);
             })())JS"));});
-            QTimer::singleShot(2500,view,[view]{view->page()->runJavaScript(QStringLiteral("document.querySelector('.right-dock [data-action=\"settings\"]')?.click()"));});
+            QTimer::singleShot(3500,view,[view]{view->page()->runJavaScript(QStringLiteral("document.querySelector('.right-dock [data-action=\"settings\"]')?.click()"));});
             QTimer::singleShot(4800,view,[view]{
                 view->page()->runJavaScript(QStringLiteral(R"JS((()=>{
                     const hint=document.querySelector('.floating-hint'),box=hint?.getBoundingClientRect();
-                    const zoomed=document.querySelector('.zoom-orbit span')?.textContent!=='100%';
+                    const zoomLabel=document.querySelector('.zoom-orbit span');
+                    const zoomed=Boolean(zoomLabel&&zoomLabel.textContent!=='100%');
                     const canvasReady=Boolean(document.querySelector('.zoom-pane canvas.ready'));
                     const verticalSafe=Math.abs(Number(window.__AGR_TEST_VERTICAL_Y__||0))>.1;
                     const mask=(document.querySelector('.workspace')?1:0)|(document.querySelector('.settings-panel')?2:0)|(document.querySelector('.topbar')?4:0)|(zoomed?8:0)|(box&&box.left>10&&box.top>10?16:0)|(canvasReady?32:0)|(verticalSafe?64:0);

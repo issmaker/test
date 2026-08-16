@@ -27,7 +27,7 @@
 #endif
 
 #ifndef AGR_APP_VERSION
-#define AGR_APP_VERSION "44"
+#define AGR_APP_VERSION "45"
 #endif
 
 namespace {
@@ -204,7 +204,7 @@ int main(int argc,char**argv){
             })())JS"));});
             QTimer::singleShot(1200,view,[view]{view->page()->runJavaScript(QStringLiteral(R"JS((()=>{
                 const timer=setInterval(()=>{
-                    const zoom=document.querySelector('.zoom-pane');
+                    const zoom=document.querySelector('.smooth-compare');
                     if(!zoom)return;
                     clearInterval(timer);
                     setTimeout(()=>{
@@ -220,13 +220,13 @@ int main(int argc,char**argv){
             QTimer::singleShot(4800,view,[view]{
                 view->page()->runJavaScript(QStringLiteral(R"JS((()=>{
                     const hint=document.querySelector('.floating-hint'),box=hint?.getBoundingClientRect();
-                    const zoomLabel=document.querySelector('.zoom-orbit span');
-                    const zoomed=Boolean(zoomLabel&&zoomLabel.textContent!=='100%');
-                    const canvasReady=Boolean(document.querySelector('.zoom-pane canvas.ready'));
+                    const zoomLabel=document.querySelector('.live-zoom');
+                    const zoomed=Boolean(zoomLabel&& !zoomLabel.textContent.includes('ZOOM 100%'));
+                    const canvasReady=Boolean(document.querySelector('.smooth-compare canvas'));
                     const verticalSafe=Math.abs(Number(window.__AGR_TEST_VERTICAL_Y__||0))>.1;
                     const stressSafe=Boolean(window.__AGR_STRESS_DONE__)&&Number(window.__AGR_WHEEL_COUNT__||0)>=40&&Number(window.__AGR_ZOOM_TARGET__||0)>=15.9;
                     const mask=(document.querySelector('.workspace')?1:0)|(document.querySelector('.settings-panel')?2:0)|(document.querySelector('.topbar')?4:0)|(zoomed?8:0)|(box&&box.left>10&&box.top>10?16:0)|(canvasReady?32:0)|(verticalSafe?64:0)|(stressSafe?128:0);
-                    return `${mask}|${document.querySelector('.zoom-orbit span')?.textContent}|${window.__AGR_WHEEL_COUNT__||0}|${window.__AGR_ZOOM_TARGET__||0}|${document.querySelectorAll('.zoom-pane').length}|${document.querySelectorAll('canvas.ready').length}|${window.__AGR_TEST_VERTICAL_Y__||0}`;
+                    return `${mask}|${zoomLabel?.textContent}|${window.__AGR_WHEEL_COUNT__||0}|${window.__AGR_ZOOM_TARGET__||0}|${document.querySelectorAll('.smooth-compare').length}|${document.querySelectorAll('.smooth-compare canvas').length}|${window.__AGR_TEST_VERTICAL_Y__||0}`;
                 })())JS"),[](const QVariant &result){
                     const QString details=result.toString();const int mask=details.section('|',0,0).toInt();
                     constexpr int shellMask=1|2|4|128;

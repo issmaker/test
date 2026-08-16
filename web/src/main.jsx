@@ -709,6 +709,14 @@ function Sparkline({ values = [], label, color = "var(--accent)" }) {
     </Hint>
   );
 }
+function ProcessSignal({ progress = 0, status = "Ожидание", compact = false }) {
+  const p = Math.max(0, Math.min(1, Number(progress || 0)));
+  return <div className={`process-signal ${compact ? "compact" : ""}`} title={status}>
+    <div className="signal-copy"><small>{p >= 1 ? "RGB24 VERIFIED" : p > 0 ? "ADAPTIVE PIPELINE" : "READY CHANNEL"}</small><strong>{Math.round(p * 100)}%</strong></div>
+    <div className="signal-bars">{Array.from({length:18},(_,i)=><i key={i} style={{"--h":`${20 + ((i * 37 + Math.round(p*100)) % 75)}%`,"--on":i/17<=p?1:.12}} />)}</div>
+    <span>{String(status).split("·")[0].slice(0,72)}</span>
+  </div>;
+}
 function FluidProgress({ value = 0 }) {
   return (
     <div
@@ -735,6 +743,20 @@ function KineticArchitecture({ activity = 0 }) {
   );
 }
 
+function DataCathedral({ items = [], activity = 0, quality = "balanced" }) {
+  const visible = items.length ? items.slice(0, quality === "eco" ? 18 : quality === "max" ? 54 : 32) : Array.from({ length: 12 }, (_, i) => ({ name: `SLOT ${String(i + 1).padStart(2,"0")}` }));
+  return (
+    <div className="data-cathedral" style={{ "--activity": Math.max(.08, Number(activity || 0)) }} aria-hidden="true">
+      <div className="cathedral-vault"><i /><i /><i /><i /></div>
+      <div className="cathedral-floor" />
+      <div className="cathedral-modules">
+        {visible.map((item, i) => <div key={`${item.sourceUrl || item.name}-${i}`} className={`cathedral-module ${item.done ? "done" : item.importing ? "loading" : "queued"}`} style={{ "--i": i, "--count": visible.length }}><i /><b>{String(i + 1).padStart(2,"0")}</b><span>{item.name}</span></div>)}
+      </div>
+      <div className="cathedral-core"><span>{items.length}</span><small>TEXTURE NODES</small></div>
+    </div>
+  );
+}
+
 function Header({ screen, backend, onSettings }) {
   const label = ROUTES.find((x) => x[0] === screen)?.[1] || "Сравнение";
   return (
@@ -745,7 +767,7 @@ function Header({ screen, backend, onSettings }) {
         </span>
         <div>
           <b>Оптимизатор текстур</b>
-          <small>ADAPTIVE RGB24 / v44</small>
+          <small>ADAPTIVE RGB24 / v45</small>
         </div>
       </div>
       <div className="route-status">
@@ -900,10 +922,10 @@ function Home({ setScreen }) {
         </div>
       </section>
       <section className="hero-panel">
-        <div className="mode-manifest">
-          <small>ВЫБЕРИТЕ СЦЕНАРИЙ</small>
-          <h2>Один движок.<br />Два точных режима.</h2>
-          <p>RGB24 сохраняет структуру текстуры, а интерфейс показывает каждый этап без ожидания вслепую.</p>
+        <div className="capability-grid">
+          <div><small>RGB24</small><strong>TRUE COLOR</strong><b>01</b></div>
+          <div><small>8K READY</small><strong>SAFE PREVIEW</strong><b>02</b></div>
+          <div><small>BATCH</small><strong>DATA CATHEDRAL</strong><b>03</b></div>
         </div>
         <Button
           tip="Один PNG, результат строго меньше 3 MB"
@@ -1201,6 +1223,100 @@ function WipeCompare({ before, after }) {
   );
 }
 
+const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before, after, mode, onZoom }) {
+  const host = useRef(null), canvas = useRef(null), frame = useRef(0), drag = useRef(null);
+  const images = useRef({ before: null, after: null });
+  const target = useRef({ s: 1, x: 0, y: 0, split: 0.5 });
+  const current = useRef({ s: 1, x: 0, y: 0, split: 0.5 });
+  const alive = useRef(true), loaded = useRef(false), modeRef = useRef(mode);
+
+  const render = useCallback(() => {
+    frame.current = 0;
+    const node = host.current, out = canvas.current;
+    if (!node || !out || !loaded.current) return;
+    const rect = node.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 1.5);
+    const w = Math.max(1, Math.round(rect.width * dpr)), h = Math.max(1, Math.round(rect.height * dpr));
+    if (out.width !== w || out.height !== h) { out.width = w; out.height = h; }
+    const ctx = out.getContext("2d", { alpha: false, desynchronized: true });
+    if (!ctx) return;
+    const c = current.current, t = target.current;
+    c.s += (t.s - c.s) * .19; c.x += (t.x - c.x) * .19; c.y += (t.y - c.y) * .19; c.split += (t.split - c.split) * .22;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.fillStyle = "#030205"; ctx.fillRect(0, 0, rect.width, rect.height);
+    const draw = (img, x0, width) => {
+      if (!img?.naturalWidth || width <= 0) return;
+      ctx.save(); ctx.beginPath(); ctx.rect(x0, 0, width, rect.height); ctx.clip();
+      const fitW = modeRef.current === "pan" ? rect.width / 2 : rect.width;
+      const fit = Math.min(fitW / img.naturalWidth, rect.height / img.naturalHeight);
+      const scale = fit * c.s, dw = img.naturalWidth * scale, dh = img.naturalHeight * scale;
+      const cx = modeRef.current === "pan" ? x0 + width / 2 : rect.width / 2;
+      ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = c.s > 8 ? "medium" : "high";
+      ctx.drawImage(img, cx - dw / 2 + c.x, rect.height / 2 - dh / 2 + c.y, dw, dh); ctx.restore();
+    };
+    if (modeRef.current === "wipe") {
+      const cut = rect.width * c.split; draw(images.current.before, 0, rect.width); draw(images.current.after, 0, cut);
+      ctx.fillStyle = "rgba(255,255,255,.9)"; ctx.fillRect(cut - .5, 0, 1, rect.height);
+    } else {
+      draw(images.current.before, 0, rect.width / 2); draw(images.current.after, rect.width / 2, rect.width / 2);
+    }
+    const moving = Math.abs(t.s-c.s) > .001 || Math.abs(t.x-c.x) > .08 || Math.abs(t.y-c.y) > .08 || Math.abs(t.split-c.split) > .001;
+    if (moving && alive.current) frame.current = requestAnimationFrame(render);
+  }, []);
+  const wake = useCallback(() => { if (!frame.current) frame.current = requestAnimationFrame(render); }, [render]);
+  const reset = useCallback((scale = 1) => {
+    target.current = { ...target.current, s: scale, x: 0, y: 0 };
+    onZoom?.(scale); wake();
+  }, [onZoom, wake]);
+  useEffect(() => { modeRef.current = mode; wake(); }, [mode, wake]);
+  useEffect(() => {
+    alive.current = true; loaded.current = false;
+    let cancelled = false;
+    const load = (src) => new Promise((resolve) => {
+      if (!src) return resolve(null);
+      const img = new Image(); img.decoding = "async";
+      const done = () => resolve(img.naturalWidth ? img : null);
+      img.onload = done; img.onerror = () => resolve(null); img.src = src;
+      if (img.complete) done();
+    });
+    Promise.all([load(before || (HEADLESS_TEST ? TEST_TEXTURE : "")), load(after || (HEADLESS_TEST ? TEST_TEXTURE : ""))]).then(([a,b]) => {
+      if (cancelled) return; images.current = { before: a, after: b }; loaded.current = Boolean(a || b); reset();
+    });
+    return () => { cancelled = true; alive.current = false; cancelAnimationFrame(frame.current); frame.current = 0; };
+  }, [before, after, reset]);
+  useEffect(() => {
+    const observer = new ResizeObserver(wake); if (host.current) observer.observe(host.current);
+    return () => observer.disconnect();
+  }, [wake]);
+  const zoom = useCallback((factor, ox = 0, oy = 0) => {
+    const t = target.current, s = Math.max(1, Math.min(MAX_ZOOM, t.s * factor)), ratio = s / t.s;
+    target.current = { ...t, s, x: ox - (ox - t.x) * ratio, y: oy - (oy - t.y) * ratio };
+    onZoom?.(s); window.__AGR_ZOOM_TARGET__ = s; wake();
+  }, [onZoom, wake]);
+  useEffect(() => {
+    const node = host.current; if (!node) return;
+    const wheel = (e) => { e.preventDefault(); window.__AGR_WHEEL_COUNT__ = (window.__AGR_WHEEL_COUNT__ || 0) + 1; const r=node.getBoundingClientRect(); zoom(Math.exp(Math.max(-.14, Math.min(.14, -e.deltaY*.0012))), e.clientX-r.left-r.width/2, e.clientY-r.top-r.height/2); };
+    node.addEventListener("wheel", wheel, { passive: false }); return () => node.removeEventListener("wheel", wheel);
+  }, [zoom]);
+  useEffect(() => {
+    if (!HEADLESS_TEST) return;
+    const z = e => zoom(Number(e.detail?.factor || 1.1));
+    const d = e => { target.current.x += Number(e.detail?.x || 0); target.current.y += Number(e.detail?.y || 0); window.__AGR_TEST_VERTICAL_Y__=target.current.y; wake(); };
+    addEventListener("agr-test-zoom", z); addEventListener("agr-test-drag", d); return () => { removeEventListener("agr-test-zoom", z); removeEventListener("agr-test-drag", d); };
+  }, [wake, zoom]);
+  return <div ref={host} className="smooth-compare" onPointerDown={(e) => {
+    const r=host.current.getBoundingClientRect(), near=mode==="wipe" && Math.abs(e.clientX-r.left-r.width*target.current.split)<34;
+    drag.current={ px:e.clientX, py:e.clientY, x:target.current.x, y:target.current.y, wipe:near }; e.currentTarget.setPointerCapture(e.pointerId);
+  }} onPointerMove={(e) => {
+    if (!drag.current) return; const r=host.current.getBoundingClientRect();
+    if (drag.current.wipe) target.current.split=Math.max(.02,Math.min(.98,(e.clientX-r.left)/r.width));
+    else { target.current.x=drag.current.x+e.clientX-drag.current.px; target.current.y=drag.current.y+e.clientY-drag.current.py; }
+    wake();
+  }} onPointerUp={() => { drag.current=null; }} onPointerCancel={() => { drag.current=null; }}>
+    <canvas ref={canvas} />
+    <span className="compare-label before">BEFORE / ORIGINAL</span><span className="compare-label after">AFTER / AGR RGB24</span>
+    <div className="viewport-actions"><button onClick={(e)=>{e.stopPropagation();reset(1)}}>ВПИСАТЬ</button><button onClick={(e)=>{e.stopPropagation();reset(4)}}>400%</button><button onClick={(e)=>{e.stopPropagation();reset(8)}}>800%</button></div>
+  </div>;
+});
+
 const ComparisonSurface = React.memo(function ComparisonSurface({
   before,
   after,
@@ -1209,8 +1325,9 @@ const ComparisonSurface = React.memo(function ComparisonSurface({
   allowWipe = false,
   onOpenFolder,
 }) {
-  const [view, setView] = useState({ s: 1, x: 0, y: 0 });
   const [mode, setMode] = useState("pan");
+  const [zoomLabel, setZoomLabel] = useState(100);
+  const updateZoomLabel = useCallback((s) => setZoomLabel(Math.round(s * 100)), []);
   return (
     <section className="compare-card transparent">
       {allowWipe && after && (
@@ -1223,23 +1340,9 @@ const ComparisonSurface = React.memo(function ComparisonSurface({
           </button>
         </div>
       )}
-      {mode === "wipe" && after ? (
-        <WipeCompare before={before} after={after} />
-      ) : (
-        <div className="compare-grid">
-          <ZoomPane title="BEFORE / ORIGINAL" src={before} view={view} setView={setView} />
-          <ZoomPane title="AFTER / AGR RGB24" src={after} view={view} setView={setView} />
-        </div>
-      )}
+      <SmoothCompareViewport before={before} after={after} mode={mode} onZoom={updateZoomLabel} />
       <div className="compare-tools">
-        {mode === "pan" && (
-          <>
-            <Button quiet onClick={() => setView({ s: 1, x: 0, y: 0 })}>ВПИСАТЬ</Button>
-            <Button quiet onClick={() => setView((v) => ({ ...v, s: 4, x: 0, y: 0 }))}>400%</Button>
-            <Button quiet onClick={() => setView((v) => ({ ...v, s: 8, x: 0, y: 0 }))}>800%</Button>
-            <ZoomControl view={view} setView={setView} />
-          </>
-        )}
+        <span className="live-zoom">ZOOM {zoomLabel}% · MAX {MAX_ZOOM * 100}%</span>
         <Button quiet tip="Focus Comparison · клавиша F" onClick={onFocus}>
           <Focus /> {focus ? "ВЫЙТИ ИЗ FOCUS" : "FOCUS"}
         </Button>
@@ -1407,7 +1510,7 @@ function Workspace({ kind, state, backend, setScreen }) {
                     {item.done && `→ ${mb(item.outputMb)}`}
                   </p>
                   <FluidProgress value={item.progress || 0} />
-                  <small>{item.report || item.status}</small>
+                  <ProcessSignal compact progress={item.progress || (item.done ? 1 : 0)} status={item.status || item.report} />
                   <div>
                     <Button
                       disabled={!item.done}
@@ -1464,7 +1567,7 @@ function Workspace({ kind, state, backend, setScreen }) {
             onFocus={toggleFocus}
           />
           <section className="bottom-process">
-            <p>{state.report || state.status}</p>
+            <ProcessSignal progress={state.progress} status={state.status || state.report} />
             <Button
               danger={state.busy}
               disabled={!state.sourceUrl && !state.busy}
@@ -1527,7 +1630,7 @@ function Compare({ index, state, backend, setScreen }) {
         <div><small>ИСХОДНИК</small><strong>{mb(item.sourceMb)}</strong></div>
         <div><small>РЕЗУЛЬТАТ</small><strong>{mb(item.outputMb)}</strong></div>
         <div><small>ЭКОНОМИЯ</small><strong>{item.sourceMb ? `${Math.max(0, Math.round((1 - item.outputMb / item.sourceMb) * 100))}%` : "—"}</strong></div>
-        <p>{item.report || item.status}</p>
+        <ProcessSignal compact progress={1} status={item.status || "Анализ завершён"} />
       </section>
       <ComparisonSurface
         before={item.comparisonSourceUrl || item.sourceUrl}
@@ -1741,18 +1844,7 @@ function App() {
       className={`app theme-${theme} quality-${quality} scene-${screen} ${holding ? "is-holding" : ""} ${diving ? "is-diving" : ""}`}
     >
       <AmbientBackdrop theme={theme} secret={secret} active={screen === "home" && !diving} />
-      <KineticArchitecture
-        activity={
-          holding
-            ? Math.max(0.2, progress)
-            : Number(
-                (screen === "batch"
-                  ? state.batchActivityHistory
-                  : state.activityHistory
-                )?.at?.(-1) || 0.08,
-              )
-        }
-      />
+      {screen === "batch" ? <DataCathedral items={state.batchItems} quality={quality} activity={state.batchActivityHistory?.at?.(-1)} /> : <KineticArchitecture activity={holding ? Math.max(.2, progress) : Number(state.activityHistory?.at?.(-1) || .08)} />}
       <VectorSculpture />
       <div className="webgl">
         {screen !== "home" ? null : HEADLESS_TEST ? (

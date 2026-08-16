@@ -364,10 +364,18 @@ void OptimizerEngine::optimizeBatch(){
     }
     if(jobs.isEmpty()){m_batchStatus="Нет готовых PNG для обработки";emit batchStatusChanged();return;}
     const int logicalCores=qMax(1,QThread::idealThreadCount());
-    m_batchWorkers=qBound(1,qMax(1,logicalCores/2),qMin(2,int(jobs.size())));
+    bool contains8K=false;
+    for(const BatchEntry &entry:m_batchEntries){
+        if(qMax(entry.width,entry.height)>4096||qint64(entry.width)*qint64(entry.height)>24000000){contains8K=true;break;}
+    }
+    // Full-resolution 8K encoding is memory-heavy. Keep the UI responsive by
+    // processing one giant texture at a time; ordinary textures still use two workers.
+    m_batchWorkers=contains8K?1:qBound(1,qMax(1,logicalCores/2),qMin(2,int(jobs.size())));
     const int generation=++m_batchGeneration;
     m_batchCancelRequested=false;m_batchBusy=true;m_batchProgress=0;
-    m_batchStatus=QString("Запуск %1 параллельных потоков · %2 PNG").arg(m_batchWorkers).arg(jobs.size());
+    m_batchStatus=contains8K
+        ? QString("8K MEMORY GUARD · 1 поток · %1 PNG").arg(jobs.size())
+        : QString("Запуск %1 параллельных потоков · %2 PNG").arg(m_batchWorkers).arg(jobs.size());
     m_batchProgressHistory={0.0};m_batchActivityHistory={.22};
     emit batchItemsChanged();emit batchBusyChanged();emit batchProgressChanged();emit batchStatusChanged();emit batchTelemetryChanged();emit batchWorkersChanged();
     m_batchWatcher.setFuture(QtConcurrent::run([this,jobs,workers=m_batchWorkers,generation]{

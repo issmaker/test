@@ -823,6 +823,7 @@ function RightDock({ screen, setScreen, state, onSettings }) {
             key={id}
           >
             <button
+              data-route={id}
               disabled={disabled}
               className={screen === id ? "active" : ""}
               onClick={() => setScreen(id)}
@@ -835,7 +836,7 @@ function RightDock({ screen, setScreen, state, onSettings }) {
       })}
       <i className="dock-separator" />
       <Hint text="Настройки">
-        <button onClick={onSettings}>
+        <button data-action="settings" onClick={onSettings}>
           <Settings />
           <span>Настройки</span>
         </button>

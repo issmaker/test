@@ -36,6 +36,22 @@ img {
   user-select: none;
   -webkit-user-drag: none;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .cursor-trail,
+  .webgl {
+    display: none;
+  }
+}
 .app {
   position: relative;
   width: 100%;

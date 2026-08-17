@@ -1467,6 +1467,9 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before
     setPreviewLoading(Boolean(before||after));
     const load = async(src)=>{
       if(!src)return null;
+      // Chromium's Fetch API rejects qrc:/ resources and logs that rejection as
+      // a fatal console error. The native Image decoder supports qrc directly.
+      if(src.startsWith("qrc:"))return await new Promise((resolve)=>{const img=new Image();img.decoding="async";img.onload=()=>resolve(img.naturalWidth?img:null);img.onerror=()=>resolve(null);img.src=src;});
       try{const response=await fetch(src,{signal:controller.signal});const blob=await response.blob();if(!blob.size)throw new Error("empty image");return await createImageBitmap(blob,{colorSpaceConversion:"default",premultiplyAlpha:"default"});}
       catch{if(cancelled)return null;return await new Promise((resolve)=>{const img=new Image();img.decoding="async";img.onload=()=>resolve(img.naturalWidth?img:null);img.onerror=()=>resolve(null);img.src=src;});}
     };

@@ -442,7 +442,9 @@ void OptimizerEngine::optimizeBatch(){
     const int memorySafe=qMax(1,int((availableBytes*65/100)/bytesPerJob));
     const int responsiveCpu=qMax(1,logicalCores-1);
     const int requested=m_performanceMode=="eco"?1:(m_performanceMode=="max"?responsiveCpu:qMax(1,logicalCores/2));
-    m_batchWorkers=qBound(1,std::min({requested,memorySafe,int(jobs.size())}),int(jobs.size()));
+    // windows.h defines a min macro, so call std::min through parentheses.
+    const int safeWorkers=(std::min)(requested,(std::min)(memorySafe,int(jobs.size())));
+    m_batchWorkers=qBound(1,safeWorkers,int(jobs.size()));
     const int generation=++m_batchGeneration;
     m_batchCancelRequested=false;m_batchBusy=true;m_batchProgress=0;
     m_batchStatus=QString("Умная нагрузка · %1 потоков · %2 PNG%3").arg(m_batchWorkers).arg(jobs.size()).arg(contains8K?QStringLiteral(" · 8K RAM GUARD"):QString());

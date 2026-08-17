@@ -242,7 +242,7 @@ int main(int argc,char**argv){
                         const box=zoom.getBoundingClientRect();
                         for(let i=0;i<40;i++)zoom.dispatchEvent(new WheelEvent('wheel',{deltaY:-120,clientX:box.left+box.width*.75,clientY:box.top+box.height*.5,bubbles:true,cancelable:true}));
                         const scaleButtons=zoom.querySelectorAll('.viewport-actions button');scaleButtons[1]?.click();scaleButtons[2]?.click();
-                        const fullDeadline=Date.now()+2800;
+                        const fullDeadline=Date.now()+6500;
                         const promoteTo1600=()=>{
                             if(Number(window.__AGR_FULL_DETAIL_READY__||0)>0||Date.now()>=fullDeadline){
                                 window.__AGR_FULL_AT_800__=Number(window.__AGR_FULL_DETAIL_READY__||0)>0;

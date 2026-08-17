@@ -1494,7 +1494,7 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({
     const detailed=!interaction.current&&c.s>=DETAIL_ZOOM;
     const beforeImage=detailed&&images.current.fullBefore?images.current.fullBefore:images.current.before;
     const afterImage=detailed&&images.current.fullAfter?images.current.fullAfter:images.current.after;
-    if(detailed&&(images.current.fullBefore||images.current.fullAfter))window.__AGR_FULL_DETAIL_VISIBLE_SCALE__=c.s;
+    if(detailed&&(images.current.fullBefore||images.current.fullAfter)){window.__AGR_FULL_DETAIL_VISIBLE_SCALE__=c.s;window.__AGR_FULL_DETAIL_VISIBLE_TARGET__=target.current.s;}
     const draw = (img, x0, width) => {
       const iw=img?.fullWidth||img?.naturalWidth||img?.width,ih=img?.fullHeight||img?.naturalHeight||img?.height;
       if (!iw || !ih || width <= 0) return;

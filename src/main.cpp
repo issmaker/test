@@ -241,7 +241,7 @@ int main(int argc,char**argv){
                     setTimeout(()=>{
                         const box=zoom.getBoundingClientRect();
                         for(let i=0;i<40;i++)zoom.dispatchEvent(new WheelEvent('wheel',{deltaY:-120,clientX:box.left+box.width*.75,clientY:box.top+box.height*.5,bubbles:true,cancelable:true}));
-                        const scaleButtons=zoom.querySelectorAll('.viewport-actions button');scaleButtons[1]?.click();scaleButtons[2]?.click();
+                        const scaleButtons=zoom.querySelectorAll('.viewport-actions button');scaleButtons[1]?.click();scaleButtons[2]?.click();scaleButtons[3]?.click();
                         for(let step=0;step<120;step++)dispatchEvent(new CustomEvent('agr-test-drag',{detail:{x:(step%3)-1,y:9}}));
                         dispatchEvent(new CustomEvent('agr-test-drag',{detail:{x:999999,y:999999}}));
                         window.__AGR_STRESS_DONE__=true;
@@ -258,7 +258,7 @@ int main(int argc,char**argv){
                     const zoomed=Boolean(zoomLabel&& !zoomLabel.textContent.includes('ZOOM 100%'));
                     const canvasReady=Boolean(document.querySelector('.smooth-compare canvas'))&&Boolean(document.querySelector('.right-dock [data-route="game"]'));
                     const verticalSafe=Math.abs(Number(window.__AGR_TEST_VERTICAL_Y__||0))>.1;
-                    const stressSafe=Boolean(window.__AGR_STRESS_DONE__)&&Number(window.__AGR_WHEEL_COUNT__||0)>=40&&Number(window.__AGR_ZOOM_TARGET__||0)>=7.99&&Number(window.__AGR_ZOOM_BUTTON_SCALE__||0)===8&&Number(window.__AGR_FULL_DETAIL_READY__||0)>0;
+                    const stressSafe=Boolean(window.__AGR_STRESS_DONE__)&&Number(window.__AGR_WHEEL_COUNT__||0)>=40&&Number(window.__AGR_ZOOM_TARGET__||0)>=15.99&&Number(window.__AGR_ZOOM_BUTTON_SCALE__||0)===16&&Number(window.__AGR_FULL_DETAIL_READY__||0)>0;
                     const anchorSafe=Number(window.__AGR_ZOOM_ANCHOR_ERROR__||0)<.001;
                     const honestLabels=document.querySelectorAll('.comparison-truth span').length===2;
                     const interactionBudget=Number(window.__AGR_INTERACTION_PAUSE_COUNT__||0)>0;

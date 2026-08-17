@@ -247,12 +247,12 @@ int main(int argc,char**argv){
                             if(Number(window.__AGR_FULL_DETAIL_READY__||0)>0||Date.now()>=fullDeadline){
                                 window.__AGR_FULL_AT_800__=Number(window.__AGR_FULL_DETAIL_READY__||0)>0;
                                 scaleButtons[3]?.click();
+                                for(let step=0;step<120;step++)dispatchEvent(new CustomEvent('agr-test-drag',{detail:{x:(step%3)-1,y:9}}));
+                                dispatchEvent(new CustomEvent('agr-test-drag',{detail:{x:999999,y:999999}}));
+                                window.__AGR_STRESS_DONE__=true;
                             }else setTimeout(promoteTo1600,50);
                         };
                         promoteTo1600();
-                        for(let step=0;step<120;step++)dispatchEvent(new CustomEvent('agr-test-drag',{detail:{x:(step%3)-1,y:9}}));
-                        dispatchEvent(new CustomEvent('agr-test-drag',{detail:{x:999999,y:999999}}));
-                        window.__AGR_STRESS_DONE__=true;
                         dispatchEvent(new CustomEvent('agr-hint',{detail:{open:true,text:'TOOLTIP TEST',x:720,y:42}}));
                     },80);
                 },100);

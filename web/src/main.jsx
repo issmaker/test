@@ -575,52 +575,66 @@ const bladePose=(state,u,time=0,out)=>{
 };
 
 function BladeSculpture({ state, theme, quality, brightness=1, effects=1, transitionKind="home>home", hold=0 }){
-  const count=quality==="eco"?112:quality==="max"?220:168;
-  const body=useRef(),edge=useRef(),current=useRef([]),targets=useRef([]),hover=useRef(-1),lastPointer=useRef(new THREE.Vector2()),tmp=useMemo(()=>({matrix:new THREE.Matrix4(),q:new THREE.Quaternion(),p:new THREE.Vector3(),s:new THREE.Vector3(),projected:new THREE.Vector3(),offset:new THREE.Vector3(),color:new THREE.Color(),white:new THREE.Color("#ffffff")}),[]);
+  const count=quality==="eco"?96:quality==="max"?196:144;
+  const body=useRef(),edge=useRef(),edgeBack=useRef(),current=useRef([]),targets=useRef([]),hover=useRef(-1),lastPointer=useRef(new THREE.Vector2()),tmp=useMemo(()=>({matrix:new THREE.Matrix4(),q:new THREE.Quaternion(),p:new THREE.Vector3(),s:new THREE.Vector3(),projected:new THREE.Vector3(),offset:new THREE.Vector3(),color:new THREE.Color(),bodyColor:new THREE.Color(),dark:new THREE.Color("#071723"),white:new THREE.Color("#ffffff")}),[]);
   const colors=THEME_COLORS[theme]||THEME_COLORS.cyan;
   const accent=useMemo(()=>new THREE.Color(colors[0]),[colors]);
   const accent2=useMemo(()=>new THREE.Color(colors[1]),[colors]);
   const transitionMode=useMemo(()=>[...transitionKind].reduce((sum,char)=>sum+char.charCodeAt(0),0)%4,[transitionKind]);
   useEffect(()=>{current.current=[];targets.current=[];},[count]);
   useFrame(({clock,pointer,camera})=>{
-    if(!body.current||!edge.current)return;
+    if(!body.current||!edge.current||!edgeBack.current)return;
     const t=clock.elapsedTime, speed=pointer.distanceTo(lastPointer.current);lastPointer.current.lerp(pointer,.24);
+    const holdCenter=hover.current>=0?hover.current/count:.56;
     let nearest=-1,nearestDistance=.29;
     for(let i=0;i<count;i++){
       const u=i/count,target=bladePose(state,u,t,targets.current[i]),phase=transitionMode===0?i:transitionMode===1?count-i:transitionMode===2?Math.abs(i-count/2)*2:(i%2?i:count-i);targets.current[i]=target;
-      if(hold>0){const pull=Math.exp(-Math.pow((u-.56)*5.5,2))*hold;target.position.z+=pull*.72;target.scale.x*=1-pull*.13;target.rotation.y+=pull*.28;}
+      if(hold>0){const angle=u*Math.PI*2,circular=Math.min(Math.abs(u-holdCenter),1-Math.abs(u-holdCenter)),pull=Math.exp(-circular*circular*48)*hold,global=1+hold*.09;target.position.x*=global;target.position.y*=global;target.position.z+=pull*1.05+Math.sin(angle*3-t*3.2)*hold*.16;target.scale.x*=1+pull*.24;target.rotation.y+=pull*.48+Math.sin(angle*2-t)*hold*.08;}
       if(!current.current[i])current.current[i]={p:target.position.clone(),q:new THREE.Quaternion().setFromEuler(target.rotation),s:target.scale.clone()};
       const c=current.current[i],delay=.045+Math.min(.055,phase/count*.045);
       c.p.lerp(target.position,delay);c.q.slerp(tmp.q.setFromEuler(target.rotation),delay);c.s.lerp(target.scale,delay);
       tmp.matrix.compose(c.p,c.q,c.s);body.current.setMatrixAt(i,tmp.matrix);
-      tmp.offset.set(0,.038,.178*c.s.z).applyQuaternion(c.q);tmp.p.copy(c.p).add(tmp.offset);tmp.s.set(c.s.x,1,1);tmp.matrix.compose(tmp.p,c.q,tmp.s);edge.current.setMatrixAt(i,tmp.matrix);
+      tmp.offset.set(0,.024,.253*c.s.z).applyQuaternion(c.q);tmp.p.copy(c.p).add(tmp.offset);tmp.s.set(c.s.x,1,1);tmp.matrix.compose(tmp.p,c.q,tmp.s);edge.current.setMatrixAt(i,tmp.matrix);
+      tmp.offset.set(0,-.024,-.253*c.s.z).applyQuaternion(c.q);tmp.p.copy(c.p).add(tmp.offset);tmp.matrix.compose(tmp.p,c.q,tmp.s);edgeBack.current.setMatrixAt(i,tmp.matrix);
       tmp.projected.copy(c.p).project(camera);const distance=Math.hypot(tmp.projected.x-pointer.x,tmp.projected.y-pointer.y);
       if(distance<nearestDistance){nearestDistance=distance;nearest=i;}
     }
     hover.current=nearest;
     for(let i=0;i<count;i++){
       const delta=nearest<0?count:Math.min(Math.abs(i-nearest),count-Math.abs(i-nearest));
-      const holdLight=hold*Math.exp(-Math.pow((i/count-.56)*6,2))*1.3;
+      const circular=Math.min(Math.abs(i/count-holdCenter),1-Math.abs(i/count-holdCenter)),holdLight=hold*Math.exp(-circular*circular*52)*1.55;
       const wave=Math.exp(-delta*delta/38)*effects+holdLight;
       const runner=nearest<0?0:Math.exp(-Math.pow(delta-((t*18+speed*150)%20),2)/12)*.58*effects;
       tmp.color.copy(accent).lerp(accent2,.28+.25*Math.sin(i*.17+t*.35)).multiplyScalar(.34+(wave+runner)*1.38*brightness);
       if(delta<2)tmp.color.lerp(tmp.white,.42);
       edge.current.setColorAt(i,tmp.color);
+      edgeBack.current.setColorAt(i,tmp.color);
+      tmp.bodyColor.copy(accent).lerp(tmp.dark,.56).multiplyScalar((.82+.16*Math.sin(i*.11+t*.18))*brightness);body.current.setColorAt(i,tmp.bodyColor);
     }
-    body.current.instanceMatrix.needsUpdate=true;edge.current.instanceMatrix.needsUpdate=true;if(edge.current.instanceColor)edge.current.instanceColor.needsUpdate=true;
-    body.current.rotation.y=THREE.MathUtils.lerp(body.current.rotation.y,pointer.x*.055*effects,.025);edge.current.rotation.y=body.current.rotation.y;
-    body.current.rotation.x=THREE.MathUtils.lerp(body.current.rotation.x,-pointer.y*.035*effects,.025);edge.current.rotation.x=body.current.rotation.x;
+    body.current.instanceMatrix.needsUpdate=true;edge.current.instanceMatrix.needsUpdate=true;edgeBack.current.instanceMatrix.needsUpdate=true;if(body.current.instanceColor)body.current.instanceColor.needsUpdate=true;if(edge.current.instanceColor)edge.current.instanceColor.needsUpdate=true;if(edgeBack.current.instanceColor)edgeBack.current.instanceColor.needsUpdate=true;
+    body.current.rotation.y=THREE.MathUtils.lerp(body.current.rotation.y,pointer.x*.085*effects,.025);edge.current.rotation.y=body.current.rotation.y;edgeBack.current.rotation.y=body.current.rotation.y;
+    body.current.rotation.x=THREE.MathUtils.lerp(body.current.rotation.x,-pointer.y*.055*effects,.025);edge.current.rotation.x=body.current.rotation.x;edgeBack.current.rotation.x=body.current.rotation.x;
   });
-  return <group position={[.38,0,-1.0]} scale={[.96,.96,.96]}>
+  return <group position={[.5,0,-.62]} scale={[1.12,1.18,1.08]}>
     <instancedMesh ref={body} args={[null,null,count]} frustumCulled={false}>
-      <boxGeometry args={[1,.062,.35]} />
-      <meshPhysicalMaterial color="#071622" metalness={.96} roughness={.19} clearcoat={.75} clearcoatRoughness={.12} envMapIntensity={2.35*brightness} />
+      <boxGeometry args={[1,.03,.5]} />
+      <meshPhysicalMaterial vertexColors color="#ffffff" metalness={.9} roughness={.24} clearcoat={.82} clearcoatRoughness={.1} envMapIntensity={3.8*brightness} />
     </instancedMesh>
     <instancedMesh ref={edge} args={[null,null,count]} frustumCulled={false}>
-      <boxGeometry args={[1,.018,.032]} />
+      <boxGeometry args={[1,.014,.028]} />
+      <meshBasicMaterial vertexColors toneMapped={false} transparent opacity={.98} blending={THREE.AdditiveBlending} />
+    </instancedMesh>
+    <instancedMesh ref={edgeBack} args={[null,null,count]} frustumCulled={false}>
+      <boxGeometry args={[1,.014,.028]} />
       <meshBasicMaterial vertexColors toneMapped={false} transparent opacity={.96} blending={THREE.AdditiveBlending} />
     </instancedMesh>
   </group>;
+}
+
+function MovingReflections({colors,brightness}){
+  const a=useRef(),b=useRef();
+  useFrame(({clock,pointer})=>{const t=clock.elapsedTime;if(a.current)a.current.position.set(-3.8+Math.sin(t*.31)*2.2+pointer.x,2.8+Math.cos(t*.23)*1.2,3.5);if(b.current)b.current.position.set(4.2+Math.cos(t*.27)*1.8,-2.1+Math.sin(t*.35)*1.1,2.8);});
+  return <><pointLight ref={a} intensity={22*brightness} distance={13} color={colors[0]}/><pointLight ref={b} intensity={18*brightness} distance={12} color={colors[1]}/></>;
 }
 
 function Scene({ theme, quality, screen, settingsOpen, secret, transitionKind, brightness, effects, hold }) {
@@ -643,12 +657,14 @@ function Scene({ theme, quality, screen, settingsOpen, secret, transitionKind, b
         powerPreference: "high-performance",
         preserveDrawingBuffer: false,
       }}
+      onCreated={({gl})=>{gl.toneMapping=THREE.ACESFilmicToneMapping;gl.toneMappingExposure=1.32;gl.outputColorSpace=THREE.SRGBColorSpace;}}
     >
       <color attach="background" args={["#030b13"]} />
       <ambientLight intensity={.42*brightness} color="#9cc7db" />
       <directionalLight position={[-4,5,5]} intensity={2.7*brightness} color="#d8f9ff" />
       <pointLight position={[5,2,3]} intensity={15*brightness} distance={15} color={colors[1]} />
       <pointLight position={[-5,-2,2]} intensity={12*brightness} distance={13} color={colors[0]} />
+      <MovingReflections colors={colors} brightness={brightness}/>
       <Environment resolution={quality==="eco"?64:128}>
         <Lightformer form="rect" intensity={5*brightness} color={colors[0]} scale={[5,2,1]} position={[-4,2,2]} rotation-y={Math.PI/2}/>
         <Lightformer form="ring" intensity={4*brightness} color={colors[1]} scale={[4,2,1]} position={[4,-1,1]} rotation-y={-Math.PI/2}/>
@@ -913,7 +929,7 @@ function WaterGlassField(){
   const [ripples,setRipples]=useState([]),last=useRef({x:0,y:0,time:0,id:0});
   useEffect(()=>{
     const move=(event)=>{
-      const panel=event.target instanceof Element?event.target.closest(".hero-panel,.workspace-head,.telemetry,.bottom-process,.batch-list,.analysis-summary,.compare-card,.settings-panel,.right-dock,.topbar"):null;
+      const panel=event.target instanceof Element?event.target.closest(".hero-panel,.workspace-head,.telemetry,.bottom-process,.batch-list,.analysis-summary,.compare-card,.settings-panel,.right-dock,.route-status,.brand-mark,.top-actions .button"):null;
       if(!panel)return;
       const box=panel.getBoundingClientRect(),x=event.clientX-box.left,y=event.clientY-box.top;
       panel.style.setProperty("--water-x",`${x}px`);panel.style.setProperty("--water-y",`${y}px`);
@@ -926,6 +942,12 @@ function WaterGlassField(){
     addEventListener("pointermove",move,{passive:true});return()=>removeEventListener("pointermove",move);
   },[]);
   return <div className="water-ripple-layer" aria-hidden="true">{ripples.map((r)=><i key={r.id} style={{left:r.x,top:r.y,"--strength":r.strength}}/>)}</div>;
+}
+function HoldSpace({progress,point}){
+  return <div className={`hold-space ${progress>.01?"active":""}`} style={{"--hold":progress,"--hold-x":`${point.x}px`,"--hold-y":`${point.y}px`}} aria-hidden="true">
+    <div className="hold-cursor"><i/><i/><i/><b>{Math.round(progress*100).toString().padStart(2,"0")}</b></div>
+    <div className="hold-space-waves">{Array.from({length:5},(_,i)=><i key={i} style={{"--i":i}}/>)}</div>
+  </div>;
 }
 function SettingsPanel({
   open,
@@ -1344,6 +1366,22 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before
     if(!active&&delay)interactionTimer.current=setTimeout(()=>dispatchEvent(new CustomEvent("agr-drag",{detail:false})),delay);
     else dispatchEvent(new CustomEvent("agr-drag",{detail:active}));
   },[]);
+  const clampView=useCallback((view)=>{
+    const node=host.current,rect=node?.getBoundingClientRect();
+    if(!rect?.width||!rect?.height)return {...view,x:0,y:0};
+    const paneWidth=modeRef.current==="pan"?rect.width/2:rect.width;
+    let maxX=Infinity,maxY=Infinity,found=false;
+    for(const img of [images.current.before,images.current.after]){
+      if(!img?.naturalWidth)continue;found=true;
+      const fit=Math.min(paneWidth/img.naturalWidth,rect.height/img.naturalHeight);
+      maxX=Math.min(maxX,Math.max(0,(img.naturalWidth*fit*view.s-paneWidth)/2));
+      maxY=Math.min(maxY,Math.max(0,(img.naturalHeight*fit*view.s-rect.height)/2));
+    }
+    if(!found){maxX=0;maxY=0;}
+    const x=Math.max(-maxX,Math.min(maxX,view.x)),y=Math.max(-maxY,Math.min(maxY,view.y));
+    if(Math.abs(x-view.x)>.01||Math.abs(y-view.y)>.01)window.__AGR_PAN_CLAMPED__=true;
+    return {...view,x,y};
+  },[]);
 
   const render = useCallback(() => {
     frame.current = 0;
@@ -1352,11 +1390,11 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before
     const rect = node.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 1.5);
     const w = Math.max(1, Math.round(rect.width * dpr)), h = Math.max(1, Math.round(rect.height * dpr));
     if (out.width !== w || out.height !== h) { out.width = w; out.height = h; }
-    const ctx = out.getContext("2d", { alpha: false, desynchronized: true });
+    const ctx = out.getContext("2d", { alpha: true, desynchronized: true });
     if (!ctx) return;
-    const c = current.current, t = target.current;
+    const c = current.current, t = clampView(target.current);target.current=t;
     c.s += (t.s - c.s) * .19; c.x += (t.x - c.x) * .19; c.y += (t.y - c.y) * .19; c.split += (t.split - c.split) * .22;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.fillStyle = "#030205"; ctx.fillRect(0, 0, rect.width, rect.height);
+    ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,out.width,out.height);ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const draw = (img, x0, width) => {
       if (!img?.naturalWidth || width <= 0) return;
       ctx.save(); ctx.beginPath(); ctx.rect(x0, 0, width, rect.height); ctx.clip();
@@ -1375,13 +1413,13 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before
     }
     const moving = Math.abs(t.s-c.s) > .001 || Math.abs(t.x-c.x) > .08 || Math.abs(t.y-c.y) > .08 || Math.abs(t.split-c.split) > .001;
     if (moving && alive.current) frame.current = requestAnimationFrame(render);
-  }, []);
+  }, [clampView]);
   const wake = useCallback(() => { if (!frame.current) frame.current = requestAnimationFrame(render); }, [render]);
   const reset = useCallback((scale = 1) => {
     target.current = { ...target.current, s: scale, x: 0, y: 0 };
     onZoom?.(scale); wake();
   }, [onZoom, wake]);
-  useEffect(() => { modeRef.current = mode; wake(); }, [mode, wake]);
+  useEffect(() => { modeRef.current = mode; target.current=clampView({...target.current,x:0,y:0}); wake(); }, [mode, wake,clampView]);
   useEffect(() => {
     alive.current = true; loaded.current = false;
     let cancelled = false;
@@ -1400,32 +1438,34 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before
     return () => { cancelled = true; alive.current = false; cancelAnimationFrame(frame.current); frame.current = 0;clearTimeout(interactionTimer.current);setInteraction(false); };
   }, [before, after, contentReady, externalLoading, reset, setInteraction]);
   useEffect(() => {
-    const observer = new ResizeObserver(wake); if (host.current) observer.observe(host.current);
+    const observer = new ResizeObserver(()=>{target.current=clampView(target.current);wake();}); if (host.current) observer.observe(host.current);
     return () => observer.disconnect();
-  }, [wake]);
+  }, [wake,clampView]);
   const zoom = useCallback((factor, ox = 0, oy = 0) => {
     const t = target.current, s = Math.max(1, Math.min(MAX_ZOOM, t.s * factor)), ratio = s / t.s;
-    target.current = { ...t, s, x: ox - (ox - t.x) * ratio, y: oy - (oy - t.y) * ratio };
+    const raw={...t,s,x:ox-(ox-t.x)*ratio,y:oy-(oy-t.y)*ratio},next=clampView(raw);
+    if(Math.abs(next.x-raw.x)<.001&&Math.abs(next.y-raw.y)<.001)window.__AGR_ZOOM_ANCHOR_ERROR__=Math.hypot((ox-next.x)/s-(ox-t.x)/t.s,(oy-next.y)/s-(oy-t.y)/t.s);
+    target.current=next;
     onZoom?.(s); window.__AGR_ZOOM_TARGET__ = s; wake();
-  }, [onZoom, wake]);
+  }, [onZoom, wake,clampView]);
   useEffect(() => {
     const node = host.current; if (!node) return;
-    const wheel = (e) => { e.preventDefault();setInteraction(true);setInteraction(false,140); window.__AGR_WHEEL_COUNT__ = (window.__AGR_WHEEL_COUNT__ || 0) + 1; const r=node.getBoundingClientRect(); zoom(Math.exp(Math.max(-.14, Math.min(.14, -e.deltaY*.0012))), e.clientX-r.left-r.width/2, e.clientY-r.top-r.height/2); };
+    const wheel = (e) => { e.preventDefault();setInteraction(true);setInteraction(false,140); window.__AGR_WHEEL_COUNT__ = (window.__AGR_WHEEL_COUNT__ || 0) + 1; const r=node.getBoundingClientRect(),localX=e.clientX-r.left,paneCenter=modeRef.current==="pan"?(localX<r.width/2?r.width*.25:r.width*.75):r.width*.5; zoom(Math.exp(Math.max(-.14, Math.min(.14, -e.deltaY*.0012))), localX-paneCenter, e.clientY-r.top-r.height/2); };
     node.addEventListener("wheel", wheel, { passive: false }); return () => node.removeEventListener("wheel", wheel);
   }, [setInteraction,zoom]);
   useEffect(() => {
     if (!HEADLESS_TEST) return;
     const z = e => { window.__AGR_WHEEL_COUNT__ = (window.__AGR_WHEEL_COUNT__ || 0) + 1; zoom(Number(e.detail?.factor || 1.1)); };
-    const d = e => { target.current.x += Number(e.detail?.x || 0); target.current.y += Number(e.detail?.y || 0); window.__AGR_TEST_VERTICAL_Y__=target.current.y; wake(); };
+    const d = e => { target.current=clampView({...target.current,x:target.current.x+Number(e.detail?.x||0),y:target.current.y+Number(e.detail?.y||0)}); window.__AGR_TEST_VERTICAL_Y__=target.current.y; wake(); };
     addEventListener("agr-test-zoom", z); addEventListener("agr-test-drag", d); return () => { removeEventListener("agr-test-zoom", z); removeEventListener("agr-test-drag", d); };
-  }, [wake, zoom]);
+  }, [wake, zoom,clampView]);
   return <div ref={host} className="smooth-compare" onPointerDown={(e) => {
     const r=host.current.getBoundingClientRect(), near=mode==="wipe" && Math.abs(e.clientX-r.left-r.width*target.current.split)<34;
     drag.current={ px:e.clientX, py:e.clientY, x:target.current.x, y:target.current.y, wipe:near }; e.currentTarget.setPointerCapture(e.pointerId);setInteraction(true);
   }} onPointerMove={(e) => {
     if (!drag.current) return; const r=host.current.getBoundingClientRect();
     if (drag.current.wipe) target.current.split=Math.max(.02,Math.min(.98,(e.clientX-r.left)/r.width));
-    else { target.current.x=drag.current.x+e.clientX-drag.current.px; target.current.y=drag.current.y+e.clientY-drag.current.py; }
+    else { target.current=clampView({...target.current,x:drag.current.x+e.clientX-drag.current.px,y:drag.current.y+e.clientY-drag.current.py}); }
     wake();
   }} onPointerUp={() => { drag.current=null;setInteraction(false); }} onPointerCancel={() => { drag.current=null;setInteraction(false); }}>
     <canvas ref={canvas} />
@@ -1560,11 +1600,11 @@ function Workspace({ kind, state, backend, setScreen, contentReady = true }) {
             />
             <Button
               danger={state.batchBusy}
-              disabled={state.batchImportBusy || (!items.some((item) => !item.failed && !item.importing) && !state.batchBusy)}
+              disabled={state.batchImportBusy || (!items.some((item) => !item.done && !item.failed && !item.importing) && !state.batchBusy)}
               tip={
                 state.batchBusy
                   ? "Остановить после безопасного шага"
-                  : "Запустить всю очередь"
+                  : "Обработать только новые PNG"
               }
               onClick={() =>
                 state.batchBusy
@@ -1572,7 +1612,7 @@ function Workspace({ kind, state, backend, setScreen, contentReady = true }) {
                   : backend?.optimizeBatch()
               }
             >
-              {state.batchBusy ? "ОСТАНОВИТЬ" : "ОПТИМИЗИРОВАТЬ ВСЕ"}
+              {state.batchBusy ? "ОСТАНОВИТЬ" : "ОПТИМИЗИРОВАТЬ НОВЫЕ"}
             </Button>
           </section>
           <section className={`batch-import-panel ${state.batchImportBusy ? "active" : ""}`}>
@@ -1835,6 +1875,7 @@ function App() {
     [shapeState,setShapeState]=useState("home"),
     [transitionKind,setTransitionKind]=useState("home>home"),
     [hold,setHold]=useState(0),
+    [holdPoint,setHoldPoint]=useState({x:innerWidth/2,y:innerHeight/2}),
     [diving, setDiving] = useState(false),
     [contentReady, setContentReady] = useState(true),
     [settings, setSettings] = useState(false),
@@ -1864,21 +1905,22 @@ function App() {
           return;
         }
         const nextScreen=next.startsWith("compare")?"compare":next;
-        const internal=(screen==="batch"&&nextScreen==="compare")||(screen==="compare"&&nextScreen==="batch");
-        setTransitionKind(`${shapeState}>${nextScreen}`);setShapeState(nextScreen);
-        if(internal){setSettings(false);setRoute(next);return;}
         setDiving(true);
         setContentReady(false);
         setSettings(false);
         dispatchEvent(new CustomEvent("agr-hint", { detail: { open: false } }));
         routeTimers.current = [
           setTimeout(() => {
+            setTransitionKind(`${shapeState}>${nextScreen}`);
+            setShapeState(nextScreen);
+          }, 320),
+          setTimeout(() => {
             setRoute(next);
-          }, 650),
+          }, 880),
           setTimeout(() => {
             setDiving(false);
             setContentReady(true);
-          }, 1300),
+          }, 1580),
         ];
       },
       [route, screen,shapeState],
@@ -1903,15 +1945,35 @@ function App() {
   useEffect(()=>{
     const down=(event)=>{
       if(screen!=="home"||event.button!==0||event.target.closest("button,input,[data-no-hold]"))return;
+      setHoldPoint({x:event.clientX,y:event.clientY});
       gsap.killTweensOf(holdRef.current);gsap.to(holdRef.current,{value:1,duration:1.65,ease:"power2.inOut",onUpdate:()=>setHold(holdRef.current.value)});
     };
+    const move=(event)=>{if(holdRef.current.value>.01)setHoldPoint({x:event.clientX,y:event.clientY});};
     const up=()=>{gsap.killTweensOf(holdRef.current);gsap.to(holdRef.current,{value:0,duration:.78,ease:"power3.out",onUpdate:()=>setHold(holdRef.current.value)});};
-    addEventListener("pointerdown",down);addEventListener("pointerup",up);addEventListener("pointercancel",up);
-    return()=>{removeEventListener("pointerdown",down);removeEventListener("pointerup",up);removeEventListener("pointercancel",up);};
+    addEventListener("pointerdown",down);addEventListener("pointermove",move,{passive:true});addEventListener("pointerup",up);addEventListener("pointercancel",up);
+    return()=>{removeEventListener("pointerdown",down);removeEventListener("pointermove",move);removeEventListener("pointerup",up);removeEventListener("pointercancel",up);};
   },[screen]);
-  const setSettingsOpen=useCallback((open)=>{const next=open?"settings":screen;setSettings(open);setTransitionKind(`${shapeState}>${next}`);setShapeState(next);},[screen,shapeState]);
-  const openSecret=useCallback(()=>{setSettings(false);setSecret(true);setTransitionKind(`${shapeState}>secret`);setShapeState("secret");},[shapeState]);
-  const closeSecret=useCallback(()=>{setSecret(false);setTransitionKind(`secret>${screen}`);setShapeState(screen);},[screen]);
+  const setSettingsOpen=useCallback((open)=>{
+    routeTimers.current.forEach(clearTimeout);const next=open?"settings":screen;setDiving(true);
+    routeTimers.current=[
+      setTimeout(()=>{setTransitionKind(`${shapeState}>${next}`);setShapeState(next);setSettings(open);},320),
+      setTimeout(()=>setDiving(false),1580),
+    ];
+  },[screen,shapeState]);
+  const openSecret=useCallback(()=>{
+    routeTimers.current.forEach(clearTimeout);setSettings(false);setDiving(true);
+    routeTimers.current=[
+      setTimeout(()=>{setSecret(true);setTransitionKind(`${shapeState}>secret`);setShapeState("secret");},320),
+      setTimeout(()=>setDiving(false),1580),
+    ];
+  },[shapeState]);
+  const closeSecret=useCallback(()=>{
+    routeTimers.current.forEach(clearTimeout);setDiving(true);
+    routeTimers.current=[
+      setTimeout(()=>{setSecret(false);setTransitionKind(`secret>${screen}`);setShapeState(screen);},320),
+      setTimeout(()=>setDiving(false),1580),
+    ];
+  },[screen]);
   const page =
     screen === "home" ? (
       <Home setScreen={setScreen} />
@@ -1943,8 +2005,8 @@ function App() {
   return (
     <div
       ref={appRoot}
-      className={`app theme-${theme} quality-${quality} scene-${screen} ${diving ? "is-diving" : ""}`}
-      style={{"--ui-brightness":brightness,"--effect-level":effects}}
+      className={`app theme-${theme} quality-${quality} scene-${screen} ${diving ? "is-diving" : ""} ${hold>.01?"is-holding":""}`}
+      style={{"--ui-brightness":brightness,"--effect-level":effects,"--hold":hold}}
     >
       <div className="webgl">
         {HEADLESS_TEST ? (
@@ -1963,6 +2025,7 @@ function App() {
           </SceneBoundary>
         )}
       </div>
+      <HoldSpace progress={hold} point={holdPoint}/>
       <WaterGlassField />
       <TooltipLayer />
       <Header

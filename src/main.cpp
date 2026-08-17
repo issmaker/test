@@ -27,7 +27,7 @@
 #endif
 
 #ifndef AGR_APP_VERSION
-#define AGR_APP_VERSION "54"
+#define AGR_APP_VERSION "55"
 #endif
 
 namespace {
@@ -154,6 +154,22 @@ int runSelfTest() {
         if(!item.value("done").toBool()||item.value("failed").toBool())return 20;
         if(!QFileInfo::exists(QUrl(item.value("resultUrl").toString()).toLocalFile()))return 21;
     }
+    const QString addedPath=directory.filePath(QStringLiteral("self-test-added-later.png"));
+    if(!input.mirrored().save(addedPath,"PNG"))return 22;
+    QVariantList addedFiles;addedFiles.append(QUrl::fromLocalFile(addedPath));previewEngine.addBatchFiles(addedFiles);batchImportTimeout.start(15000);
+    if(previewEngine.batchImportBusy())batchImportLoop.exec();
+    const QVariantList afterAdd=previewEngine.batchItems();
+    if(previewEngine.batchImportBusy()||afterAdd.size()!=3||!afterAdd[0].toMap().value("done").toBool()||!afterAdd[1].toMap().value("done").toBool())return 23;
+    bool completedItemWasReset=false;
+    QObject::connect(&previewEngine,&OptimizerEngine::batchItemsChanged,&previewEngine,[&]{
+        const QVariantList values=previewEngine.batchItems();
+        if(previewEngine.batchBusy()&&values.size()>=2&&(!values[0].toMap().value("done").toBool()||!values[1].toMap().value("done").toBool()))completedItemWasReset=true;
+    });
+    previewEngine.optimizeBatch();batchTimeout.start(60000);
+    if(previewEngine.batchBusy())batchLoop.exec();
+    const QVariantList incremental=previewEngine.batchItems();
+    if(previewEngine.batchBusy()||completedItemWasReset||incremental.size()!=3)return 24;
+    for(const QVariant &value:incremental)if(!value.toMap().value("done").toBool())return 25;
     return 0;
 }
 } // namespace
@@ -214,6 +230,7 @@ int main(int argc,char**argv){
                         const box=zoom.getBoundingClientRect();
                         for(let i=0;i<40;i++)zoom.dispatchEvent(new WheelEvent('wheel',{deltaY:-120,clientX:box.left+box.width*.75,clientY:box.top+box.height*.5,bubbles:true,cancelable:true}));
                         for(let step=0;step<120;step++)dispatchEvent(new CustomEvent('agr-test-drag',{detail:{x:(step%3)-1,y:9}}));
+                        dispatchEvent(new CustomEvent('agr-test-drag',{detail:{x:999999,y:999999}}));
                         window.__AGR_STRESS_DONE__=true;
                         dispatchEvent(new CustomEvent('agr-hint',{detail:{open:true,text:'TOOLTIP TEST',x:720,y:42}}));
                     },80);
@@ -232,14 +249,15 @@ int main(int argc,char**argv){
                     const anchorSafe=Number(window.__AGR_ZOOM_ANCHOR_ERROR__||0)<.001;
                     const honestLabels=document.querySelectorAll('.comparison-truth span').length===2;
                     const interactionBudget=Number(window.__AGR_INTERACTION_PAUSE_COUNT__||0)>0;
-                    const mask=(document.querySelector('.workspace')?1:0)|(document.querySelector('.settings-panel')?2:0)|(document.querySelector('.topbar')?4:0)|(zoomed?8:0)|(box&&box.left>10&&box.top>10?16:0)|(canvasReady?32:0)|(verticalSafe?64:0)|(stressSafe?128:0)|(anchorSafe?256:0)|(honestLabels?512:0)|(interactionBudget?1024:0);
+                    const panClamped=Boolean(window.__AGR_PAN_CLAMPED__);
+                    const mask=(document.querySelector('.workspace')?1:0)|(document.querySelector('.settings-panel')?2:0)|(document.querySelector('.topbar')?4:0)|(zoomed?8:0)|(box&&box.left>10&&box.top>10?16:0)|(canvasReady?32:0)|(verticalSafe?64:0)|(stressSafe?128:0)|(anchorSafe?256:0)|(honestLabels?512:0)|(interactionBudget?1024:0)|(panClamped?2048:0);
                     return `${mask}|${zoomLabel?.textContent}|${window.__AGR_WHEEL_COUNT__||0}|${window.__AGR_ZOOM_TARGET__||0}|${document.querySelectorAll('.smooth-compare').length}|${document.querySelectorAll('.smooth-compare canvas').length}|${window.__AGR_TEST_VERTICAL_Y__||0}|${window.__AGR_ZOOM_ANCHOR_ERROR__||0}`;
                 })())JS"),[](const QVariant &result){
                     const QString details=result.toString();const int mask=details.section('|',0,0).toInt();
-                    constexpr int shellMask=1|2|4|128|256|512|1024;
+                    constexpr int shellMask=1|2|4|128|256|512|1024|2048;
                     if((mask&shellMask)!=shellMask)
                         qCritical("React shell smoke test failed: %s",qPrintable(details));
-                    else if(mask!=2047)
+                    else if(mask!=4095)
                         qWarning("Offscreen interaction diagnostics incomplete: %s",qPrintable(details));
                 });
             });

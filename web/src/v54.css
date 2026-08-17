@@ -1,4 +1,4 @@
-/* v54 · v50 optical shell, one stateful metallic blade sculpture and water glass */
+/* v55 · precise comparison viewport and full-space reactive metal */
 .theme-emerald{--accent:#19e69b;--accent2:#28d9f7}
 .theme-cobalt{--accent:#2778ff;--accent2:#d6f6ff}
 .app,.app.scene-home,.app.scene-npm,.app.scene-batch,.app.scene-compare{
@@ -15,7 +15,7 @@
 .magnetic-cursor-field,.transition-portal,.journey,.vector-sculpture,.kinetic-architecture,.data-cathedral,.cursor-trail{display:none!important}
 
 /* Water is part of the glass material. Panels stay fixed; only refraction/light moves. */
-.hero-panel,.scene-home .hero-panel,.workspace-head,.telemetry,.bottom-process,.batch-list,.analysis-summary,.compare-card,.settings-panel,.right-dock,.topbar{
+.hero-panel,.scene-home .hero-panel,.workspace-head,.telemetry,.bottom-process,.batch-list,.analysis-summary,.compare-card,.settings-panel,.right-dock{
   --water-x:50%;--water-y:50%;
   background:
     radial-gradient(circle 150px at var(--water-x) var(--water-y),color-mix(in srgb,var(--accent) 14%,#ffffff08),transparent 62%),
@@ -25,17 +25,35 @@
   box-shadow:inset 0 1px #ffffff3b,inset 1px 0 #ffffff17,inset 0 -18px 60px #00101a3d,0 24px 80px #0009,0 0 52px color-mix(in srgb,var(--accent) 7%,transparent)!important;
   transition:filter .92s cubic-bezier(.18,.72,.2,1),opacity .92s cubic-bezier(.18,.72,.2,1),background .28s linear,border-color .45s!important;
 }
+.topbar{background:transparent!important;border:0!important;backdrop-filter:none!important;box-shadow:none!important}
 .water-ripple-layer{position:fixed;z-index:90;inset:0;pointer-events:none;overflow:hidden}
 .water-ripple-layer i{position:absolute;width:22px;height:22px;border:1px solid color-mix(in srgb,var(--accent) 66%,#eaffff);border-radius:50%;translate:-50% -50%;opacity:0;box-shadow:inset 0 0 12px #dffcff22,0 0 9px color-mix(in srgb,var(--accent) 44%,transparent);animation:v54Water 1.2s cubic-bezier(.12,.68,.18,1) both}
 .water-ripple-layer i:after{content:"";position:absolute;inset:21%;border:1px solid #e9ffff65;border-radius:50%}
 @keyframes v54Water{0%{opacity:calc(.22 + var(--strength)*.45);transform:scale(.35);filter:blur(0)}65%{opacity:.18}100%{opacity:0;transform:scale(calc(3.4 + var(--strength)*2.2));filter:blur(1.5px)}}
+
+/* Transparent PNG pixels reveal the live scene instead of a black canvas fill. */
+.smooth-compare{background:transparent!important;box-shadow:inset 0 0 42px color-mix(in srgb,var(--accent) 5%,transparent),0 18px 52px #0004!important}
+.smooth-compare canvas{background:transparent!important}
+.compare-card.transparent{background:linear-gradient(135deg,#dffcff0d,#06121bb8 52%,color-mix(in srgb,var(--accent2) 7%,#07111bb8))!important}
+
+/* Full-space hold: local magnetic focus plus waves across the entire scene. */
+.hold-space{position:fixed;z-index:2;inset:0;pointer-events:none;opacity:0;overflow:hidden;transition:opacity .32s ease;background:radial-gradient(circle 24vmax at var(--hold-x) var(--hold-y),color-mix(in srgb,var(--accent) calc(var(--hold)*17%),transparent),transparent 72%)}
+.hold-space.active{opacity:1}
+.hold-space:before{content:"";position:absolute;inset:-18%;background:repeating-radial-gradient(circle at var(--hold-x) var(--hold-y),transparent 0 8vmin,color-mix(in srgb,var(--accent2) 18%,transparent) 8.1vmin 8.25vmin,transparent 8.4vmin 14vmin);opacity:calc(var(--hold)*.8);filter:blur(calc((1 - var(--hold))*5px));transform:scale(calc(.82 + var(--hold)*.24));transition:transform .12s linear}
+.hold-cursor{position:absolute;left:var(--hold-x);top:var(--hold-y);width:150px;height:150px;translate:-50% -50%;display:grid;place-items:center;filter:drop-shadow(0 0 18px var(--accent))}
+.hold-cursor i{position:absolute;inset:0;border:1px solid color-mix(in srgb,var(--accent) 72%,#fff);border-radius:50%;transform:scale(calc(.42 + var(--hold)*.58)) rotate(calc(var(--hold)*80deg))}.hold-cursor i:nth-child(2){inset:22px;border-style:dashed;transform:scale(calc(.55 + var(--hold)*.45)) rotate(calc(var(--hold)*-150deg))}.hold-cursor i:nth-child(3){inset:-25px;border-color:color-mix(in srgb,var(--accent2) 55%,transparent);transform:scale(calc(.35 + var(--hold)*.65)) rotate(calc(var(--hold)*210deg))}.hold-cursor b{font:750 14px monospace;color:#fff;text-shadow:0 0 13px var(--accent)}
+.hold-space-waves i{position:absolute;left:var(--hold-x);top:var(--hold-y);width:24vmax;aspect-ratio:1;translate:-50% -50%;border:1px solid color-mix(in srgb,var(--accent) 38%,transparent);border-radius:46% 54% 51% 49%;opacity:calc(var(--hold)*.3);transform:scale(calc(.35 + var(--i)*.42 + var(--hold)*.22)) rotate(calc(var(--i)*31deg + var(--hold)*22deg));filter:blur(calc(var(--i)*.45px));transition:transform .16s linear}
+.is-holding .topbar,.is-holding .right-dock,.is-holding .route-stage,.is-holding .signature{opacity:.1!important;filter:blur(5px)!important;pointer-events:none!important;transition-duration:.52s!important}
+.is-holding .webgl{opacity:1!important;filter:saturate(1.28) contrast(1.08) brightness(1.08)!important}
 
 /* No panel displacement. Depth focus is deliberately slow and subtle. */
 .button:hover,.button:active,.right-dock button:hover,.hero-panel .button:hover,.preset-grid button:hover,.signature:hover{transform:none!important}
 .app:has(.button:hover) .webgl{transform:none!important;filter:saturate(.82) brightness(.72)!important}
 .app:has(.button:hover) .route-stage>*{filter:blur(2.2px) brightness(.82);transition:filter .92s cubic-bezier(.18,.72,.2,1)!important}
 .app:has(.button:hover) .route-stage>*:has(.button:hover){filter:none}
-.route-stage{z-index:3;transform:none!important}.is-diving .route-stage{opacity:.18;filter:blur(4px);transition:opacity .72s ease,filter .95s ease}
+.route-stage{z-index:3;transform:none!important}
+.topbar,.right-dock,.route-stage,.signature,.settings-panel,.secret-scene{transition:opacity .58s cubic-bezier(.18,.72,.2,1),filter .58s cubic-bezier(.18,.72,.2,1)!important}
+.is-diving .topbar,.is-diving .right-dock,.is-diving .route-stage,.is-diving .signature,.is-diving .settings-panel,.is-diving .secret-scene{opacity:0!important;filter:blur(9px)!important;pointer-events:none!important;transition-duration:.28s!important}
 
 /* Palette and performance controls. */
 .settings-panel{width:min(410px,calc(100vw - 28px));max-height:calc(100vh - 92px);overflow:auto;padding-bottom:18px}

@@ -18,6 +18,7 @@
 #include <array>
 #include <cmath>
 #include <future>
+#include <memory>
 #include <stdexcept>
 
 #ifdef Q_OS_WIN
@@ -416,14 +417,14 @@ void OptimizerEngine::optimizeBatch(){
     if(m_batchBusy||m_batchImportBusy||m_batchEntries.isEmpty())return;
     QVector<QPair<int,QString>> jobs;jobs.reserve(m_batchEntries.size());
     for(int index=0;index<m_batchEntries.size();++index){
-        BatchEntry &entry=m_batchEntries[index];if(entry.failed||entry.importing)continue;
+        BatchEntry &entry=m_batchEntries[index];if(entry.done||entry.failed||entry.importing)continue;
         jobs.append({index,QUrl(entry.sourceUrl).toLocalFile()});entry.progress=0;entry.done=false;entry.failed=false;
         entry.resultUrl.clear();entry.comparisonResultUrl.clear();entry.outputPath.clear();entry.outputMb=0;entry.report.clear();entry.status="В очереди";
     }
     if(jobs.isEmpty()){m_batchStatus="Нет готовых PNG для обработки";emit batchStatusChanged();return;}
     const int logicalCores=qMax(1,QThread::idealThreadCount());
     bool contains8K=false;
-    for(const BatchEntry &entry:m_batchEntries){
+    for(const auto &job:jobs){const BatchEntry &entry=m_batchEntries[job.first];
         if(qMax(entry.width,entry.height)>4096||qint64(entry.width)*qint64(entry.height)>24000000){contains8K=true;break;}
     }
     // The selected hardware policy controls safe parallelism. 8K jobs retain
@@ -437,20 +438,22 @@ void OptimizerEngine::optimizeBatch(){
         : QString("Запуск %1 параллельных потоков · %2 PNG").arg(m_batchWorkers).arg(jobs.size());
     m_batchProgressHistory={0.0};m_batchActivityHistory={0.0};m_lastTelemetryProgress=0;m_telemetryTimer.start();
     emit batchItemsChanged();emit batchBusyChanged();emit batchProgressChanged();emit batchStatusChanged();emit batchTelemetryChanged();emit batchWorkersChanged();
-    m_batchWatcher.setFuture(QtConcurrent::run([this,jobs,workers=m_batchWorkers,generation]{
+    const auto activeIndexes=std::make_shared<QVector<int>>();activeIndexes->reserve(jobs.size());
+    for(const auto &job:jobs)activeIndexes->append(job.first);
+    m_batchWatcher.setFuture(QtConcurrent::run([this,jobs,activeIndexes,workers=m_batchWorkers,generation]{
         BatchRunResult run;const int total=jobs.size();run.items.reserve(total);std::atomic_int next{0};
-        const auto worker=[this,&jobs,&next,total,generation]{
+        const auto worker=[this,&jobs,&next,total,generation,activeIndexes]{
             QVector<BatchRunItem> completed;
             while(true){
                 const int job=next.fetch_add(1);if(job>=total||m_batchCancelRequested.load())break;
                 const int index=jobs[job].first;const QString path=jobs[job].second;BatchRunItem summary;summary.index=index;
             try{
-                const TextureResult result=TextureProcessor::processAutomatic(path,[this,index,total,generation](double value,const QString &text){
-                    QMetaObject::invokeMethod(this,[this,index,total,value,text,generation]{
+                const TextureResult result=TextureProcessor::processAutomatic(path,[this,index,total,generation,activeIndexes](double value,const QString &text){
+                    QMetaObject::invokeMethod(this,[this,index,total,value,text,generation,activeIndexes]{
                         if(generation!=m_batchGeneration||!m_batchBusy)return;
                         if(index>=0&&index<m_batchEntries.size()){
                             m_batchEntries[index].progress=value;m_batchEntries[index].status=text;
-                            double aggregate=0;for(const BatchEntry &entry:m_batchEntries)if(!entry.importing&&!entry.failed)aggregate+=entry.progress;
+                            double aggregate=0;for(const int activeIndex:*activeIndexes)if(activeIndex>=0&&activeIndex<m_batchEntries.size())aggregate+=m_batchEntries[activeIndex].progress;
                             m_batchProgress=qBound(0.0,aggregate/qMax(1,total),1.0);
                             m_batchStatus=QString("%1 потока · %2 · %3").arg(m_batchWorkers).arg(m_batchEntries[index].name).arg(text);
                             emit batchItemsChanged();emit batchProgressChanged();emit batchStatusChanged();emit batchTelemetryChanged();

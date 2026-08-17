@@ -96,7 +96,7 @@ jobs:
               -RedirectStandardOutput $stdout `
               -RedirectStandardError $stderr `
               -PassThru
-            Start-Sleep -Seconds 12
+            Start-Sleep -Seconds 18
             $startupLog = "$env:DIST_DIR/AdaptiveTextureOptimizer-startup.log"
             $startupText = if (Test-Path $startupLog) { Get-Content $startupLog -Raw } else { "" }
             if ($process.HasExited) {

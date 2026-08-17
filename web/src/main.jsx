@@ -741,7 +741,7 @@ class SceneBoundary extends React.Component {
   }
 }
 
-function Button({ children, quiet = false, danger = false, tip, className = "", onPointerEnter, ...props }) {
+function Button({ children, quiet = false, danger = false, tip, className = "", onPointerEnter, layoutId, ...props }) {
   const source=typeof children==="string"?children:null,[decoded,setDecoded]=useState(source),decodeTimer=useRef(0);
   useEffect(()=>{setDecoded(source);return()=>clearInterval(decodeTimer.current);},[source]);
   const decode=(event)=>{
@@ -755,7 +755,10 @@ function Button({ children, quiet = false, danger = false, tip, className = "", 
     e.currentTarget.style.setProperty("--by", `${e.clientY - r.top}px`);
   };
   const node = (
-    <button
+    <motion.button
+      layout={Boolean(layoutId)}
+      layoutId={layoutId}
+      transition={layoutId ? { layout: { duration: .58, ease: [.2, .72, .18, 1] } } : undefined}
       className={`button ${quiet ? "quiet" : ""} ${danger ? "danger" : ""} ${className}`.trim()}
       data-no-hold
       onPointerMove={move}
@@ -764,7 +767,7 @@ function Button({ children, quiet = false, danger = false, tip, className = "", 
     >
       <i />
       <span>{source?decoded:children}</span>
-    </button>
+    </motion.button>
   );
   return <Hint text={tip}>{node}</Hint>;
 }
@@ -1114,12 +1117,14 @@ function Home({ setScreen }) {
           <div><small>BATCH</small><strong>PARALLEL QUEUE</strong><b>03</b></div>
         </div>
         <Button
+          layoutId="route-primary-npm"
           tip="Один PNG, результат строго меньше 3 MB"
           onClick={() => setScreen("npm")}
         >
           НПМ · ОПТИМИЗИРОВАТЬ ДО 3 MB
         </Button>
         <Button
+          layoutId="route-primary-batch"
           tip="Несколько PNG без лимита итогового размера"
           quiet
           onClick={() => setScreen("batch")}
@@ -1749,8 +1754,29 @@ function EdgePulseLayer(){
   return <div className="edge-pulses" aria-hidden="true">{pulses.map((pulse)=><i key={pulse.id} className={`pulse-${pulse.variant}`} style={{"--pulse-x":`${pulse.x}px`,"--pulse-y":`${pulse.y}px`,"--pulse-hue":pulse.hue,"--pulse-angle":`${pulse.angle}deg`}}><b/><b/><b/><b/><b/><b/></i>)}</div>;
 }
 
+function fileUrlsFromDrop(event) {
+  const transfer=event.dataTransfer;if(!transfer)return [];
+  const uriList=String(transfer.getData?.("text/uri-list")||"").split(/\r?\n/).map((value)=>value.trim()).filter((value)=>value&&value[0]!=="#"&&value.startsWith("file:"));
+  if(uriList.length)return uriList;
+  return Array.from(transfer.files||[]).map((file)=>file.path||"").filter(Boolean).map((path)=>path.startsWith("file:")?path:`file:///${path.replaceAll("\\","/").replace(/^\/+/,"")}`);
+}
+
+function EmptyDropZone({ batch = false, onPick, onFiles, compact = false }) {
+  return <button
+    type="button"
+    className={`empty-drop-zone ${compact ? "compact" : ""}`}
+    data-pulse="echo"
+    aria-label={batch ? "Добавить PNG-файлы" : "Импортировать PNG"}
+    onClick={onPick}
+    onDragEnter={(event)=>{event.preventDefault();event.stopPropagation();event.currentTarget.classList.add("drag-active");}}
+    onDragOver={(event)=>{event.preventDefault();event.stopPropagation();event.dataTransfer.dropEffect="copy";event.currentTarget.classList.add("drag-active");}}
+    onDragLeave={(event)=>{if(!event.currentTarget.contains(event.relatedTarget))event.currentTarget.classList.remove("drag-active");}}
+    onDrop={(event)=>{event.preventDefault();event.stopPropagation();event.currentTarget.classList.remove("drag-active");const urls=fileUrlsFromDrop(event);if(urls.length)onFiles?.(urls);else onPick?.();}}
+  ><Plus aria-hidden="true" /></button>;
+}
+
 const BATCH_ROW_HEIGHT=194;
-const VirtualBatchList=React.memo(function VirtualBatchList({items,state,backend,setScreen}){
+const VirtualBatchList=React.memo(function VirtualBatchList({items,state,backend,setScreen,onPick}){
   const node=useRef(null),scrollFrame=useRef(0),removeTimer=useRef(0),itemsRef=useRef(items),[viewport,setViewport]=useState({top:0,height:720}),[removingKey,setRemovingKey]=useState("");
   useEffect(()=>{itemsRef.current=items;if(removingKey&&!items.some((item)=>(item.sourceUrl||item.name)===removingKey))setRemovingKey("");},[items,removingKey]);
   useEffect(()=>()=>clearTimeout(removeTimer.current),[]);
@@ -1759,7 +1785,7 @@ const VirtualBatchList=React.memo(function VirtualBatchList({items,state,backend
   const onScroll=()=>{if(!scrollFrame.current)scrollFrame.current=requestAnimationFrame(measure);};
   const start=Math.max(0,Math.floor(viewport.top/BATCH_ROW_HEIGHT)-2),end=Math.min(items.length,Math.ceil((viewport.top+viewport.height)/BATCH_ROW_HEIGHT)+3);
   return <section ref={node} className="batch-list virtual-batch-list" onScroll={onScroll}>
-    {!items.length&&<div className="empty"><Plus/><h2>Добавьте PNG-файлы</h2></div>}
+    {!items.length&&<EmptyDropZone batch compact onPick={onPick} onFiles={(urls)=>backend?.addBatchFiles?.(urls)}/>}
     {!!items.length&&<div className="batch-virtual-spacer" style={{height:items.length*BATCH_ROW_HEIGHT}}>
       {items.slice(start,end).map((item,offset)=>{const i=start+offset,key=item.sourceUrl||item.name||String(i),isRemoving=removingKey===key;return <article className={`batch-row virtualized ${item.importing?"is-importing":""} ${item.failed?"has-error":""} ${isRemoving?"is-removing":""}`} style={{top:i*BATCH_ROW_HEIGHT}} key={key}>
         <Button className="remove-file" quiet danger disabled={state.batchBusy||state.batchImportBusy||Boolean(removingKey)} tip={`Удалить ${item.name} из очереди`} aria-label={`Удалить ${item.name}`} onClick={(event)=>{
@@ -1824,6 +1850,7 @@ function Workspace({ kind, state, backend, setScreen, contentReady = true }) {
             </Button>
           )}
           <Button
+            layoutId={batch ? "route-primary-batch" : "route-primary-npm"}
             disabled={batch ? state.batchBusy || state.batchImportBusy : state.busy || state.previewBusy}
             tip={batch ? "Выбрать несколько PNG" : "Выбрать PNG"}
             onClick={() =>
@@ -1894,7 +1921,7 @@ function Workspace({ kind, state, backend, setScreen, contentReady = true }) {
               ))}
             </div>
           </section>
-          <VirtualBatchList items={items} state={state} backend={backend} setScreen={setScreen}/>
+          <VirtualBatchList items={items} state={state} backend={backend} setScreen={setScreen} onPick={()=>backend?.chooseBatchFiles()}/>
         </>
       ) : (
         <>
@@ -1922,7 +1949,7 @@ function Workspace({ kind, state, backend, setScreen, contentReady = true }) {
               color="var(--accent2)"
             />
           </section>
-          <ComparisonSurface
+          {before ? <ComparisonSurface
             before={before}
             after={state.resultUrl}
             previewBefore={state.workingPreviewUrl}
@@ -1937,7 +1964,7 @@ function Workspace({ kind, state, backend, setScreen, contentReady = true }) {
             contentReady={contentReady}
             loading={state.previewBusy}
             allowWipe
-          />
+          /> : <section className="compare-card transparent"><EmptyDropZone onPick={()=>backend?.chooseNpmFile()} onFiles={(urls)=>backend?.load?.(urls[0])}/></section>}
         </>
       )}
       <ImportWindow
@@ -2139,6 +2166,16 @@ function App() {
     return () => removeEventListener("agr-focus", update);
   }, []);
   useEffect(()=>{
+    let depth=0;
+    const isFileDrag=(event)=>Array.from(event.dataTransfer?.types||[]).includes("Files");
+    const enter=(event)=>{if(!isFileDrag(event))return;event.preventDefault();depth++;appRoot.current?.classList.add("is-file-dragging");};
+    const over=(event)=>{if(!isFileDrag(event))return;event.preventDefault();event.dataTransfer.dropEffect="copy";};
+    const leave=(event)=>{if(!isFileDrag(event))return;depth=Math.max(0,depth-1);if(!depth)appRoot.current?.classList.remove("is-file-dragging");};
+    const drop=(event)=>{if(!isFileDrag(event))return;event.preventDefault();depth=0;appRoot.current?.classList.remove("is-file-dragging");const urls=fileUrlsFromDrop(event);if(screen==="npm"){if(urls.length)backend?.load?.(urls[0]);else backend?.chooseNpmFile?.();}else if(screen==="batch"){if(urls.length)backend?.addBatchFiles?.(urls);else backend?.chooseBatchFiles?.();}};
+    addEventListener("dragenter",enter);addEventListener("dragover",over);addEventListener("dragleave",leave);addEventListener("drop",drop);
+    return()=>{removeEventListener("dragenter",enter);removeEventListener("dragover",over);removeEventListener("dragleave",leave);removeEventListener("drop",drop);};
+  },[backend,screen]);
+  useEffect(()=>{
     const pulse=(event)=>{
       const button=event.target?.closest?.("button");
       if(!button||button.disabled||button.classList.contains("remove-file"))return;
@@ -2254,6 +2291,7 @@ function App() {
       <HoldSpace progress={hold} point={holdPoint}/>
       <CursorEffects effects={effects}/>
       <EdgePulseLayer/>
+      <div className="file-drop-edge" aria-hidden="true"><i/><i/><i/><i/></div>
       <TooltipLayer />
       <Header
         screen={screen}

@@ -5,7 +5,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main, version-2-native-detail-glass, version-2-glass-1600-transitions, version-49-reference-sphere, version-50-latest, version-51-interactive-sphere-fast-compare, version-52-nebula-performance, version-53-v45-cinematic-paths, version-54-metal-water-states, version-55-precision-viewport-metal, version-56-emerald-blade-flow, version-57-native-adaptive-focus, version-58-large-texture-semantic, version-59-responsive-preview-blade-grid]
+    branches: [main, version-2-native-detail-glass, version-2-glass-1600-transitions, version-2-live-glass-depth-morph-drop, version-49-reference-sphere, version-50-latest, version-51-interactive-sphere-fast-compare, version-52-nebula-performance, version-53-v45-cinematic-paths, version-54-metal-water-states, version-55-precision-viewport-metal, version-56-emerald-blade-flow, version-57-native-adaptive-focus, version-58-large-texture-semantic, version-59-responsive-preview-blade-grid]
     tags: ['v*']
 
 permissions:

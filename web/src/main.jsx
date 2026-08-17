@@ -565,38 +565,47 @@ const bladePose=(state,u,time=0,out)=>{
   }else if(state==="settings"){
     x=Math.cos(a)*2.75;y=Math.sin(a)*1.72;z=.38*Math.sin(a*2);twist=a*.34;width=1.45+.22*Math.sin(a*3);
   }else if(state==="secret"){
-    x=Math.sin(a)*2.45;y=(.5-u)*4.15+.36*Math.sin(a*2);z=.62*Math.cos(a*2);twist=a*1.18;width=1.08+.62*Math.sin(Math.PI*u);
+    const flower=2.35+.62*Math.cos(a*3);
+    x=Math.cos(a)*flower;y=Math.sin(a)*flower*.72;z=1.05*Math.sin(a*3);twist=a*1.42;width=1.35+.52*(.5+.5*Math.cos(a*3));
   }else{
-    const d=1+.58*Math.sin(a)*Math.sin(a);
-    x=.5+3.55*Math.cos(a)/d;y=2.25*Math.sin(a)*Math.cos(a)/d;z=.62*Math.sin(a)*(.35+Math.cos(a));twist=a*.86;width=1.15+1.02*Math.abs(Math.sin(a));
+    // A spatial three-lobed flow: the spine travels in depth while every
+    // blade rotates independently, matching the reference fan rather than
+    // collapsing into a flat infinity ribbon.
+    const radius=2.72+.58*Math.cos(a*3+.35);
+    x=.25+Math.cos(a)*radius*1.28;
+    y=Math.sin(a)*radius*.64+.34*Math.sin(a*2);
+    z=1.12*Math.sin(a*2-.35)+.42*Math.cos(a*3);
+    twist=a*1.18+.44*Math.sin(a*2);
+    width=1.62+.72*(.5+.5*Math.cos(a*3-.5));
   }
   const pose=out||{position:new THREE.Vector3(),rotation:new THREE.Euler(0,0,0,"XYZ"),scale:new THREE.Vector3()};
-  pose.position.set(x,y+breathe,z);pose.rotation.set(.20*Math.sin(a*2),twist,.32*Math.cos(a),"XYZ");pose.scale.set(width,1,.88+.16*Math.sin(a*3));return pose;
+  pose.position.set(x,y+breathe,z);pose.rotation.set(.34*Math.sin(a*2),twist,.5*Math.cos(a),"XYZ");pose.scale.set(width,1,1+.18*Math.sin(a*3));return pose;
 };
 
 function BladeSculpture({ state, theme, quality, brightness=1, effects=1, transitionKind="home>home", hold=0 }){
-  const count=quality==="eco"?96:quality==="max"?196:144;
-  const body=useRef(),edge=useRef(),edgeBack=useRef(),current=useRef([]),targets=useRef([]),hover=useRef(-1),lastPointer=useRef(new THREE.Vector2()),tmp=useMemo(()=>({matrix:new THREE.Matrix4(),q:new THREE.Quaternion(),p:new THREE.Vector3(),s:new THREE.Vector3(),projected:new THREE.Vector3(),offset:new THREE.Vector3(),color:new THREE.Color(),bodyColor:new THREE.Color(),dark:new THREE.Color("#071723"),white:new THREE.Color("#ffffff")}),[]);
+  const count=quality==="eco"?104:quality==="max"?188:148;
+  const body=useRef(),edge=useRef(),edgeBack=useRef(),trail=useRef(),current=useRef([]),targets=useRef([]),hover=useRef(-1),lastPointer=useRef(new THREE.Vector2()),tmp=useMemo(()=>({matrix:new THREE.Matrix4(),q:new THREE.Quaternion(),p:new THREE.Vector3(),trailP:new THREE.Vector3(),s:new THREE.Vector3(),projected:new THREE.Vector3(),offset:new THREE.Vector3(),color:new THREE.Color(),bodyColor:new THREE.Color(),dark:new THREE.Color("#12364a"),white:new THREE.Color("#ffffff")}),[]);
   const colors=THEME_COLORS[theme]||THEME_COLORS.cyan;
   const accent=useMemo(()=>new THREE.Color(colors[0]),[colors]);
   const accent2=useMemo(()=>new THREE.Color(colors[1]),[colors]);
   const transitionMode=useMemo(()=>[...transitionKind].reduce((sum,char)=>sum+char.charCodeAt(0),0)%4,[transitionKind]);
   useEffect(()=>{current.current=[];targets.current=[];},[count]);
   useFrame(({clock,pointer,camera})=>{
-    if(!body.current||!edge.current||!edgeBack.current)return;
+    if(!body.current||!edge.current||!edgeBack.current||!trail.current)return;
     const t=clock.elapsedTime, speed=pointer.distanceTo(lastPointer.current);lastPointer.current.lerp(pointer,.24);
     const holdCenter=hover.current>=0?hover.current/count:.56;
     let nearest=-1,nearestDistance=.29;
     for(let i=0;i<count;i++){
       const u=i/count,target=bladePose(state,u,t,targets.current[i]),phase=transitionMode===0?i:transitionMode===1?count-i:transitionMode===2?Math.abs(i-count/2)*2:(i%2?i:count-i);targets.current[i]=target;
-      if(hold>0){const angle=u*Math.PI*2,circular=Math.min(Math.abs(u-holdCenter),1-Math.abs(u-holdCenter)),pull=Math.exp(-circular*circular*48)*hold,global=1+hold*.09;target.position.x*=global;target.position.y*=global;target.position.z+=pull*1.05+Math.sin(angle*3-t*3.2)*hold*.16;target.scale.x*=1+pull*.24;target.rotation.y+=pull*.48+Math.sin(angle*2-t)*hold*.08;}
+      if(hold>0){const angle=u*Math.PI*2,circular=Math.min(Math.abs(u-holdCenter),1-Math.abs(u-holdCenter)),pull=Math.exp(-circular*circular*72)*hold,global=1+hold*.055;target.position.x*=global;target.position.y*=global;target.position.z+=pull*1.58+Math.sin(angle*4-t*4)*hold*.13;target.scale.x*=1+pull*.34;target.scale.z*=1+pull*.18;target.rotation.y+=pull*.72+Math.sin(angle*2-t)*hold*.08;}
       if(!current.current[i])current.current[i]={p:target.position.clone(),q:new THREE.Quaternion().setFromEuler(target.rotation),s:target.scale.clone()};
       const c=current.current[i],delay=.045+Math.min(.055,phase/count*.045);
       c.p.lerp(target.position,delay);c.q.slerp(tmp.q.setFromEuler(target.rotation),delay);c.s.lerp(target.scale,delay);
       tmp.matrix.compose(c.p,c.q,c.s);body.current.setMatrixAt(i,tmp.matrix);
-      tmp.offset.set(0,.024,.253*c.s.z).applyQuaternion(c.q);tmp.p.copy(c.p).add(tmp.offset);tmp.s.set(c.s.x,1,1);tmp.matrix.compose(tmp.p,c.q,tmp.s);edge.current.setMatrixAt(i,tmp.matrix);
-      tmp.offset.set(0,-.024,-.253*c.s.z).applyQuaternion(c.q);tmp.p.copy(c.p).add(tmp.offset);tmp.matrix.compose(tmp.p,c.q,tmp.s);edgeBack.current.setMatrixAt(i,tmp.matrix);
-      tmp.projected.copy(c.p).project(camera);const distance=Math.hypot(tmp.projected.x-pointer.x,tmp.projected.y-pointer.y);
+      tmp.offset.set(0,.026,.363*c.s.z).applyQuaternion(c.q);tmp.p.copy(c.p).add(tmp.offset);tmp.s.set(c.s.x,1,1);tmp.matrix.compose(tmp.p,c.q,tmp.s);edge.current.setMatrixAt(i,tmp.matrix);
+      tmp.offset.set(0,-.026,-.363*c.s.z).applyQuaternion(c.q);tmp.p.copy(c.p).add(tmp.offset);tmp.matrix.compose(tmp.p,c.q,tmp.s);edgeBack.current.setMatrixAt(i,tmp.matrix);
+      tmp.trailP.copy(c.p).lerp(target.position,-.24);tmp.s.copy(c.s).multiplyScalar(1.015);tmp.matrix.compose(tmp.trailP,c.q,tmp.s);trail.current.setMatrixAt(i,tmp.matrix);
+      tmp.projected.copy(c.p);body.current.localToWorld(tmp.projected);tmp.projected.project(camera);const distance=Math.hypot(tmp.projected.x-pointer.x,tmp.projected.y-pointer.y);
       if(distance<nearestDistance){nearestDistance=distance;nearest=i;}
     }
     hover.current=nearest;
@@ -609,16 +618,19 @@ function BladeSculpture({ state, theme, quality, brightness=1, effects=1, transi
       if(delta<2)tmp.color.lerp(tmp.white,.42);
       edge.current.setColorAt(i,tmp.color);
       edgeBack.current.setColorAt(i,tmp.color);
-      tmp.bodyColor.copy(accent).lerp(tmp.dark,.56).multiplyScalar((.82+.16*Math.sin(i*.11+t*.18))*brightness);body.current.setColorAt(i,tmp.bodyColor);
+      tmp.bodyColor.copy(tmp.dark).lerp(accent,.34+.16*Math.sin(i*.09+t*.22)).multiplyScalar((1.04+.2*Math.sin(i*.11+t*.18))*brightness);body.current.setColorAt(i,tmp.bodyColor);
     }
-    body.current.instanceMatrix.needsUpdate=true;edge.current.instanceMatrix.needsUpdate=true;edgeBack.current.instanceMatrix.needsUpdate=true;if(body.current.instanceColor)body.current.instanceColor.needsUpdate=true;if(edge.current.instanceColor)edge.current.instanceColor.needsUpdate=true;if(edgeBack.current.instanceColor)edgeBack.current.instanceColor.needsUpdate=true;
-    body.current.rotation.y=THREE.MathUtils.lerp(body.current.rotation.y,pointer.x*.085*effects,.025);edge.current.rotation.y=body.current.rotation.y;edgeBack.current.rotation.y=body.current.rotation.y;
-    body.current.rotation.x=THREE.MathUtils.lerp(body.current.rotation.x,-pointer.y*.055*effects,.025);edge.current.rotation.x=body.current.rotation.x;edgeBack.current.rotation.x=body.current.rotation.x;
+    body.current.instanceMatrix.needsUpdate=true;edge.current.instanceMatrix.needsUpdate=true;edgeBack.current.instanceMatrix.needsUpdate=true;trail.current.instanceMatrix.needsUpdate=true;if(body.current.instanceColor)body.current.instanceColor.needsUpdate=true;if(edge.current.instanceColor)edge.current.instanceColor.needsUpdate=true;if(edgeBack.current.instanceColor)edgeBack.current.instanceColor.needsUpdate=true;
+    const ry=THREE.MathUtils.lerp(body.current.rotation.y,pointer.x*.13*effects,.022),rx=THREE.MathUtils.lerp(body.current.rotation.x,-pointer.y*.085*effects,.022);for(const mesh of [body.current,edge.current,edgeBack.current,trail.current]){mesh.rotation.y=ry;mesh.rotation.x=rx;}
   });
-  return <group position={[.5,0,-.62]} scale={[1.12,1.18,1.08]}>
+  return <group position={[.82,.02,-.18]} scale={[1.3,1.3,1.24]}>
+    <instancedMesh ref={trail} args={[null,null,count]} frustumCulled={false}>
+      <boxGeometry args={[1,.04,.72]} />
+      <meshBasicMaterial color={colors[0]} transparent opacity={.055*effects} depthWrite={false} blending={THREE.AdditiveBlending}/>
+    </instancedMesh>
     <instancedMesh ref={body} args={[null,null,count]} frustumCulled={false}>
-      <boxGeometry args={[1,.03,.5]} />
-      <meshPhysicalMaterial vertexColors color="#ffffff" metalness={.9} roughness={.24} clearcoat={.82} clearcoatRoughness={.1} envMapIntensity={3.8*brightness} />
+      <boxGeometry args={[1,.045,.72]} />
+      <meshPhysicalMaterial vertexColors color="#ffffff" emissive={colors[0]} emissiveIntensity={.075*effects} metalness={.82} roughness={.2} clearcoat={1} clearcoatRoughness={.08} envMapIntensity={5.4*brightness} />
     </instancedMesh>
     <instancedMesh ref={edge} args={[null,null,count]} frustumCulled={false}>
       <boxGeometry args={[1,.014,.028]} />
@@ -640,7 +652,7 @@ function MovingReflections({colors,brightness}){
 function Scene({ theme, quality, screen, settingsOpen, secret, transitionKind, brightness, effects, hold }) {
   const colors = THEME_COLORS[theme] || THEME_COLORS.rose;
   const density = quality === "eco" ? 10 : quality === "max" ? 42 : 24;
-  const state=secret?"secret":settingsOpen?"settings":screen;
+  const state=secret?"secret":screen;
   return (
     <Canvas
       dpr={
@@ -657,17 +669,18 @@ function Scene({ theme, quality, screen, settingsOpen, secret, transitionKind, b
         powerPreference: "high-performance",
         preserveDrawingBuffer: false,
       }}
-      onCreated={({gl})=>{gl.toneMapping=THREE.ACESFilmicToneMapping;gl.toneMappingExposure=1.32;gl.outputColorSpace=THREE.SRGBColorSpace;}}
+      onCreated={({gl})=>{gl.toneMapping=THREE.ACESFilmicToneMapping;gl.toneMappingExposure=1.56;gl.outputColorSpace=THREE.SRGBColorSpace;}}
     >
       <color attach="background" args={["#030b13"]} />
-      <ambientLight intensity={.42*brightness} color="#9cc7db" />
-      <directionalLight position={[-4,5,5]} intensity={2.7*brightness} color="#d8f9ff" />
+      <ambientLight intensity={.74*brightness} color="#9cc7db" />
+      <hemisphereLight intensity={1.35*brightness} color="#b9f9ff" groundColor="#082438"/>
+      <directionalLight position={[-4,5,5]} intensity={4.1*brightness} color="#d8f9ff" />
       <pointLight position={[5,2,3]} intensity={15*brightness} distance={15} color={colors[1]} />
       <pointLight position={[-5,-2,2]} intensity={12*brightness} distance={13} color={colors[0]} />
       <MovingReflections colors={colors} brightness={brightness}/>
       <Environment resolution={quality==="eco"?64:128}>
-        <Lightformer form="rect" intensity={5*brightness} color={colors[0]} scale={[5,2,1]} position={[-4,2,2]} rotation-y={Math.PI/2}/>
-        <Lightformer form="ring" intensity={4*brightness} color={colors[1]} scale={[4,2,1]} position={[4,-1,1]} rotation-y={-Math.PI/2}/>
+        <Lightformer form="rect" intensity={8*brightness} color={colors[0]} scale={[7,2.5,1]} position={[-4,2,2]} rotation-y={Math.PI/2}/>
+        <Lightformer form="ring" intensity={7*brightness} color={colors[1]} scale={[5,3,1]} position={[4,-1,1]} rotation-y={-Math.PI/2}/>
         <Lightformer form="circle" intensity={2.5*brightness} color="#dffcff" scale={2} position={[0,5,-2]} rotation-x={Math.PI/2}/>
       </Environment>
       <BladeSculpture state={state} theme={theme} quality={quality} brightness={brightness} effects={effects} transitionKind={transitionKind} hold={hold}/>
@@ -855,7 +868,7 @@ function Header({ screen, backend, onSettings }) {
         </span>
         <div>
           <b>Оптимизатор текстур</b>
-          <small>ADAPTIVE RGB24 / v54</small>
+          <small>ADAPTIVE RGB24 / v56</small>
         </div>
       </div>
       <div className="route-status">
@@ -935,13 +948,18 @@ function WaterGlassField(){
       panel.style.setProperty("--water-x",`${x}px`);panel.style.setProperty("--water-y",`${y}px`);
       const now=performance.now(),distance=Math.hypot(event.clientX-last.current.x,event.clientY-last.current.y);
       if(now-last.current.time<85||distance<14)return;
-      const id=++last.current.id;last.current={x:event.clientX,y:event.clientY,time:now,id};
-      setRipples((values)=>[...values.slice(-7),{id,x:event.clientX,y:event.clientY,strength:Math.min(1,distance/80)}]);
+      const angle=Math.atan2(event.clientY-last.current.y,event.clientX-last.current.x),id=++last.current.id;last.current={x:event.clientX,y:event.clientY,time:now,id};
+      setRipples((values)=>[...values.slice(-11),{id,x:event.clientX,y:event.clientY,strength:Math.min(1,distance/80),angle}]);
       setTimeout(()=>setRipples((values)=>values.filter((r)=>r.id!==id)),1250);
     };
     addEventListener("pointermove",move,{passive:true});return()=>removeEventListener("pointermove",move);
   },[]);
-  return <div className="water-ripple-layer" aria-hidden="true">{ripples.map((r)=><i key={r.id} style={{left:r.x,top:r.y,"--strength":r.strength}}/>)}</div>;
+  return <div className="water-ripple-layer" aria-hidden="true">{ripples.map((r)=><i key={r.id} style={{left:r.x,top:r.y,"--strength":r.strength,"--angle":`${r.angle}rad`}}><b/><em/></i>)}</div>;
+}
+function CursorEffects({effects}){
+  const ref=useRef();
+  useEffect(()=>{const move=(event)=>{if(!ref.current)return;ref.current.style.setProperty("--cursor-x",`${event.clientX}px`);ref.current.style.setProperty("--cursor-y",`${event.clientY}px`);ref.current.style.setProperty("--cursor-speed",String(Math.min(1,Math.hypot(event.movementX,event.movementY)/42)));};addEventListener("pointermove",move,{passive:true});return()=>removeEventListener("pointermove",move);},[]);
+  return <div ref={ref} className="cursor-effects" style={{"--cursor-effects":effects}} aria-hidden="true"><i/><i/><i/></div>;
 }
 function HoldSpace({progress,point}){
   return <div className={`hold-space ${progress>.01?"active":""}`} style={{"--hold":progress,"--hold-x":`${point.x}px`,"--hold-y":`${point.y}px`}} aria-hidden="true">
@@ -971,10 +989,10 @@ function SettingsPanel({
         <motion.aside
           className="settings-panel"
           data-no-hold
-          initial={{ opacity: 0, filter: "blur(18px)", scale: .985 }}
-          animate={{ opacity: 1, filter: "blur(0)", scale: 1 }}
-          exit={{ opacity: 0, filter: "blur(14px)", scale: .99 }}
-          transition={{ duration: .82, ease: [0.18, 0.72, 0.2, 1] }}
+          initial={false}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: .14 }}
         >
           <div className="settings-head">
             <div>
@@ -1024,9 +1042,7 @@ function SettingsPanel({
             <button className={performanceMode==="eco"?"active":""} onClick={()=>{setPerformanceMode("eco");backend?.setPerformanceMode?.("eco");}}>ТИХИЙ</button>
             <button className={performanceMode==="max"?"active":""} onClick={()=>{setPerformanceMode("max");backend?.setPerformanceMode?.("max");}}>МАКСИМУМ</button>
           </div>
-          <small className="settings-note">
-            Палитра меняет интерфейс, световые кромки и отражения металла. Производительность не меняет качество PNG.
-          </small>
+          <small className="settings-note">Цвет управляет UI, металлом и отражениями. PNG всегда сохраняет исходное качество.</small>
         </motion.aside>
       )}
     </AnimatePresence>
@@ -1469,8 +1485,8 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before
     wake();
   }} onPointerUp={() => { drag.current=null;setInteraction(false); }} onPointerCancel={() => { drag.current=null;setInteraction(false); }}>
     <canvas ref={canvas} />
-    {previewLoading&&<div className="compare-loader"><i/><strong>{contentReady?"ПОДГОТОВКА БЫСТРОГО ПРЕВЬЮ":"ДВИЖЕНИЕ ПО МАРШРУТУ"}</strong><span>Оригинал обрабатывается без снижения разрешения</span></div>}
-    <span className="compare-label before">SOURCE · RESPONSIVE PREVIEW</span><span className="compare-label after">RESULT · RESPONSIVE PREVIEW</span>
+    {previewLoading&&<div className="compare-loader"><i/><strong>{contentReady?"ГОТОВИМ ПРЕВЬЮ":"ПЕРЕХОД"}</strong><span>PNG остаётся в исходном качестве</span></div>}
+    <span className="compare-label before">ОРИГИНАЛ</span><span className="compare-label after">РЕЗУЛЬТАТ</span>
     <div className="viewport-actions"><button onClick={(e)=>{e.stopPropagation();reset(1)}}>ВПИСАТЬ</button><button onClick={(e)=>{e.stopPropagation();reset(4)}}>400%</button><button onClick={(e)=>{e.stopPropagation();reset(8)}}>800%</button></div>
   </div>;
 });
@@ -1502,8 +1518,8 @@ const ComparisonSurface = React.memo(function ComparisonSurface({
       )}
       <SmoothCompareViewport before={before} after={after} mode={mode} onZoom={updateZoomLabel} contentReady={contentReady} externalLoading={loading} />
       <div className="comparison-truth">
-        <span>Просмотр: адаптивная копия для плавного zoom и pan</span>
-        <span>Обработка и сохранение: исходное разрешение PNG</span>
+        <span>ПРЕВЬЮ · ПЛАВНАЯ НАВИГАЦИЯ</span>
+        <span>ЭКСПОРТ · ИСХОДНОЕ PNG</span>
       </div>
       <div className="compare-tools">
         <span className="live-zoom">ZOOM {zoomLabel}% · MAX {MAX_ZOOM * 100}%</span>
@@ -1834,7 +1850,7 @@ function JourneyTransition({ journey }) {
 function SecretScene({ active, onDone }) {
   useEffect(() => {
     if (!active) return;
-    const t = setTimeout(onDone, 5200);
+    const t = setTimeout(onDone, 6800);
     return () => clearTimeout(t);
   }, [active, onDone]);
   return (
@@ -1846,22 +1862,9 @@ function SecretScene({ active, onDone }) {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
-          <div className="secret-core">
-            <i />
-            <i />
-            <i />
-            <strong>ISS</strong>
-          </div>
-          <div className="secret-waves">
-            {Array.from({ length: 9 }, (_, i) => (
-              <i key={i} />
-            ))}
-          </div>
-          <p>
-            DESIGNED IN THE DARK
-            <br />
-            <b>ISSMAKER</b>
-          </p>
+          <div className="secret-veil"/>
+          <div className="secret-waves">{Array.from({length:14},(_,i)=><i key={i} style={{"--size":`${130+i*52}px`,"--rotation":`${19+i*4}deg`,"--delay":`${i*-.16}s`}}/>)}</div>
+          <div className="secret-title"><small>AUTHOR SEQUENCE</small><b>ISSMAKER</b><span>RGB24 · SIGNATURE VERIFIED</span></div>
         </motion.div>
       )}
     </AnimatePresence>
@@ -1880,13 +1883,13 @@ function App() {
     [contentReady, setContentReady] = useState(true),
     [settings, setSettings] = useState(false),
     [theme, setTheme] = useState(() =>
-      readPreference("agr-theme", Object.keys(THEME_COLORS), "rose"),
+      readPreference("agr-theme", Object.keys(THEME_COLORS), "emerald"),
     ),
     [quality, setQuality] = useState(() =>
       readPreference("agr-quality", QUALITY_LEVELS, "balanced"),
     ),
-    [brightness,setBrightness]=useState(()=>readNumberPreference("agr-brightness",1,.55,1.4)),
-    [effects,setEffects]=useState(()=>readNumberPreference("agr-effects",1,0,1.35)),
+    [brightness,setBrightness]=useState(()=>readNumberPreference("agr-brightness",1.32,.55,1.4)),
+    [effects,setEffects]=useState(()=>readNumberPreference("agr-effects",1.25,0,1.35)),
     [performanceMode,setPerformanceMode]=useState(()=>readPreference("agr-performance",QUALITY_LEVELS,"balanced")),
     [secret, setSecret] = useState(false),
     holdRef=useRef({value:0}),
@@ -1941,6 +1944,7 @@ function App() {
   useEffect(() => writePreference("agr-brightness", brightness), [brightness]);
   useEffect(() => writePreference("agr-effects", effects), [effects]);
   useEffect(() => writePreference("agr-performance", performanceMode), [performanceMode]);
+  useEffect(()=>{if(localStorage.getItem("agr-v56-visual-defaults"))return;setTheme("emerald");setBrightness(1.32);setEffects(1.25);localStorage.setItem("agr-v56-visual-defaults","1");},[]);
   useEffect(() => {backend?.setPerformanceMode?.(performanceMode);}, [backend,performanceMode]);
   useEffect(()=>{
     const down=(event)=>{
@@ -1953,13 +1957,7 @@ function App() {
     addEventListener("pointerdown",down);addEventListener("pointermove",move,{passive:true});addEventListener("pointerup",up);addEventListener("pointercancel",up);
     return()=>{removeEventListener("pointerdown",down);removeEventListener("pointermove",move);removeEventListener("pointerup",up);removeEventListener("pointercancel",up);};
   },[screen]);
-  const setSettingsOpen=useCallback((open)=>{
-    routeTimers.current.forEach(clearTimeout);const next=open?"settings":screen;setDiving(true);
-    routeTimers.current=[
-      setTimeout(()=>{setTransitionKind(`${shapeState}>${next}`);setShapeState(next);setSettings(open);},320),
-      setTimeout(()=>setDiving(false),1580),
-    ];
-  },[screen,shapeState]);
+  const setSettingsOpen=useCallback((open)=>{setSettings(open);},[]);
   const openSecret=useCallback(()=>{
     routeTimers.current.forEach(clearTimeout);setSettings(false);setDiving(true);
     routeTimers.current=[
@@ -2005,7 +2003,7 @@ function App() {
   return (
     <div
       ref={appRoot}
-      className={`app theme-${theme} quality-${quality} scene-${screen} ${diving ? "is-diving" : ""} ${hold>.01?"is-holding":""}`}
+      className={`app theme-${theme} quality-${quality} scene-${screen} ${diving ? "is-diving" : ""} ${hold>.01?"is-holding":""} ${secret?"has-secret":""}`}
       style={{"--ui-brightness":brightness,"--effect-level":effects,"--hold":hold}}
     >
       <div className="webgl">
@@ -2026,6 +2024,7 @@ function App() {
         )}
       </div>
       <HoldSpace progress={hold} point={holdPoint}/>
+      <CursorEffects effects={effects}/>
       <WaterGlassField />
       <TooltipLayer />
       <Header

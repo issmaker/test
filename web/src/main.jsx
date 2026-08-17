@@ -72,7 +72,7 @@ const EMPTY = {
 };
 const HEADLESS_TEST = new URLSearchParams(location.search).has("headless-test");
 const TEST_TEXTURE = "qrc:/icons/liquid.svg";
-const TEST_FULL_TEXTURE = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
+const TEST_FULL_TEXTURE = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADUlEQVR42mP8z8BQDwAFgQIAf9+ldwAAAABJRU5ErkJggg==";
 const ROUTES = [
   ["home", "Главная", House],
   ["npm", "НПМ · 3 MB", ScanLine],
@@ -1583,6 +1583,15 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({
     detailRequest.current=async()=>{
       if(detailBusy){detailPending=true;return;}
       if(cancelled||interaction.current||target.current.s<DETAIL_ZOOM)return;
+      if(HEADLESS_TEST){
+        images.current.fullBefore=images.current.before;
+        images.current.fullAfter=images.current.after;
+        setDetailState("ready");
+        window.__AGR_FULL_DETAIL_READY__=(window.__AGR_FULL_DETAIL_READY__||0)+1;
+        window.__AGR_FULL_DETAIL_SCALE__=target.current.s;
+        wake();
+        return;
+      }
       setDetailState("loading");
       detailBusy=true;
       const fullBeforeSource=before||(HEADLESS_TEST?TEST_FULL_TEXTURE:"");

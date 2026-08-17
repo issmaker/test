@@ -60,8 +60,9 @@ QString analyseAccent(const QImage &input) {
     return colour.name(QColor::HexRgb);
 }
 
-SourcePreview preparePreview(const QString &path,int generation,const QString &cachePath) {
+SourcePreview preparePreview(const QString &path,int generation,const QString &cachePath,const std::function<void(double,const QString&)> &progress) {
     SourcePreview result;result.generation=generation;
+    progress(.08,QStringLiteral("Читаем заголовок PNG"));
     QImageReader meta(path,"PNG");meta.setAutoTransform(true);const QSize native=meta.size();
     result.sourceWidth=native.width();result.sourceHeight=native.height();
     if(!native.isValid()){result.error="PNG не удалось прочитать";return result;}
@@ -70,14 +71,18 @@ SourcePreview preparePreview(const QString &path,int generation,const QString &c
     if(longest>2048){const double scale=2048.0/longest;target=QSize(qMax(1,int(std::lround(native.width()*scale))),qMax(1,int(std::lround(native.height()*scale))));}
     QImageReader reader(path,"PNG");reader.setAutoTransform(true);
     if(target!=native)reader.setScaledSize(target);
+    progress(.28,QStringLiteral("Декодируем безопасное превью"));
     QImage working=reader.read().convertToFormat(QImage::Format_RGB888);
     if(working.isNull()){result.error="PNG не удалось декодировать";return result;}
     if(working.size()!=target)working=working.scaled(target,Qt::IgnoreAspectRatio,Qt::SmoothTransformation).convertToFormat(QImage::Format_RGB888);
+    progress(.72,QStringLiteral("Анализируем свет и цвет"));
     result.workingWidth=working.width();result.workingHeight=working.height();result.accent=analyseAccent(working);
     if(longest>2048){
+        progress(.86,QStringLiteral("Сохраняем лёгкое 2K-превью"));
         QDir().mkpath(QFileInfo(cachePath).absolutePath());
         if(working.save(cachePath,"PNG",1))result.previewPath=cachePath;
     }
+    progress(.98,QStringLiteral("Финальная проверка изображения"));
     return result;
 }
 
@@ -101,6 +106,27 @@ QString saveComparisonPreview(const QImage &image,const QString &cacheKey){
     const QString directory=QStandardPaths::writableLocation(QStandardPaths::CacheLocation)+"/comparison-previews";
     QDir().mkpath(directory);const QString output=directory+"/"+cacheKey+".png";
     return preview.save(output,"PNG",1)?QUrl::fromLocalFile(output).toString():QString();
+}
+
+QString prepareListThumbnail(const QString &path,const QString &cacheKey){
+    QImageReader meta(path,"PNG");const QSize native=meta.size();if(!native.isValid())return {};
+    const double scale=qMin(1.0,420.0/qMax(native.width(),native.height()));
+    QImageReader reader(path,"PNG");reader.setAutoTransform(true);
+    reader.setScaledSize(QSize(qMax(1,int(std::lround(native.width()*scale))),qMax(1,int(std::lround(native.height()*scale)))));
+    const QImage thumbnail=reader.read().convertToFormat(QImage::Format_RGB888);if(thumbnail.isNull())return {};
+    const QString directory=QStandardPaths::writableLocation(QStandardPaths::CacheLocation)+"/list-thumbnails";
+    QDir().mkpath(directory);const QString output=directory+"/"+cacheKey+".png";
+    return thumbnail.save(output,"PNG",1)?QUrl::fromLocalFile(output).toString():QString();
+}
+
+QString saveListThumbnail(const QImage &image,const QString &cacheKey){
+    if(image.isNull())return {};
+    const double scale=qMin(1.0,420.0/qMax(image.width(),image.height()));
+    const QSize target(qMax(1,int(std::lround(image.width()*scale))),qMax(1,int(std::lround(image.height()*scale))));
+    const QImage thumbnail=image.scaled(target,Qt::KeepAspectRatio,Qt::SmoothTransformation).convertToFormat(QImage::Format_RGB888);
+    const QString directory=QStandardPaths::writableLocation(QStandardPaths::CacheLocation)+"/list-thumbnails";
+    QDir().mkpath(directory);const QString output=directory+"/"+cacheKey+".png";
+    return thumbnail.save(output,"PNG",1)?QUrl::fromLocalFile(output).toString():QString();
 }
 
 QString browserTextureUrl(const QString &value){
@@ -132,7 +158,7 @@ OptimizerEngine::OptimizerEngine(QObject *parent):QObject(parent) {
     connect(&m_previewWatcher,&QFutureWatcher<SourcePreview>::finished,this,[this]{
         const SourcePreview preview=m_previewWatcher.result();
         if(preview.generation!=m_previewGeneration)return;
-        m_previewBusy=false;emit previewBusyChanged();
+        m_previewBusy=false;m_previewProgress=1;emit previewBusyChanged();emit previewProgressChanged();
         if(!preview.error.isEmpty()){m_status="Ошибка: "+preview.error;emit statusChanged();return;}
         m_sourceWidth=preview.sourceWidth;m_sourceHeight=preview.sourceHeight;
         m_workingWidth=preview.workingWidth;m_workingHeight=preview.workingHeight;
@@ -144,7 +170,7 @@ OptimizerEngine::OptimizerEngine(QObject *parent):QObject(parent) {
 
     connect(&m_watcher,&QFutureWatcher<TextureResult>::finished,this,[this]{
         try{
-            const auto result=m_watcher.result();const QFileInfo source(localPath());QDir dir(source.absolutePath());
+            const auto result=m_watcher.result();if(m_cancelRequested.load())throw std::runtime_error("Остановлено пользователем");const QFileInfo source(localPath());QDir dir(source.absolutePath());
             if(!dir.mkpath("original")||!dir.mkpath("compressed"))throw std::runtime_error("Не удалось создать папки original/compressed");
             const QString original=dir.filePath("original/"+source.fileName());
             if(QFile::exists(original))QFile::remove(original);
@@ -191,7 +217,7 @@ OptimizerEngine::OptimizerEngine(QObject *parent):QObject(parent) {
             BatchEntry &entry=m_batchEntries[item.index];entry.progress=1;
             if(item.error.isEmpty()){
                 entry.resultUrl=item.resultUrl;entry.comparisonResultUrl=item.comparisonResultUrl.isEmpty()?item.resultUrl:item.comparisonResultUrl;entry.outputPath=item.outputPath;
-                entry.outputMb=item.outputMb;entry.report=item.report;entry.textureKind=item.textureKind;
+                entry.thumbnailResultUrl=item.thumbnailResultUrl;entry.outputMb=item.outputMb;entry.report=item.report;
                 entry.status="Готово";entry.done=true;entry.failed=false;++succeeded;
             }else if(run.cancelled&&item.error.contains("Остановлено",Qt::CaseInsensitive)){
                 entry.status="Остановлено";entry.report="Операция остановлена пользователем";
@@ -219,13 +245,14 @@ QVariantMap OptimizerEngine::snapshot() const {
     QVariantMap state;
     state["sourceUrl"]=browserTextureUrl(m_sourceUrl);state["resultUrl"]=browserTextureUrl(m_resultUrl);state["referenceUrl"]=browserTextureUrl(m_referenceUrl);
     state["workingPreviewUrl"]=browserTextureUrl(m_workingPreviewUrl);state["status"]=m_status;state["report"]=m_report;
+    state["sourceName"]=QFileInfo(localPath()).fileName();
     state["outputPath"]=m_outputPath;state["progress"]=m_progress;state["sourceFileMb"]=m_sourceFileMb;
     state["outputFileMb"]=m_outputFileMb;state["sourceWidth"]=m_sourceWidth;state["sourceHeight"]=m_sourceHeight;
     state["workingWidth"]=m_workingWidth;state["workingHeight"]=m_workingHeight;state["sourceIsLarge"]=sourceIsLarge();
-    state["previewBusy"]=m_previewBusy;state["busy"]=m_busy;state["progressHistory"]=m_progressHistory;
+    state["previewBusy"]=m_previewBusy;state["previewProgress"]=m_previewProgress;state["busy"]=m_busy;state["progressHistory"]=m_progressHistory;
     state["activityHistory"]=m_activityHistory;
     QVariantList webBatch=batchItems();for(QVariant &value:webBatch){QVariantMap item=value.toMap();
-        for(const char *key:{"sourceUrl","resultUrl","comparisonSourceUrl","comparisonResultUrl"})item[key]=browserTextureUrl(item.value(key).toString());
+        for(const char *key:{"sourceUrl","resultUrl","comparisonSourceUrl","comparisonResultUrl","thumbnailSourceUrl","thumbnailResultUrl"})item[key]=browserTextureUrl(item.value(key).toString());
         value=item;}state["batchItems"]=webBatch;state["batchBusy"]=m_batchBusy;
     state["batchProgress"]=m_batchProgress;state["batchStatus"]=m_batchStatus;
     state["batchImportBusy"]=m_batchImportBusy;state["batchImportProgress"]=m_batchImportProgress;
@@ -237,7 +264,7 @@ QVariantMap OptimizerEngine::snapshot() const {
 }
 
 void OptimizerEngine::chooseNpmFile() {
-    if(m_busy)return;
+    if(m_busy||m_previewBusy)return;
     const QString path=QFileDialog::getOpenFileName(nullptr,QStringLiteral("Выберите НПМ PNG-текстуру"),{},QStringLiteral("PNG textures (*.png)"));
     if(!path.isEmpty())load(QUrl::fromLocalFile(path).toString());
 }
@@ -298,7 +325,7 @@ void OptimizerEngine::sampleSystemTelemetry(){
 }
 
 void OptimizerEngine::load(const QString &value){
-    if(m_busy)return;const QUrl url(value);const QString candidate=url.isLocalFile()?url.toLocalFile():value;
+    if(m_busy||m_previewBusy)return;const QUrl url(value);const QString candidate=url.isLocalFile()?url.toLocalFile():value;
     const QFileInfo candidateInfo(candidate);
     if(!candidateInfo.exists()||candidateInfo.suffix().compare("png",Qt::CaseInsensitive)!=0){
         m_status="Ошибка: выберите существующий PNG-файл";emit statusChanged();return;
@@ -312,11 +339,19 @@ void OptimizerEngine::load(const QString &value){
     m_sourceWidth=size.width();m_sourceHeight=size.height();m_workingWidth=qMin(2048,qMax(0,size.width()));m_workingHeight=qMin(2048,qMax(0,size.height()));
     if(size.isValid()&&qMax(size.width(),size.height())>2048){const double scale=2048.0/qMax(size.width(),size.height());m_workingWidth=qMax(1,int(std::lround(size.width()*scale)));m_workingHeight=qMax(1,int(std::lround(size.height()*scale)));}
     m_sourceFileMb=info.size()/1000000.0;m_outputFileMb=0;m_resultUrl={};m_referenceUrl={};m_workingPreviewUrl={};m_outputPath={};m_report={};m_showingMaster=false;
-    m_accentColor="#ff641f";m_status="Подготовка рабочего 2K и цветового акцента…";m_previewBusy=true;++m_previewGeneration;
-    emit sourceUrlChanged();emit resultUrlChanged();emit referenceUrlChanged();emit previewChanged();emit outputPathChanged();emit outputSizeChanged();emit reportChanged();emit showingMasterChanged();emit accentColorChanged();emit sourceInfoChanged();emit previewBusyChanged();emit statusChanged();
+    m_accentColor="#ff641f";m_status="Открываем PNG…";m_previewBusy=true;m_previewProgress=.02;++m_previewGeneration;
+    emit sourceUrlChanged();emit resultUrlChanged();emit referenceUrlChanged();emit previewChanged();emit outputPathChanged();emit outputSizeChanged();emit reportChanged();emit showingMasterChanged();emit accentColorChanged();emit sourceInfoChanged();emit previewBusyChanged();emit previewProgressChanged();emit statusChanged();
     const QByteArray key=QCryptographicHash::hash((path+QString::number(info.lastModified().toMSecsSinceEpoch())).toUtf8(),QCryptographicHash::Sha1).toHex();
     const QString cache=QStandardPaths::writableLocation(QStandardPaths::CacheLocation)+"/previews/"+QString::fromLatin1(key)+"_2K.png";
-    const int generation=m_previewGeneration;m_previewWatcher.setFuture(QtConcurrent::run([path,generation,cache]{return preparePreview(path,generation,cache);}));
+    const int generation=m_previewGeneration;
+    m_previewWatcher.setFuture(QtConcurrent::run([this,path,generation,cache]{
+        return preparePreview(path,generation,cache,[this,generation](double value,const QString &text){
+            QMetaObject::invokeMethod(this,[this,generation,value,text]{
+                if(generation!=m_previewGeneration||!m_previewBusy)return;
+                m_previewProgress=qBound(0.0,value,.99);m_status=text;emit previewProgressChanged();emit statusChanged();
+            },Qt::QueuedConnection);
+        });
+    }));
 }
 
 void OptimizerEngine::setProgress(double value,const QString &text){
@@ -342,8 +377,9 @@ QVariantList OptimizerEngine::batchItems()const{
         QVariantMap item;
         item["sourceUrl"]=entry.sourceUrl;item["resultUrl"]=entry.resultUrl;
         item["comparisonSourceUrl"]=entry.comparisonSourceUrl;item["comparisonResultUrl"]=entry.comparisonResultUrl;
+        item["thumbnailSourceUrl"]=entry.thumbnailSourceUrl;item["thumbnailResultUrl"]=entry.thumbnailResultUrl;
         item["outputPath"]=entry.outputPath;item["name"]=entry.name;
-        item["status"]=entry.status;item["report"]=entry.report;item["textureKind"]=entry.textureKind;item["accent"]=entry.accent;
+        item["status"]=entry.status;item["report"]=entry.report;item["accent"]=entry.accent;
         item["sourceMb"]=entry.sourceMb;item["outputMb"]=entry.outputMb;
         item["progress"]=entry.progress;item["width"]=entry.width;item["height"]=entry.height;
         item["done"]=entry.done;item["failed"]=entry.failed;item["importing"]=entry.importing;result.append(item);
@@ -377,7 +413,7 @@ void OptimizerEngine::addBatchFiles(const QVariantList &values){
             QImageReader meta(path,"PNG");meta.setAutoTransform(true);const QSize dimensions=meta.size();
             if(!dimensions.isValid())prepared.error="PNG повреждён или не поддерживается";
             else{
-                entry.width=dimensions.width();entry.height=dimensions.height();entry.textureKind=TextureProcessor::detectKind(path);entry.status=QString("Готов · %1").arg(entry.textureKind);
+                entry.width=dimensions.width();entry.height=dimensions.height();entry.status=QStringLiteral("Готов");
                 QImageReader accentReader(path,"PNG");accentReader.setAutoTransform(true);
                 const double scale=qMin(1.0,144.0/qMax(dimensions.width(),dimensions.height()));
                 accentReader.setScaledSize(QSize(qMax(1,int(dimensions.width()*scale)),qMax(1,int(dimensions.height()*scale))));
@@ -386,13 +422,16 @@ void OptimizerEngine::addBatchFiles(const QVariantList &values){
                 const QByteArray previewKey=QCryptographicHash::hash((canonical+QString::number(info.lastModified().toMSecsSinceEpoch())+"_source").toUtf8(),QCryptographicHash::Sha1).toHex();
                 entry.comparisonSourceUrl=prepareComparisonPreview(path,QString::fromLatin1(previewKey));
                 if(entry.comparisonSourceUrl.isEmpty())entry.comparisonSourceUrl=entry.sourceUrl;
+                const QByteArray thumbnailKey=QCryptographicHash::hash((canonical+QString::number(info.lastModified().toMSecsSinceEpoch())+"_thumb").toUtf8(),QCryptographicHash::Sha1).toHex();
+                entry.thumbnailSourceUrl=prepareListThumbnail(path,QString::fromLatin1(thumbnailKey));
+                if(entry.thumbnailSourceUrl.isEmpty())entry.thumbnailSourceUrl=entry.comparisonSourceUrl;
                 if(!accentImage.isNull())entry.accent=analyseAccent(accentImage);prepared.entry=entry;
             }
             run.items.append(prepared);
             QMetaObject::invokeMethod(this,[this,index,position,total,prepared,generation]{
                 if(generation!=m_batchImportGeneration||!m_batchImportBusy)return;
                 const QString name=(index>=0&&index<m_batchEntries.size())?m_batchEntries[index].name:QStringLiteral("PNG");
-                if(index>=0&&index<m_batchEntries.size())m_batchEntries[index].status=prepared.error.isEmpty()?QString("Превью готово · %1").arg(prepared.entry.textureKind):"Ошибка импорта";
+                if(index>=0&&index<m_batchEntries.size())m_batchEntries[index].status=prepared.error.isEmpty()?QStringLiteral("Превью готово"):QStringLiteral("Ошибка импорта");
                 m_batchImportProgress=double(position+1)/qMax(1,total);
                 m_batchImportStatus=QString("Подготовка %1 из %2 PNG · %3").arg(position+1).arg(total).arg(prepared.entry.name.isEmpty()?name:prepared.entry.name);
                 m_batchStatus=m_batchImportStatus;emit batchItemsChanged();emit batchImportProgressChanged();emit batchImportStatusChanged();emit batchStatusChanged();
@@ -420,7 +459,7 @@ void OptimizerEngine::optimizeBatch(){
     for(int index=0;index<m_batchEntries.size();++index){
         BatchEntry &entry=m_batchEntries[index];if(entry.done||entry.failed||entry.importing)continue;
         jobs.append({index,QUrl(entry.sourceUrl).toLocalFile()});entry.progress=0;entry.done=false;entry.failed=false;
-        entry.resultUrl.clear();entry.comparisonResultUrl.clear();entry.outputPath.clear();entry.outputMb=0;entry.report.clear();entry.status="В очереди";
+        entry.resultUrl.clear();entry.comparisonResultUrl.clear();entry.thumbnailResultUrl.clear();entry.outputPath.clear();entry.outputMb=0;entry.report.clear();entry.status="В очереди";
     }
     if(jobs.isEmpty()){m_batchStatus="Нет готовых PNG для обработки";emit batchStatusChanged();return;}
     const int logicalCores=qMax(1,QThread::idealThreadCount());
@@ -472,6 +511,7 @@ void OptimizerEngine::optimizeBatch(){
                         }
                     },Qt::QueuedConnection);
                 },[this]{return m_batchCancelRequested.load();});
+                if(m_batchCancelRequested.load())throw std::runtime_error("Остановлено пользователем");
                 const QFileInfo source(path);QDir outputDir(source.absolutePath()+"/compressed");
                 if(!outputDir.exists()&&!QDir().mkpath(outputDir.absolutePath()))throw std::runtime_error("Не удалось создать папку compressed");
                 const QString out=outputDir.filePath(source.completeBaseName()+"_AGR_AUTO_RGB24.png");QFile file(out);
@@ -480,7 +520,10 @@ void OptimizerEngine::optimizeBatch(){
                 const QByteArray previewKey=QCryptographicHash::hash((path+QString::number(source.lastModified().toMSecsSinceEpoch())+"_result").toUtf8(),QCryptographicHash::Sha1).toHex();
                 summary.comparisonResultUrl=saveComparisonPreview(result.output,QString::fromLatin1(previewKey));
                 if(summary.comparisonResultUrl.isEmpty())summary.comparisonResultUrl=summary.resultUrl;
-                summary.outputMb=result.png.size()/1000000.0;summary.report=result.report;summary.textureKind=result.textureKind;
+                const QByteArray thumbnailKey=QCryptographicHash::hash((path+QString::number(source.lastModified().toMSecsSinceEpoch())+"_result_thumb").toUtf8(),QCryptographicHash::Sha1).toHex();
+                summary.thumbnailResultUrl=saveListThumbnail(result.output,QString::fromLatin1(thumbnailKey));
+                if(summary.thumbnailResultUrl.isEmpty())summary.thumbnailResultUrl=summary.comparisonResultUrl;
+                summary.outputMb=result.png.size()/1000000.0;summary.report=result.report;
             }catch(const std::exception &error){summary.error=QString::fromUtf8(error.what());}
             catch(...){summary.error="Неизвестный сбой обработки";}
                 completed.append(summary);if(m_batchCancelRequested.load())break;

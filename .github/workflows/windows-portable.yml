@@ -5,7 +5,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main, version-49-reference-sphere, version-50-latest, version-51-interactive-sphere-fast-compare, version-52-nebula-performance, version-53-v45-cinematic-paths, version-54-metal-water-states, version-55-precision-viewport-metal, version-56-emerald-blade-flow, version-57-native-adaptive-focus, version-58-large-texture-semantic]
+    branches: [main, version-49-reference-sphere, version-50-latest, version-51-interactive-sphere-fast-compare, version-52-nebula-performance, version-53-v45-cinematic-paths, version-54-metal-water-states, version-55-precision-viewport-metal, version-56-emerald-blade-flow, version-57-native-adaptive-focus, version-58-large-texture-semantic, version-59-responsive-preview-blade-grid]
     tags: ['v*']
 
 permissions:
@@ -18,7 +18,7 @@ jobs:
     env:
       QT_VERSION: 6.8.3
       BUILD_DIR: build
-      DIST_DIR: dist/AdaptiveTextureOptimizer-58-Windows
+      DIST_DIR: dist/AdaptiveTextureOptimizer-59-Windows
 
     steps:
       - name: Checkout
@@ -142,12 +142,12 @@ jobs:
 
       - name: Pack portable application
         shell: pwsh
-        run: Compress-Archive -Path "$env:DIST_DIR/*" -DestinationPath "dist/AdaptiveTextureOptimizer-58-Windows-Portable.zip" -CompressionLevel Optimal
+        run: Compress-Archive -Path "$env:DIST_DIR/*" -DestinationPath "dist/AdaptiveTextureOptimizer-59-Windows-Portable.zip" -CompressionLevel Optimal
 
       - name: Upload ready-to-run application
         uses: actions/upload-artifact@v7
         with:
-          name: AdaptiveTextureOptimizer-58-Windows-Portable
-          path: dist/AdaptiveTextureOptimizer-58-Windows-Portable.zip
+          name: AdaptiveTextureOptimizer-59-Windows-Portable
+          path: dist/AdaptiveTextureOptimizer-59-Windows-Portable.zip
           if-no-files-found: error
           retention-days: 30

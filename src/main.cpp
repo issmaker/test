@@ -27,7 +27,7 @@
 #endif
 
 #ifndef AGR_APP_VERSION
-#define AGR_APP_VERSION "58"
+#define AGR_APP_VERSION "59"
 #endif
 
 namespace {
@@ -113,16 +113,6 @@ int runSelfTest() {
     if (!PngEncoder::verifyRgb24(automatic.png, automatic.output)) return 8;
     if (automatic.output.size() != input.size()) return 9;
     if (automatic.png.size() >= QFileInfo(inputPath).size()) return 26;
-    QImage normal(192,192,QImage::Format_RGB888),erm(192,192,QImage::Format_RGB888);
-    for(int y=0;y<192;++y){uchar *n=normal.scanLine(y),*m=erm.scanLine(y);for(int x=0;x<192;++x){n[x*3]=uchar(96+x%64);n[x*3+1]=uchar(96+y%64);n[x*3+2]=uchar(232+(x+y)%20);m[x*3]=uchar(((x/16+y/16)&1)?255:0);m[x*3+1]=uchar((x*5+y*3)&255);m[x*3+2]=uchar(x<96?24:232);}}
-    const QString normalPath=directory.filePath("self-test_normal.png"),ermPath=directory.filePath("self-test_erm.png");
-    if(!normal.save(normalPath,"PNG")||!erm.save(ermPath,"PNG"))return 27;
-    if(TextureProcessor::detectKind(normalPath)!="NORMAL"||TextureProcessor::detectKind(ermPath)!="ERM")return 28;
-    const TextureResult normalResult=TextureProcessor::processAutomatic(normalPath,[](double,const QString&){});
-    const TextureResult ermResult=TextureProcessor::processAutomatic(ermPath,[](double,const QString&){});
-    if(normalResult.textureKind!="NORMAL"||ermResult.textureKind!="ERM")return 29;
-    if(!PngEncoder::verifyRgb24(normalResult.png,normalResult.output)||!PngEncoder::verifyRgb24(ermResult.png,ermResult.output))return 30;
-    if(normalResult.output.size()!=normal.size()||ermResult.output.size()!=erm.size())return 31;
     bool cancellationObserved=false;
     try { TextureProcessor::processAutomatic(inputPath, [](double,const QString&){}, []{return true;}); }
     catch(...) { cancellationObserved=true; }
@@ -240,6 +230,7 @@ int main(int argc,char**argv){
                     setTimeout(()=>{
                         const box=zoom.getBoundingClientRect();
                         for(let i=0;i<40;i++)zoom.dispatchEvent(new WheelEvent('wheel',{deltaY:-120,clientX:box.left+box.width*.75,clientY:box.top+box.height*.5,bubbles:true,cancelable:true}));
+                        const scaleButtons=zoom.querySelectorAll('.viewport-actions button');scaleButtons[1]?.click();scaleButtons[2]?.click();
                         for(let step=0;step<120;step++)dispatchEvent(new CustomEvent('agr-test-drag',{detail:{x:(step%3)-1,y:9}}));
                         dispatchEvent(new CustomEvent('agr-test-drag',{detail:{x:999999,y:999999}}));
                         window.__AGR_STRESS_DONE__=true;
@@ -254,9 +245,9 @@ int main(int argc,char**argv){
                     const hint=document.querySelector('.floating-hint'),box=hint?.getBoundingClientRect();
                     const zoomLabel=document.querySelector('.live-zoom');
                     const zoomed=Boolean(zoomLabel&& !zoomLabel.textContent.includes('ZOOM 100%'));
-                    const canvasReady=Boolean(document.querySelector('.smooth-compare canvas'));
+                    const canvasReady=Boolean(document.querySelector('.smooth-compare canvas'))&&Boolean(document.querySelector('.right-dock [data-route="game"]'));
                     const verticalSafe=Math.abs(Number(window.__AGR_TEST_VERTICAL_Y__||0))>.1;
-                    const stressSafe=Boolean(window.__AGR_STRESS_DONE__)&&Number(window.__AGR_WHEEL_COUNT__||0)>=40&&Number(window.__AGR_ZOOM_TARGET__||0)>=15.9;
+                    const stressSafe=Boolean(window.__AGR_STRESS_DONE__)&&Number(window.__AGR_WHEEL_COUNT__||0)>=40&&Number(window.__AGR_ZOOM_TARGET__||0)>=7.99&&Number(window.__AGR_ZOOM_BUTTON_SCALE__||0)===8;
                     const anchorSafe=Number(window.__AGR_ZOOM_ANCHOR_ERROR__||0)<.001;
                     const honestLabels=document.querySelectorAll('.comparison-truth span').length===2;
                     const interactionBudget=Number(window.__AGR_INTERACTION_PAUSE_COUNT__||0)>0;
@@ -270,6 +261,19 @@ int main(int argc,char**argv){
                         qCritical("React shell smoke test failed: %s",qPrintable(details));
                     else if(mask!=4095)
                         qWarning("Offscreen interaction diagnostics incomplete: %s",qPrintable(details));
+                });
+            });
+            QTimer::singleShot(5550,view,[view]{view->page()->runJavaScript(QStringLiteral("document.querySelector('.right-dock [data-route=\"game\"]')?.click()"));});
+            QTimer::singleShot(6800,view,[view]{
+                view->page()->runJavaScript(QStringLiteral(R"JS((()=>{
+                    const board=document.querySelector('.blade-board');
+                    const cells=document.querySelectorAll('.blade-board>i').length;
+                    const pieces=document.querySelectorAll('.blade-piece').length;
+                    return `${Boolean(board)}|${cells}|${pieces}|${document.querySelector('.blade-game')?.textContent.includes('BLADE GRID')}`;
+                })())JS"),[](const QVariant &result){
+                    const QStringList details=result.toString().split('|');
+                    if(details.size()!=4||details[0]!="true"||details[1].toInt()!=64||details[2].toInt()!=3||details[3]!="true")
+                        qCritical("Blade Grid smoke test failed: %s",qPrintable(result.toString()));
                 });
             });
         }

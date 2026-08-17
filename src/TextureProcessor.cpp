@@ -19,7 +19,7 @@ QImage TextureProcessor::perceptualPaletteCandidate(const QImage &input,int colo
     std::vector<Bin> histogram(32768);
     for(int y=0;y<src.height();++y){if((y&31)==0&&cancel&&cancel())throw std::runtime_error("Остановлено пользователем");const uchar*p=src.constScanLine(y);for(int x=0;x<src.width();++x){const int r=p[x*3],g=p[x*3+1],b=p[x*3+2],k=(r>>3)*1024+(g>>3)*32+(b>>3);auto&h=histogram[k];h.r+=r;h.g+=g;h.b+=b;++h.n;}}
     std::vector<Point> points;points.reserve(32768);
-    for(int k=0;k<32768;++k)if(histogram[k].n){const auto&h=histogram[k];points.push_back({double(h.r)/h.n,double(h.g)/h.n,double(h.b)/h.n,h.n,k});}
+    for(int k=0;k<32768;++k){if((k&1023)==0&&cancel&&cancel())throw std::runtime_error("Остановлено пользователем");if(histogram[k].n){const auto&h=histogram[k];points.push_back({double(h.r)/h.n,double(h.g)/h.n,double(h.b)/h.n,h.n,k});}}
     if(points.empty())return src;
     struct Box{std::vector<int> ids;double score=0;};
     const auto scoreBox=[&](Box&box){
@@ -30,6 +30,7 @@ QImage TextureProcessor::perceptualPaletteCandidate(const QImage &input,int colo
     Box first;first.ids.resize(points.size());for(int i=0;i<int(points.size());++i)first.ids[i]=i;scoreBox(first);
     std::vector<Box> boxes;boxes.push_back(std::move(first));
     while(int(boxes.size())<colors){
+        if(cancel&&cancel())throw std::runtime_error("Остановлено пользователем");
         int selected=-1;double score=-1;for(int i=0;i<int(boxes.size());++i)if(boxes[i].ids.size()>1&&boxes[i].score>score){score=boxes[i].score;selected=i;}
         if(selected<0)break;
         Box current=std::move(boxes[selected]);
@@ -60,110 +61,46 @@ QImage TextureProcessor::perceptualPaletteCandidate(const QImage &input,int colo
     for(int iteration=0;iteration<iterations;++iteration){
         if(model==1)for(int j=0;j<int(palette.size());++j)paletteLab[j]=lab(palette[j].r,palette[j].g,palette[j].b);
         std::vector<long double> sr(palette.size()),sg(palette.size()),sb(palette.size()),sn(palette.size());
-        for(int i=0;i<int(points.size());++i){int best=0;double bestD=std::numeric_limits<double>::max();for(int j=0;j<int(palette.size());++j){double d;if(model==1){const auto&a=pointLab[i];const auto&b=paletteLab[j];const double dl=(a.l-b.l)*1.35,da=a.a-b.a,db=a.b-b.b;d=dl*dl+da*da+db*db;}else d=fastDistance(points[i],palette[j]);if(d<bestD){bestD=d;best=j;}}assignment[i]=best;const auto&p=points[i];sr[best]+=p.r*p.n;sg[best]+=p.g*p.n;sb[best]+=p.b*p.n;sn[best]+=p.n;}
+        for(int i=0;i<int(points.size());++i){if((i&255)==0&&cancel&&cancel())throw std::runtime_error("Остановлено пользователем");int best=0;double bestD=std::numeric_limits<double>::max();for(int j=0;j<int(palette.size());++j){double d;if(model==1){const auto&a=pointLab[i];const auto&b=paletteLab[j];const double dl=(a.l-b.l)*1.35,da=a.a-b.a,db=a.b-b.b;d=dl*dl+da*da+db*db;}else d=fastDistance(points[i],palette[j]);if(d<bestD){bestD=d;best=j;}}assignment[i]=best;const auto&p=points[i];sr[best]+=p.r*p.n;sg[best]+=p.g*p.n;sb[best]+=p.b*p.n;sn[best]+=p.n;}
         for(int j=0;j<int(palette.size());++j)if(sn[j]>0)palette[j]={double(sr[j]/sn[j]),double(sg[j]/sn[j]),double(sb[j]/sn[j])};
     }
     if(model==1)for(int j=0;j<int(palette.size());++j)paletteLab[j]=lab(palette[j].r,palette[j].g,palette[j].b);
     std::vector<QRgb> map(32768);
-    for(int k=0;k<32768;++k){const auto&h=histogram[k];Point p;if(h.n)p={double(h.r)/h.n,double(h.g)/h.n,double(h.b)/h.n,h.n,k};else p={double(((k>>10)&31)*8+4),double(((k>>5)&31)*8+4),double((k&31)*8+4),1,k};const Lab pl=model==1?lab(p.r,p.g,p.b):Lab{};int best=0;double bestD=std::numeric_limits<double>::max();for(int j=0;j<int(palette.size());++j){double d;if(model==1){const auto&b=paletteLab[j];const double dl=(pl.l-b.l)*1.35,da=pl.a-b.a,db=pl.b-b.b;d=dl*dl+da*da+db*db;}else d=fastDistance(p,palette[j]);if(d<bestD){bestD=d;best=j;}}const auto&c=palette[best];map[k]=qRgb(qBound(0,int(std::lround(c.r)),255),qBound(0,int(std::lround(c.g)),255),qBound(0,int(std::lround(c.b)),255));}
+    for(int k=0;k<32768;++k){if((k&255)==0&&cancel&&cancel())throw std::runtime_error("Остановлено пользователем");const auto&h=histogram[k];Point p;if(h.n)p={double(h.r)/h.n,double(h.g)/h.n,double(h.b)/h.n,h.n,k};else p={double(((k>>10)&31)*8+4),double(((k>>5)&31)*8+4),double((k&31)*8+4),1,k};const Lab pl=model==1?lab(p.r,p.g,p.b):Lab{};int best=0;double bestD=std::numeric_limits<double>::max();for(int j=0;j<int(palette.size());++j){double d;if(model==1){const auto&b=paletteLab[j];const double dl=(pl.l-b.l)*1.35,da=pl.a-b.a,db=pl.b-b.b;d=dl*dl+da*da+db*db;}else d=fastDistance(p,palette[j]);if(d<bestD){bestD=d;best=j;}}const auto&c=palette[best];map[k]=qRgb(qBound(0,int(std::lround(c.r)),255),qBound(0,int(std::lround(c.g)),255),qBound(0,int(std::lround(c.b)),255));}
     static constexpr int bayer[16]={0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5};
     QImage out(src.size(),QImage::Format_RGB888);
-    for(int y=0;y<src.height();++y){if((y&31)==0&&cancel&&cancel())throw std::runtime_error("Остановлено пользователем");const uchar*s=src.constScanLine(y);uchar*d=out.scanLine(y);for(int x=0;x<src.width();++x){int r=s[x*3],g=s[x*3+1],b=s[x*3+2];if(orderedStrength){const int o=(bayer[(y&3)*4+(x&3)]*2-15)*orderedStrength/16;r=qBound(0,r+o,255);g=qBound(0,g+o,255);b=qBound(0,b+o,255);}const QRgb c=map[(r>>3)*1024+(g>>3)*32+(b>>3)];d[x*3]=uchar(qRed(c));d[x*3+1]=uchar(qGreen(c));d[x*3+2]=uchar(qBlue(c));}}
+    for(int y=0;y<src.height();++y){if((y&7)==0&&cancel&&cancel())throw std::runtime_error("Остановлено пользователем");const uchar*s=src.constScanLine(y);uchar*d=out.scanLine(y);for(int x=0;x<src.width();++x){int r=s[x*3],g=s[x*3+1],b=s[x*3+2];if(orderedStrength){const int o=(bayer[(y&3)*4+(x&3)]*2-15)*orderedStrength/16;r=qBound(0,r+o,255);g=qBound(0,g+o,255);b=qBound(0,b+o,255);}const QRgb c=map[(r>>3)*1024+(g>>3)*32+(b>>3)];d[x*3]=uchar(qRed(c));d[x*3+1]=uchar(qGreen(c));d[x*3+2]=uchar(qBlue(c));}}
     return out;
 }
 
-QImage TextureProcessor::areaDownsample(const QImage &input,const QSize &target){
+QImage TextureProcessor::areaDownsample(const QImage &input,const QSize &target,const Cancel &cancel){
     const QImage src=input.convertToFormat(QImage::Format_RGB888);
     if(src.width()%target.width()!=0||src.height()%target.height()!=0)return src.scaled(target,Qt::KeepAspectRatio,Qt::SmoothTransformation).convertToFormat(QImage::Format_RGB888);
     const int sx=src.width()/target.width(),sy=src.height()/target.height();QImage out(target,QImage::Format_RGB888);
-    for(int y=0;y<target.height();++y){uchar*d=out.scanLine(y);for(int x=0;x<target.width();++x){quint64 r=0,g=0,b=0;for(int yy=0;yy<sy;++yy){const uchar*p=src.constScanLine(y*sy+yy)+(x*sx)*3;for(int xx=0;xx<sx;++xx){r+=p[xx*3];g+=p[xx*3+1];b+=p[xx*3+2];}}const int n=sx*sy;d[x*3]=uchar((r+n/2)/n);d[x*3+1]=uchar((g+n/2)/n);d[x*3+2]=uchar((b+n/2)/n);}}return out;
+    for(int y=0;y<target.height();++y){if((y&7)==0&&cancel&&cancel())throw std::runtime_error("Остановлено пользователем");uchar*d=out.scanLine(y);for(int x=0;x<target.width();++x){quint64 r=0,g=0,b=0;for(int yy=0;yy<sy;++yy){const uchar*p=src.constScanLine(y*sy+yy)+(x*sx)*3;for(int xx=0;xx<sx;++xx){r+=p[xx*3];g+=p[xx*3+1];b+=p[xx*3+2];}}const int n=sx*sy;d[x*3]=uchar((r+n/2)/n);d[x*3+1]=uchar((g+n/2)/n);d[x*3+2]=uchar((b+n/2)/n);}}return out;
 }
 
-void TextureProcessor::measure(const QImage &a0,const QImage &b0,double &mean,double &psnr,int &maximum) {
+void TextureProcessor::measure(const QImage &a0,const QImage &b0,double &mean,double &psnr,int &maximum,const Cancel &cancel) {
     const QImage a=a0.convertToFormat(QImage::Format_RGB888), b=b0.convertToFormat(QImage::Format_RGB888);
     quint64 sum=0,squared=0; maximum=0;
     for (int y=0;y<a.height();++y) {
+        if((y&31)==0&&cancel&&cancel())throw std::runtime_error("Остановлено пользователем");
         const uchar *pa=a.constScanLine(y),*pb=b.constScanLine(y);
         for(int x=0;x<a.width()*3;++x){const int d=int(pa[x])-int(pb[x]);sum+=qAbs(d);squared+=quint64(d*d);maximum=qMax(maximum,qAbs(d));}
     }
     const double count=double(a.width())*a.height()*3; mean=sum/count;
     psnr=squared ? 10.0*std::log10(255.0*255.0/(squared/count)) : std::numeric_limits<double>::infinity();
 }
-
-QString TextureProcessor::detectKind(const QString &path){
-    const QString name=QFileInfo(path).completeBaseName().toLower();
-    const auto hasAny=[&](std::initializer_list<const char*> words){for(const char *word:words)if(name.contains(QLatin1String(word)))return true;return false;};
-    if(name=="n"||name=="nrm"||name=="normal"||hasAny({"normal","normals","normalmap","_nrm","-nrm","_nor","-nor"})||name.endsWith("_n")||name.endsWith("-n"))return QStringLiteral("NORMAL");
-    if(name=="erm"||name=="orm"||name=="rma"||name=="mra"||hasAny({"_erm","-erm","_orm","-orm","_rma","-rma","_mra","-mra","packed","metalrough","roughmetal"}))return QStringLiteral("ERM");
-
-    QImageReader reader(path,"PNG");const QSize native=reader.size();
-    if(!native.isValid())return QStringLiteral("COLOR");
-    const double scale=qMin(1.0,192.0/qMax(native.width(),native.height()));
-    reader.setScaledSize(QSize(qMax(1,int(native.width()*scale)),qMax(1,int(native.height()*scale))));
-    const QImage probe=reader.read().convertToFormat(QImage::Format_RGB888);if(probe.isNull())return QStringLiteral("COLOR");
-    quint64 count=0,blue=0,normalCentred=0,extreme=0,separated=0;
-    for(int y=0;y<probe.height();++y){const uchar *p=probe.constScanLine(y);for(int x=0;x<probe.width();++x){const int r=p[x*3],g=p[x*3+1],b=p[x*3+2];++count;if(b>=r&&b>=g&&b>128)++blue;if(qAbs(r-128)<72&&qAbs(g-128)<72&&b>142)++normalCentred;const int ex=(r<18||r>237)+(g<18||g>237)+(b<18||b>237);if(ex>=2)++extreme;if(qMax(r,qMax(g,b))-qMin(r,qMin(g,b))>42)++separated;}}
-    if(count&&blue*100/count>68&&normalCentred*100/count>52)return QStringLiteral("NORMAL");
-    if(count&&extreme*100/count>46&&separated*100/count>38)return QStringLiteral("ERM");
-    return QStringLiteral("COLOR");
-}
-
-QImage TextureProcessor::semanticCandidate(const QImage &input,int levels,const QString &kind,const Cancel &cancel){
-    const QImage src=input.convertToFormat(QImage::Format_RGB888);levels=qBound(1,levels,256);
-    if(levels==256)return src;
-    QImage out(src.size(),QImage::Format_RGB888);
-    const auto quantize=[levels](int value){if(levels<=1)return 0;const int slot=int(std::lround(double(value)*(levels-1)/255.0));return qBound(0,int(std::lround(double(slot)*255.0/(levels-1))),255);};
-    for(int y=0;y<src.height();++y){if((y&31)==0&&cancel&&cancel())throw std::runtime_error("Остановлено пользователем");const uchar *s=src.constScanLine(y);uchar *d=out.scanLine(y);for(int x=0;x<src.width();++x){
-        if(kind=="NORMAL"){
-            if(levels<=1){d[x*3]=128;d[x*3+1]=128;d[x*3+2]=255;continue;}
-            double nx=quantize(s[x*3])/127.5-1.0,ny=quantize(s[x*3+1])/127.5-1.0,nz=quantize(s[x*3+2])/127.5-1.0;
-            const double length=std::sqrt(nx*nx+ny*ny+nz*nz);if(length<1e-8){nx=0;ny=0;nz=1;}else{nx/=length;ny/=length;nz/=length;}
-            d[x*3]=uchar(qBound(0,int(std::lround((nx+1.0)*127.5)),255));d[x*3+1]=uchar(qBound(0,int(std::lround((ny+1.0)*127.5)),255));d[x*3+2]=uchar(qBound(0,int(std::lround((nz+1.0)*127.5)),255));
-        }else{d[x*3]=uchar(quantize(s[x*3]));d[x*3+1]=uchar(quantize(s[x*3+1]));d[x*3+2]=uchar(quantize(s[x*3+2]));}
-    }}
-    return out;
-}
-
-TextureResult TextureProcessor::processSemantic(const QString &path,qint64 limit,const QString &kind,const Progress &progress,const Cancel &cancel){
-    QElapsedTimer timer;timer.start();QImageReader reader(path,"PNG");reader.setAutoTransform(true);const QImage source=reader.read().convertToFormat(QImage::Format_RGB888);
-    if(source.isNull())throw std::runtime_error("PNG не удалось прочитать");
-    progress(.04,kind+QStringLiteral(" · lossless RGB24"));const auto exact=PngEncoder::encodeRgb24(source,10);
-    TextureResult winner;winner.original=source;winner.output=source;winner.png=exact.bytes;winner.lossless=true;winner.tested=1;winner.algorithmName=kind=="NORMAL"?QStringLiteral("AGR Vector Normal"):QStringLiteral("AGR Channel-Safe ERM");winner.textureKind=kind;
-    if(exact.bytes.size()<=limit){winner.meanError=0;winner.psnr=std::numeric_limits<double>::infinity();winner.report=QString("%1 × %2 · %3 · LOSSLESS RGB24\n%4 MB · векторы/каналы не изменены").arg(source.width()).arg(source.height()).arg(kind).arg(exact.bytes.size()/1000000.0,0,'f',3);progress(1,"Готово");return winner;}
-    int previousFail=257,firstPass=-1,step=0;
-    const std::array<int,21> levels={{256,240,224,208,192,176,160,144,128,112,96,80,64,48,32,24,16,8,4,2,1}};
-    const auto evaluate=[&](int value){
-        progress(qMin(.96,.08+.042*step++),QString("%1 · %2 уровней").arg(kind).arg(value));
-        const QImage candidate=semanticCandidate(source,value,kind,cancel);const auto encoded=PngEncoder::encodeRgb24(candidate,10);++winner.tested;double mean=0,psnr=0;int maximum=0;measure(source,candidate,mean,psnr,maximum);const bool passing=encoded.bytes.size()<=limit;
-        if((passing&&(winner.png.size()>limit||value>winner.paletteColors))||(!passing&&winner.png.size()>limit&&encoded.bytes.size()<winner.png.size())){winner.output=candidate;winner.png=encoded.bytes;winner.meanError=mean;winner.psnr=psnr;winner.maxError=maximum;winner.paletteColors=value;winner.lossless=false;}
-        return passing;
-    };
-    for(const int value:levels){if(evaluate(value)){firstPass=value;break;}previousFail=value;}
-    if(firstPass>0&&previousFail<=256){int low=firstPass,high=previousFail;for(int i=0;i<7&&high-low>1;++i){const int mid=(low+high)/2;if(evaluate(mid))low=mid;else high=mid;}}
-    if(winner.png.size()>limit)throw std::runtime_error("Адаптивный semantic RGB24 не смог уменьшить PNG");
-    if(!PngEncoder::verifyRgb24(winner.png,winner.output))throw std::runtime_error("RGB24-проверка не пройдена");
-    measure(source,winner.output,winner.meanError,winner.psnr,winner.maxError);
-    QString semanticMetric;
-    if(kind=="NORMAL"){
-        long double total=0;double maximum=0;quint64 pixels=0;
-        for(int y=0;y<source.height();++y){const uchar *a=source.constScanLine(y),*b=winner.output.constScanLine(y);for(int x=0;x<source.width();++x){double ax=a[x*3]/127.5-1,ay=a[x*3+1]/127.5-1,az=a[x*3+2]/127.5-1,bx=b[x*3]/127.5-1,by=b[x*3+1]/127.5-1,bz=b[x*3+2]/127.5-1;const double al=std::sqrt(ax*ax+ay*ay+az*az),bl=std::sqrt(bx*bx+by*by+bz*bz);if(al<1e-8||bl<1e-8)continue;const double dot=qBound(-1.0,(ax*bx+ay*by+az*bz)/(al*bl),1.0),angle=std::acos(dot)*57.29577951308232;total+=angle;maximum=qMax(maximum,angle);++pixels;}}
-        semanticMetric=QString("Средняя угловая ошибка %1° · максимум %2°").arg(pixels?double(total/pixels):0,0,'f',3).arg(maximum,0,'f',2);
-    }else semanticMetric=QString("Независимые E/R/M-каналы · mean Δ %1 · max %2").arg(winner.meanError,0,'f',3).arg(winner.maxError);
-    winner.report=QString("%1 × %2 · %3 · SEMANTIC RGB24\nАлгоритм: %4 · %5 уровней\n%6 MB · PSNR %7 dB\n%8\nПроверено %9 вариантов · %10 с").arg(source.width()).arg(source.height()).arg(kind).arg(winner.algorithmName).arg(winner.paletteColors).arg(winner.png.size()/1000000.0,0,'f',3).arg(winner.psnr,0,'f',1).arg(semanticMetric).arg(winner.tested).arg(timer.elapsed()/1000.0,0,'f',1);
-    progress(1,"Готово");return winner;
-}
-
-
 TextureResult TextureProcessor::process(const QString &path,qint64 limit,const Progress &progress,const Cancel &cancel,bool preserveResolution) {
     if(limit<=0)throw std::runtime_error("Некорректный предел размера");
     QElapsedTimer timer;timer.start();
     QImageReader reader(path,"PNG");reader.setAutoTransform(true);
     QImage source=reader.read().convertToFormat(QImage::Format_RGB888);
     if(source.isNull())throw std::runtime_error("PNG не удалось прочитать");
-    if(!preserveResolution&&qMax(source.width(),source.height())>2048){const double k=2048.0/qMax(source.width(),source.height());source=areaDownsample(source,QSize(qMax(1,int(std::lround(source.width()*k))),qMax(1,int(std::lround(source.height()*k)))));}
+    if(!preserveResolution&&qMax(source.width(),source.height())>2048){const double k=2048.0/qMax(source.width(),source.height());source=areaDownsample(source,QSize(qMax(1,int(std::lround(source.width()*k))),qMax(1,int(std::lround(source.height()*k)))),cancel);}
 
     if(cancel&&cancel())throw std::runtime_error("Остановлено пользователем");progress(.04,"Lossless RGB24 · libdeflate");
-    const auto exact=PngEncoder::encodeRgb24(source,10);
+    const auto exact=PngEncoder::encodeRgb24(source,10,cancel);
     TextureResult exactResult;exactResult.original=source;exactResult.output=source;exactResult.png=exact.bytes;exactResult.lossless=true;exactResult.tested=1;exactResult.algorithmName="Lossless RGB24";
     if(exact.bytes.size()<=limit){
         exactResult.meanError=0;exactResult.psnr=std::numeric_limits<double>::infinity();exactResult.maxError=0;
@@ -179,8 +116,8 @@ TextureResult TextureProcessor::process(const QString &path,qint64 limit,const P
         const std::array<int,19> counts={{256,224,208,192,176,160,144,128,112,96,80,64,48,32,16,8,4,2,1}};
         const auto evaluate=[&](int colors){
             progress(qMin(.96,.08+.045*step++),QString("%1 · %2 цветов").arg(algorithmName).arg(colors));
-            if(cancel&&cancel())throw std::runtime_error("Остановлено пользователем");const QImage candidate=perceptualPaletteCandidate(source,colors,0,0,cancel);const auto encoded=PngEncoder::encodeRgb24(candidate,10);++totalTested;
-            double mean=0,psnr=0;int maximum=0;measure(source,candidate,mean,psnr,maximum);const bool passing=encoded.bytes.size()<=limit;
+            if(cancel&&cancel())throw std::runtime_error("Остановлено пользователем");const QImage candidate=perceptualPaletteCandidate(source,colors,0,0,cancel);const auto encoded=PngEncoder::encodeRgb24(candidate,10,cancel);++totalTested;
+            double mean=0,psnr=0;int maximum=0;measure(source,candidate,mean,psnr,maximum,cancel);const bool passing=encoded.bytes.size()<=limit;
             if((passing&&(winner.png.size()>limit||psnr>winner.psnr+.005||(qAbs(psnr-winner.psnr)<.005&&encoded.bytes.size()>winner.png.size())))||(!passing&&winner.png.size()>limit&&encoded.bytes.size()<winner.png.size())){
                 winner.output=candidate;winner.png=encoded.bytes;winner.meanError=mean;winner.psnr=psnr;winner.maxError=maximum;winner.paletteColors=colors;winner.lossless=false;
             }
@@ -199,7 +136,7 @@ TextureResult TextureProcessor::process(const QString &path,qint64 limit,const P
 
     best.original=source;best.tested=totalTested;
     if(!PngEncoder::verifyRgb24(best.png,best.output))throw std::runtime_error("RGB24-проверка не пройдена");
-    measure(source,best.output,best.meanError,best.psnr,best.maxError);
+    measure(source,best.output,best.meanError,best.psnr,best.maxError,cancel);
     best.report=QString("%1 × %2 · RGB24 · %3\nАлгоритм: %4%5\n%6 MB · PSNR %7 dB · mean ΔRGB %8 · max %9\nПроверено вариантов: %10 · время: %11 с")
         .arg(source.width()).arg(source.height()).arg("ЛИМИТ ДОСТИГНУТ")
         .arg(best.algorithmName).arg(best.paletteColors?QString(" · %1 цветов").arg(best.paletteColors):QString())
@@ -219,24 +156,21 @@ TextureResult TextureProcessor::processAutomatic(const QString &path,const Progr
     const qint64 savingMargin=qMax<qint64>(1024,inputBytes/100);
     const qint64 dynamicLimit=qMax<qint64>(1,inputBytes-savingMargin);
     QElapsedTimer timer;timer.start();
-    const QString kind=detectKind(path);
     TextureResult best;
     try{
-        best=kind=="COLOR"?process(path,dynamicLimit,progress,cancel,true):processSemantic(path,dynamicLimit,kind,progress,cancel);
+        best=process(path,dynamicLimit,progress,cancel,true);
     }catch(const std::exception &error){
         if(cancel&&cancel())throw;
         // A PNG that is already at its mathematical minimum must still be a
         // successful job. Keep native pixels and use our strongest lossless
         // RGB24 encoder instead of failing the whole queue.
         const QString message=QString::fromUtf8(error.what());
-        if(!message.contains("слишком мал",Qt::CaseInsensitive)&&!message.contains("не смог уменьшить",Qt::CaseInsensitive))throw;
-        best=kind=="COLOR"?process(path,std::numeric_limits<qint64>::max(),progress,cancel,true):processSemantic(path,std::numeric_limits<qint64>::max(),kind,progress,cancel);
+        if(!message.contains("слишком мал",Qt::CaseInsensitive))throw;
+        best=process(path,std::numeric_limits<qint64>::max(),progress,cancel,true);
     }
-    best.textureKind=kind;
-    if(kind=="COLOR")best.algorithmName="AGR Adaptive Native RGB24";
+    best.algorithmName="AGR Adaptive Native RGB24";
     const double saved=qMax(0.0,100.0-double(best.png.size())*100.0/inputBytes);
-    if(kind!="COLOR"){best.report+=QString("\nЭкономия относительно исходника: %1%").arg(saved,0,'f',1);progress(1.0,"Готово · "+kind);return best;}
-    best.report=QString("%1 × %2 · COLOR · АДАПТИВНАЯ ОПТИМИЗАЦИЯ\nАлгоритм: %3%4\n%5 MB · экономия %6% · PSNR %7 dB · mean ΔRGB %8 · max %9\nПроверено вариантов: %10 · время: %11 с")
+    best.report=QString("%1 × %2 · RGB24 · АДАПТИВНАЯ ОПТИМИЗАЦИЯ\nАлгоритм: %3%4\n%5 MB · экономия %6% · PSNR %7 dB · mean ΔRGB %8 · max %9\nПроверено вариантов: %10 · время: %11 с")
         .arg(best.output.width()).arg(best.output.height()).arg(best.algorithmName)
         .arg(best.paletteColors?QString(" · %1 цветов").arg(best.paletteColors):QString())
         .arg(best.png.size()/1000000.0,0,'f',3).arg(saved,0,'f',1)

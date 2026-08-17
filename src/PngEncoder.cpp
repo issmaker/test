@@ -36,13 +36,14 @@ inline int paeth(int a, int b, int c) {
 }
 }
 
-QByteArray PngEncoder::filtered(const QImage &input, int strategy) {
+QByteArray PngEncoder::filtered(const QImage &input, int strategy, const Cancel &cancel) {
     const QImage image = input.convertToFormat(QImage::Format_RGB888);
     const int rowBytes = image.width() * 3;
     QByteArray result((rowBytes + 1) * image.height(), Qt::Uninitialized);
     std::array<QByteArray, 5> trial;
     for (auto &v : trial) v.resize(rowBytes);
     for (int y = 0; y < image.height(); ++y) {
+        if ((y & 7) == 0 && cancel && cancel()) throw std::runtime_error("Остановлено пользователем");
         const uchar *cur = image.constScanLine(y);
         const uchar *up = y ? image.constScanLine(y-1) : nullptr;
         std::array<quint64, 5> score{};
@@ -67,19 +68,30 @@ QByteArray PngEncoder::filtered(const QImage &input, int strategy) {
     return result;
 }
 
-EncodedPng PngEncoder::encodeRgb24(const QImage &input, int level) {
+EncodedPng PngEncoder::encodeRgb24(const QImage &input, int level, const Cancel &cancel) {
     const QImage image = input.convertToFormat(QImage::Format_RGB888);
     QByteArray best;
     int bestFilter = 0;
-    for (int strategy : {0, 1, 2, 4, 5}) {
-        const QByteArray rows = filtered(image, strategy);
-        libdeflate_compressor *c = libdeflate_alloc_compressor(qBound(1, level, 12));
+    const qint64 pixels=qint64(image.width())*image.height();
+    // A full 8K pass used to run five complete filters and five compressors.
+    // One adaptive PNG filter is both faster and more memory-friendly, while
+    // smaller images still get the exhaustive size search.
+    const std::array<int,5> exhaustive{{0,1,2,4,5}};
+    const int passes=pixels>8000000?1:int(exhaustive.size());
+    for (int pass=0;pass<passes;++pass) {
+        if(cancel&&cancel())throw std::runtime_error("Остановлено пользователем");
+        const int strategy=passes==1?5:exhaustive[size_t(pass)];
+        const QByteArray rows = filtered(image, strategy, cancel);
+        if(cancel&&cancel())throw std::runtime_error("Остановлено пользователем");
+        const int effectiveLevel=pixels>8000000?qMin(level,7):level;
+        libdeflate_compressor *c = libdeflate_alloc_compressor(qBound(1, effectiveLevel, 12));
         if (!c) throw std::runtime_error("Не удалось выделить память для PNG-сжатия");
         const size_t bound = libdeflate_zlib_compress_bound(c, size_t(rows.size()));
         QByteArray packed(qsizetype(bound), Qt::Uninitialized);
         const size_t written = libdeflate_zlib_compress(c, rows.constData(), size_t(rows.size()),
                                                         packed.data(), bound);
         libdeflate_free_compressor(c);
+        if(cancel&&cancel())throw std::runtime_error("Остановлено пользователем");
         if (!written) continue;
         packed.resize(qsizetype(written));
         if (best.isEmpty() || packed.size() < best.size()) { best=packed; bestFilter=strategy; }

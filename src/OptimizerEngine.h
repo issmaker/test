@@ -26,11 +26,12 @@ struct BatchEntry {
     QString resultUrl;
     QString comparisonSourceUrl;
     QString comparisonResultUrl;
+    QString thumbnailSourceUrl;
+    QString thumbnailResultUrl;
     QString outputPath;
     QString name;
     QString status;
     QString report;
-    QString textureKind = "COLOR";
     QString accent = "#765cff";
     double sourceMb = 0;
     double outputMb = 0;
@@ -57,9 +58,9 @@ struct BatchRunItem {
     int index = -1;
     QString resultUrl;
     QString comparisonResultUrl;
+    QString thumbnailResultUrl;
     QString outputPath;
     QString report;
-    QString textureKind = "COLOR";
     QString error;
     double outputMb = 0;
 };
@@ -86,6 +87,7 @@ class OptimizerEngine final : public QObject {
     Q_PROPERTY(bool sourceIsLarge READ sourceIsLarge NOTIFY sourceInfoChanged)
     Q_PROPERTY(bool showingMaster READ showingMaster NOTIFY showingMasterChanged)
     Q_PROPERTY(bool previewBusy READ previewBusy NOTIFY previewBusyChanged)
+    Q_PROPERTY(double previewProgress READ previewProgress NOTIFY previewProgressChanged)
     Q_PROPERTY(bool busy READ busy NOTIFY busyChanged)
     Q_PROPERTY(QVariantList progressHistory READ progressHistory NOTIFY telemetryChanged)
     Q_PROPERTY(QVariantList activityHistory READ activityHistory NOTIFY telemetryChanged)
@@ -124,6 +126,7 @@ public:
     bool sourceIsLarge()const{return qMax(m_sourceWidth,m_sourceHeight)>2048;}
     bool showingMaster()const{return m_showingMaster;}
     bool previewBusy()const{return m_previewBusy;}
+    double previewProgress()const{return m_previewProgress;}
     bool busy()const{return m_busy;}
     QVariantList progressHistory()const{return m_progressHistory;}
     QVariantList activityHistory()const{return m_activityHistory;}
@@ -174,6 +177,7 @@ signals:
     void sourceInfoChanged();
     void showingMasterChanged();
     void previewBusyChanged();
+    void previewProgressChanged();
     void progressChanged();
     void busyChanged();
     void telemetryChanged();
@@ -197,7 +201,7 @@ private:
     void sampleSystemTelemetry();
     QString m_sourceUrl,m_resultUrl,m_referenceUrl,m_workingPreviewUrl;
     QString m_accentColor="#ff641f",m_status="Перетащите PNG",m_report,m_outputPath;
-    double m_progress=0,m_sourceFileMb=0,m_outputFileMb=0,m_telemetryPhase=0;
+    double m_progress=0,m_previewProgress=0,m_sourceFileMb=0,m_outputFileMb=0,m_telemetryPhase=0;
     int m_sourceWidth=0,m_sourceHeight=0,m_workingWidth=0,m_workingHeight=0,m_previewGeneration=0;
     bool m_showingMaster=false,m_previewBusy=false,m_busy=false;
     QVariantList m_progressHistory,m_activityHistory;

@@ -17,6 +17,7 @@ import {
   Cpu,
   FolderOpen,
   Focus,
+  Gamepad2,
   House,
   Images,
   Maximize2,
@@ -27,14 +28,17 @@ import {
   X,
 } from "lucide-react";
 import * as THREE from "three";
+import BladeGrid from "./BladeGrid.jsx";
 import "./style.css";
 import "./v47.css";
 import "./v48.css";
 import "./v49.css";
 import "./v54.css";
+import "./v59.css";
 
 const EMPTY = {
   sourceUrl: "",
+  sourceName: "",
   resultUrl: "",
   referenceUrl: "",
   workingPreviewUrl: "",
@@ -49,6 +53,7 @@ const EMPTY = {
   sourceIsLarge: false,
   busy: false,
   previewBusy: false,
+  previewProgress: 0,
   progressHistory: [],
   activityHistory: [],
   batchItems: [],
@@ -69,6 +74,7 @@ const ROUTES = [
   ["npm", "НПМ · 3 MB", ScanLine],
   ["batch", "Текстуры", Images],
   ["compare", "Сравнение", Columns2],
+  ["game", "Blade Grid", Gamepad2],
 ];
 const PRESETS = [
   ["rose", "Rose signal", "#ff3f93"],
@@ -87,7 +93,8 @@ const THEME_COLORS = {
   cobalt: ["#2778ff", "#d6f6ff"],
 };
 const QUALITY_LEVELS = ["eco", "balanced", "max"];
-const MAX_ZOOM = 16;
+const MAX_ZOOM = 8;
+const DETAIL_ZOOM = 7.95;
 
 function readPreference(key, allowed, fallback) {
   try {
@@ -117,13 +124,21 @@ function useBackend() {
     new window.QWebChannel(window.qt.webChannelTransport, (channel) => {
       const api = channel.objects.optimizer;
       setBackend(api);
-      let frame = 0;
+      let frame = 0, timer = 0, lastSnapshot = 0;
+      const commitSnapshot = () => {
+        frame = 0;
+        timer = 0;
+        lastSnapshot = performance.now();
+        api.snapshot((v) => setState({ ...EMPTY, ...v }));
+      };
       const refresh = () => {
-        if (frame) return;
-        frame = requestAnimationFrame(() => {
-          frame = 0;
-          api.snapshot((v) => setState({ ...EMPTY, ...v }));
-        });
+        if (frame || timer) return;
+        // A batch progress signal can arrive dozens of times per second. A
+        // complete snapshot also serialises the whole queue, so cap bridge
+        // traffic without slowing native work or user input.
+        const wait = Math.max(0, 55 - (performance.now() - lastSnapshot));
+        if (wait > 1) timer = setTimeout(() => { timer = 0; frame = requestAnimationFrame(commitSnapshot); }, wait);
+        else frame = requestAnimationFrame(commitSnapshot);
       };
       [
         "sourceUrlChanged",
@@ -136,6 +151,7 @@ function useBackend() {
         "outputSizeChanged",
         "sourceInfoChanged",
         "previewBusyChanged",
+        "previewProgressChanged",
         "progressChanged",
         "busyChanged",
         "telemetryChanged",
@@ -562,6 +578,9 @@ const bladePose=(state,u,time=0,out)=>{
     x=(u-.5)*7.2;y=Math.sin(a*1.5)*1.52;z=Math.cos(a*3)*.58;twist=Math.sin(a*1.5)*1.05;width=1.05+.7*(.5+.5*Math.cos(a*3));
   }else if(state==="compare"){
     x=Math.sin(a)*3.25;y=Math.sign(Math.cos(a))*1.05+.34*Math.cos(a*2);z=.58*Math.sin(a*2);twist=Math.PI*.5*Math.sin(a);width=1.2+.72*Math.abs(Math.cos(a));
+  }else if(state==="game"){
+    const lane=(Math.floor(u*8)-3.5),cell=(u*8)%1;
+    x=lane*.78+.2*Math.sin(a*3);y=(cell-.5)*5.4;z=.72*Math.sin(lane*.8+a)+.18*Math.cos(time*.4+a*2);twist=(lane%2?1:-1)*.72+.28*Math.sin(a*2);width=.92+.38*(.5+.5*Math.cos(a*8));
   }else if(state==="settings"){
     x=Math.cos(a)*2.75;y=Math.sin(a)*1.72;z=.38*Math.sin(a*2);twist=a*.34;width=1.45+.22*Math.sin(a*3);
   }else if(state==="secret"){
@@ -883,7 +902,7 @@ function Header({ screen, backend, onSettings }) {
         </span>
         <div>
           <b>Оптимизатор текстур</b>
-          <small>ADAPTIVE RGB24 / v58</small>
+          <small>ADAPTIVE RGB24 / v59</small>
         </div>
       </div>
       <div className="route-status">
@@ -1035,7 +1054,7 @@ function SettingsPanel({
               </button>
             ))}
           </div>
-          <p>Свет и водное стекло</p>
+          <p>Свет и оптическое стекло</p>
           <label className="setting-range"><span>ЯРКОСТЬ</span><b>{Math.round(brightness*100)}%</b><input type="range" min=".55" max="1.4" step=".01" value={brightness} onChange={(e)=>setBrightness(Number(e.target.value))}/></label>
           <label className="setting-range"><span>ЭФФЕКТЫ</span><b>{Math.round(effects*100)}%</b><input type="range" min="0" max="1.35" step=".01" value={effects} onChange={(e)=>setEffects(Number(e.target.value))}/></label>
           <p>Качество 3D-сцены</p>
@@ -1075,7 +1094,7 @@ function Home({ setScreen }) {
         <h1>
           <DecodeText>ОПТИМИЗАТОР</DecodeText>
           <br />
-          <em>ТЕКСТУР</em>
+          <em><DecodeText>ТЕКСТУР</DecodeText></em>
         </h1>
         <div className="hero-line">
           <span>2K</span>
@@ -1347,7 +1366,7 @@ function ZoomControl({ view, setView }) {
         <span>{Math.round(view.s * 100)}%</span>
         <i />
       </div>
-      <Hint text="Плавный масштаб от «Вписать» до 1600%">
+      <Hint text="Плавный масштаб от «Вписать» до 800%">
         <input
           aria-label="Масштаб"
           type="range"
@@ -1389,6 +1408,7 @@ function WipeCompare({ before, after }) {
 const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before, after, previewBefore, previewAfter, mode, onZoom, contentReady=true, externalLoading=false }) {
   const host = useRef(null), canvas = useRef(null), frame = useRef(0), drag = useRef(null);
   const [previewLoading,setPreviewLoading]=useState(false);
+  const [detailState,setDetailState]=useState("preview");
   const images = useRef({ before: null, after: null, fullBefore:null, fullAfter:null });
   const interactionTimer=useRef(0),detailTimer=useRef(0),interaction=useRef(false),detailRequest=useRef(()=>{}),wakeRef=useRef(()=>{}),detailBlobs=useRef({});
   const target = useRef({ s: 1, x: 0, y: 0, split: 0.5 });
@@ -1430,7 +1450,7 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before
     const c = current.current, t = clampView(target.current);target.current=t;
     c.s += (t.s - c.s) * .19; c.x += (t.x - c.x) * .19; c.y += (t.y - c.y) * .19; c.split += (t.split - c.split) * .22;
     ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,out.width,out.height);ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const detailed=!interaction.current&&c.s>=2.2;
+    const detailed=!interaction.current&&c.s>=DETAIL_ZOOM;
     const beforeImage=detailed&&images.current.fullBefore?images.current.fullBefore:images.current.before;
     const afterImage=detailed&&images.current.fullAfter?images.current.fullAfter:images.current.after;
     const draw = (img, x0, width) => {
@@ -1460,17 +1480,18 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before
   const wake = useCallback(() => { if (!frame.current) frame.current = requestAnimationFrame(render); }, [render]);
   wakeRef.current=wake;
   const reset = useCallback((scale = 1) => {
-    target.current = { ...target.current, s: scale, x: 0, y: 0 };
+    const safeScale=Math.max(1,Math.min(MAX_ZOOM,Number(scale)||1));
+    target.current = clampView({ ...target.current, s: safeScale, x: 0, y: 0 });
     clearTimeout(detailTimer.current);
-    if(scale>=2.2)detailTimer.current=setTimeout(()=>detailRequest.current(),220);
-    else for(const key of ["fullBefore","fullAfter"]){images.current[key]?.bitmap?.close?.();images.current[key]?.close?.();images.current[key]=null;}
-    onZoom?.(scale); wake();
-  }, [onZoom, wake]);
-  useEffect(() => { modeRef.current = mode; target.current=clampView({...target.current,x:0,y:0});clearTimeout(detailTimer.current);if(target.current.s>=2.2)detailTimer.current=setTimeout(()=>detailRequest.current(),220);wake(); }, [mode, wake,clampView]);
+    if(safeScale>=DETAIL_ZOOM){setDetailState("loading");detailTimer.current=setTimeout(()=>detailRequest.current(),260);}
+    else{setDetailState("preview");for(const key of ["fullBefore","fullAfter"]){images.current[key]?.bitmap?.close?.();images.current[key]?.close?.();images.current[key]=null;}}
+    onZoom?.(safeScale);window.__AGR_ZOOM_TARGET__=safeScale;window.__AGR_ZOOM_BUTTON_SCALE__=safeScale;wake();
+  }, [onZoom, wake,clampView]);
+  useEffect(() => { modeRef.current = mode; target.current=clampView({...target.current,x:0,y:0});clearTimeout(detailTimer.current);if(target.current.s>=DETAIL_ZOOM){setDetailState("loading");detailTimer.current=setTimeout(()=>detailRequest.current(),260);}wake(); }, [mode, wake,clampView]);
   useEffect(() => {
     alive.current = true; loaded.current = false;
     let cancelled = false;const controller=new AbortController();
-    const release=()=>{const unique=new Set(Object.values(images.current));for(const image of unique){image?.bitmap?.close?.();image?.close?.();}images.current={before:null,after:null,fullBefore:null,fullAfter:null};detailBlobs.current={};loaded.current=false;if(canvas.current){canvas.current.width=1;canvas.current.height=1;}};
+    const release=()=>{const unique=new Set(Object.values(images.current));for(const image of unique){image?.bitmap?.close?.();image?.close?.();}images.current={before:null,after:null,fullBefore:null,fullAfter:null};detailBlobs.current={};loaded.current=false;setDetailState("preview");if(canvas.current){canvas.current.width=1;canvas.current.height=1;}};
     release();
     if(!contentReady||externalLoading){setPreviewLoading(true);return()=>{alive.current=false;};}
     setPreviewLoading(Boolean(before||after));
@@ -1503,24 +1524,31 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before
     let detailBusy=false,detailPending=false;
     detailRequest.current=async()=>{
       if(detailBusy){detailPending=true;return;}
-      if(cancelled||interaction.current||target.current.s<2.2)return;
+      if(cancelled||interaction.current||target.current.s<DETAIL_ZOOM)return;
+      setDetailState("loading");
       detailBusy=true;
       const pairs=[["fullBefore",before,lowBefore],["fullAfter",after,lowAfter]];
+      let loadedDetail=0,failedDetail=0,expectedDetail=0;
       for(const [key,src,low] of pairs){
         if(cancelled)break;
-        if(!src||src===low)continue;
+        if(!src)continue;
+        expectedDetail++;
+        if(src===low){loadedDetail++;continue;}
         try{
           const meta=await detailSource(key,src),crop=cropFor(meta,key);if(!crop)continue;
-          if(images.current[key]?.key===crop.key)continue;
+          if(images.current[key]?.key===crop.key){loadedDetail++;continue;}
           const bitmap=await createImageBitmap(meta.blob,crop.x,crop.y,crop.width,crop.height,{colorSpaceConversion:"default",premultiplyAlpha:"default"});
           if(cancelled||interaction.current){bitmap.close();continue;}
           images.current[key]?.bitmap?.close?.();images.current[key]={bitmap,fullWidth:meta.width,fullHeight:meta.height,tileX:crop.x,tileY:crop.y,tileWidth:crop.width,tileHeight:crop.height,key:crop.key};wake();
+          loadedDetail++;
           // Only a visible source tile reaches the GPU. Two full 8K bitmaps
           // are never resident at the same time.
           await new Promise(resolve=>setTimeout(resolve,48));
-        }catch{if(cancelled)break;}
+        }catch{failedDetail++;if(cancelled)break;}
       }
-      detailBusy=false;if(detailPending&&!cancelled){detailPending=false;setTimeout(()=>detailRequest.current(),0);}
+      detailBusy=false;
+      if(!cancelled)setDetailState(expectedDetail>0&&loadedDetail===expectedDetail?"ready":failedDetail?"fallback":"preview");
+      if(detailPending&&!cancelled){detailPending=false;setTimeout(()=>detailRequest.current(),0);}
     };
     return () => { cancelled = true;controller.abort();alive.current = false; cancelAnimationFrame(frame.current); frame.current = 0;clearTimeout(interactionTimer.current);clearTimeout(detailTimer.current);interaction.current=false;dispatchEvent(new CustomEvent("agr-drag",{detail:false}));detailRequest.current=()=>{};release(); };
   }, [before, after, previewBefore, previewAfter, contentReady, externalLoading, reset, wake]);
@@ -1533,8 +1561,8 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before
     const raw={...t,s,x:ox-(ox-t.x)*ratio,y:oy-(oy-t.y)*ratio},next=clampView(raw);
     if(Math.abs(next.x-raw.x)<.001&&Math.abs(next.y-raw.y)<.001)window.__AGR_ZOOM_ANCHOR_ERROR__=Math.hypot((ox-next.x)/s-(ox-t.x)/t.s,(oy-next.y)/s-(oy-t.y)/t.s);
     target.current=next;clearTimeout(detailTimer.current);
-    if(s>=2.2)detailTimer.current=setTimeout(()=>detailRequest.current(),220);
-    else if(s<1.35){for(const key of ["fullBefore","fullAfter"]){images.current[key]?.bitmap?.close?.();images.current[key]?.close?.();images.current[key]=null;}detailBlobs.current={};}
+    if(s>=DETAIL_ZOOM){setDetailState("loading");detailTimer.current=setTimeout(()=>detailRequest.current(),260);}
+    else{setDetailState("preview");if(s<1.35){for(const key of ["fullBefore","fullAfter"]){images.current[key]?.bitmap?.close?.();images.current[key]?.close?.();images.current[key]=null;}detailBlobs.current={};}}
     onZoom?.(s); window.__AGR_ZOOM_TARGET__ = s; wake();
   }, [onZoom, wake,clampView]);
   useEffect(() => {
@@ -1549,6 +1577,7 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before
     addEventListener("agr-test-zoom", z); addEventListener("agr-test-drag", d); return () => { removeEventListener("agr-test-zoom", z); removeEventListener("agr-test-drag", d); };
   }, [wake, zoom,clampView]);
   return <div ref={host} className="smooth-compare" onPointerDown={(e) => {
+    if(e.target.closest?.("button"))return;
     const r=host.current.getBoundingClientRect(), near=mode==="wipe" && Math.abs(e.clientX-r.left-r.width*target.current.split)<34;
     drag.current={ px:e.clientX, py:e.clientY, x:target.current.x, y:target.current.y, wipe:near }; e.currentTarget.setPointerCapture(e.pointerId);setInteraction(true);
   }} onPointerMove={(e) => {
@@ -1558,9 +1587,10 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before
     wake();
   }} onPointerUp={() => { drag.current=null;setInteraction(false); }} onPointerCancel={() => { drag.current=null;setInteraction(false); }}>
     <canvas ref={canvas} />
-    {previewLoading&&<div className="compare-loader"><i/><strong>{contentReady?"ГОТОВИМ ПРЕВЬЮ":"ПЕРЕХОД"}</strong><span>PNG остаётся в исходном качестве</span></div>}
-    {before&&<span className="compare-label before">ОРИГИНАЛ</span>}{after&&<span className="compare-label after">РЕЗУЛЬТАТ</span>}
-    <div className="viewport-actions"><button onClick={(e)=>{e.stopPropagation();reset(1)}}>ВПИСАТЬ</button><button onClick={(e)=>{e.stopPropagation();reset(4)}}>400%</button><button onClick={(e)=>{e.stopPropagation();reset(8)}}>800%</button></div>
+    {previewLoading&&<div className="compare-loader"><i/><strong>{contentReady?"ЗАГРУЖАЕМ ИЗОБРАЖЕНИЕ":"ПЕРЕХОД"}</strong><span>Интерфейс продолжает работать</span></div>}
+    {!previewLoading&&detailState==="loading"&&<div className="detail-loader"><i/><span>FULL 1:1 · ПОДГРУЖАЕМ ВИДИМЫЙ ФРАГМЕНТ</span></div>}
+    {before&&<span className="compare-label before">ОРИГИНАЛ {detailState==="ready"&&target.current.s>=DETAIL_ZOOM?"· FULL":""}</span>}{after&&<span className="compare-label after">РЕЗУЛЬТАТ {detailState==="ready"&&target.current.s>=DETAIL_ZOOM?"· FULL":""}</span>}
+    <div className="viewport-actions" onPointerDown={(e)=>e.stopPropagation()}><button type="button" onClick={(e)=>{e.stopPropagation();reset(1)}}>ВПИСАТЬ</button><button type="button" onClick={(e)=>{e.stopPropagation();reset(4)}}>400%</button><button type="button" onClick={(e)=>{e.stopPropagation();reset(8)}}>800%</button></div>
   </div>;
 });
 
@@ -1593,8 +1623,8 @@ const ComparisonSurface = React.memo(function ComparisonSurface({
       )}
       <SmoothCompareViewport before={before} after={after} previewBefore={previewBefore} previewAfter={previewAfter} mode={mode} onZoom={updateZoomLabel} contentReady={contentReady} externalLoading={loading} />
       <div className="comparison-truth">
-        <span>ОРИГИНАЛ · FULL &gt;220%</span>
-        <span>РЕЗУЛЬТАТ · FULL &gt;220%</span>
+        <span>ОРИГИНАЛ · ПРЕВЬЮ 100–400% · FULL 1:1 НА 800%</span>
+        <span>РЕЗУЛЬТАТ · ПРЕВЬЮ 100–400% · FULL 1:1 НА 800%</span>
       </div>
       <div className="compare-tools">
         <span className="live-zoom">ZOOM {zoomLabel}% · MAX {MAX_ZOOM * 100}%</span>
@@ -1605,6 +1635,37 @@ const ComparisonSurface = React.memo(function ComparisonSurface({
       </div>
     </section>
   );
+});
+
+function ImportWindow({ active, progress = 0, status, batch = false, onGame }) {
+  const value=Math.max(0,Math.min(1,Number(progress||0)));
+  return <AnimatePresence>
+    {active&&<motion.section className="image-load-window" initial={{opacity:0,scale:.97}} animate={{opacity:1,scale:1}} exit={{opacity:0,scale:.985}} transition={{duration:.32,ease:[.18,.72,.2,1]}}>
+      <div className="image-load-visual"><i/><i/><i/><b>{Math.round(value*100).toString().padStart(2,"0")}</b></div>
+      <div className="image-load-copy"><small>{batch?"BATCH IMAGE PIPELINE":"NPM IMAGE PIPELINE"}</small><h2>ЗАГРУЖАЕМ ИЗОБРАЖЕНИЕ</h2><p>{status||"Читаем PNG и создаём безопасное превью"}</p><FluidProgress value={value}/><span>Окно не зависло — декодирование выполняется отдельно от интерфейса</span></div>
+      <Button quiet onClick={onGame}><Gamepad2/> ОТКРЫТЬ BLADE GRID</Button>
+    </motion.section>}
+  </AnimatePresence>;
+}
+
+const BATCH_ROW_HEIGHT=194;
+const VirtualBatchList=React.memo(function VirtualBatchList({items,state,backend,setScreen}){
+  const node=useRef(null),scrollFrame=useRef(0),[viewport,setViewport]=useState({top:0,height:720});
+  const measure=useCallback(()=>{scrollFrame.current=0;const target=node.current;if(target)setViewport({top:target.scrollTop,height:target.clientHeight||720});},[]);
+  useEffect(()=>{const observer=new ResizeObserver(measure);if(node.current)observer.observe(node.current);measure();return()=>{observer.disconnect();cancelAnimationFrame(scrollFrame.current);};},[measure]);
+  const onScroll=()=>{if(!scrollFrame.current)scrollFrame.current=requestAnimationFrame(measure);};
+  const start=Math.max(0,Math.floor(viewport.top/BATCH_ROW_HEIGHT)-2),end=Math.min(items.length,Math.ceil((viewport.top+viewport.height)/BATCH_ROW_HEIGHT)+3);
+  return <section ref={node} className="batch-list virtual-batch-list" onScroll={onScroll}>
+    {!items.length&&<div className="empty"><Plus/><h2>Добавьте PNG-файлы</h2><p>Здесь появятся лёгкие превью до и после.</p></div>}
+    {!!items.length&&<div className="batch-virtual-spacer" style={{height:items.length*BATCH_ROW_HEIGHT}}>
+      {items.slice(start,end).map((item,offset)=>{const i=start+offset;return <article className={`batch-row virtualized ${item.importing?"is-importing":""} ${item.failed?"has-error":""}`} style={{top:i*BATCH_ROW_HEIGHT}} key={item.sourceUrl||i}>
+        <Button className="remove-file" quiet danger disabled={state.batchBusy||state.batchImportBusy} tip={`Удалить ${item.name} из очереди`} aria-label={`Удалить ${item.name}`} onClick={()=>backend?.removeBatchItem(i)}><X/></Button>
+        <div className="thumb">{item.importing?<div className="preview-loader"><i/><span>ПОДГОТОВКА</span></div>:<img loading="lazy" decoding="async" draggable="false" src={item.thumbnailSourceUrl||item.comparisonSourceUrl||item.sourceUrl}/>}<span>BEFORE</span></div>
+        <div className="thumb">{item.resultUrl?<img loading="lazy" decoding="async" draggable="false" src={item.thumbnailResultUrl||item.comparisonResultUrl||item.resultUrl}/>:<p>AFTER<br/>ожидает</p>}<span>AFTER</span></div>
+        <div className="file-data"><h3>{item.name}</h3><p>{item.width?`${item.width} × ${item.height} · `:""}{mb(item.sourceMb)} {item.done&&`→ ${mb(item.outputMb)}`}</p><FluidProgress value={item.progress||0}/><ProcessSignal compact progress={item.progress||(item.done?1:0)} status={item.status||item.report}/><div><Button disabled={!item.done} onClick={()=>setScreen(`compare:${i}`)}>СРАВНИТЕЛЬНЫЙ АНАЛИЗ</Button><Button quiet disabled={!item.done} onClick={()=>backend?.openBatchOutput(i)}>ПАПКА</Button></div></div>
+      </article>;})}
+    </div>}
+  </section>;
 });
 
 function Workspace({ kind, state, backend, setScreen, contentReady = true }) {
@@ -1656,7 +1717,7 @@ function Workspace({ kind, state, backend, setScreen, contentReady = true }) {
             </Button>
           )}
           <Button
-            disabled={batch ? state.batchBusy || state.batchImportBusy : state.busy}
+            disabled={batch ? state.batchBusy || state.batchImportBusy : state.busy || state.previewBusy}
             tip={batch ? "Выбрать несколько PNG" : "Выбрать PNG"}
             onClick={() =>
               batch ? backend?.chooseBatchFiles() : backend?.chooseNpmFile()
@@ -1668,7 +1729,7 @@ function Workspace({ kind, state, backend, setScreen, contentReady = true }) {
       </div>
       {!batch&&<section className="npm-command-top">
         <ProcessSignal progress={state.progress} status={state.status || state.report} />
-        <Button danger={state.busy} disabled={!state.sourceUrl&&!state.busy} onClick={()=>state.busy?backend?.stopCurrent():backend?.optimize(2.99)}>{state.busy?"ОСТАНОВИТЬ":"ОПТИМИЗИРОВАТЬ ДО 3 MB"}</Button>
+        <Button danger={state.busy} disabled={state.previewBusy||(!state.sourceUrl&&!state.busy)} onClick={()=>state.busy?backend?.stopCurrent():backend?.optimize(2.99)}>{state.busy?"ОСТАНОВИТЬ":"ОПТИМИЗИРОВАТЬ ДО 3 MB"}</Button>
         <Button quiet disabled={!state.outputPath} onClick={()=>backend?.openOutputFolder()}><FolderOpen/> ПАПКА</Button>
       </section>}
       {batch ? (
@@ -1726,70 +1787,7 @@ function Workspace({ kind, state, backend, setScreen, contentReady = true }) {
               ))}
             </div>
           </section>
-          <section className="batch-list">
-            {!items.length && (
-              <div className="empty">
-                <Plus />
-                <h2>Добавьте PNG-файлы</h2>
-                <p>Здесь появятся крупные превью до и после.</p>
-              </div>
-            )}
-            {items.map((item, i) => (
-              <article className={`batch-row ${item.importing ? "is-importing" : ""} ${item.failed ? "has-error" : ""}`} key={item.sourceUrl || i}>
-                <Button
-                  className="remove-file"
-                  quiet
-                  danger
-                  disabled={state.batchBusy || state.batchImportBusy}
-                  tip={`Удалить ${item.name} из очереди`}
-                  aria-label={`Удалить ${item.name}`}
-                  onClick={() => backend?.removeBatchItem(i)}
-                >
-                  <X />
-                </Button>
-                <div className="thumb">
-                  {item.importing ? <div className="preview-loader"><i /><span>ПОДГОТОВКА</span></div> : <img loading="lazy" decoding="async" src={item.comparisonSourceUrl || item.sourceUrl} />}
-                  <span>BEFORE</span>
-                </div>
-                <div className="thumb">
-                  {item.resultUrl ? (
-                    <img loading="lazy" decoding="async" src={item.comparisonResultUrl || item.resultUrl} />
-                  ) : (
-                    <p>
-                      AFTER
-                      <br />
-                      ожидает
-                    </p>
-                  )}
-                  <span>AFTER</span>
-                </div>
-                <div className="file-data">
-                  <h3>{item.name}</h3>
-                  <p>
-                    {item.width ? `${item.width} × ${item.height} · ` : ""}{item.textureKind||"COLOR"} · {mb(item.sourceMb)}{" "}
-                    {item.done && `→ ${mb(item.outputMb)}`}
-                  </p>
-                  <FluidProgress value={item.progress || 0} />
-                  <ProcessSignal compact progress={item.progress || (item.done ? 1 : 0)} status={item.status || item.report} />
-                  <div>
-                    <Button
-                      disabled={!item.done}
-                      onClick={() => setScreen(`compare:${i}`)}
-                    >
-                      СРАВНИТЕЛЬНЫЙ АНАЛИЗ
-                    </Button>
-                    <Button
-                      quiet
-                      disabled={!item.done}
-                      onClick={() => backend?.openBatchOutput(i)}
-                    >
-                      ПАПКА
-                    </Button>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </section>
+          <VirtualBatchList items={items} state={state} backend={backend} setScreen={setScreen}/>
         </>
       ) : (
         <>
@@ -1830,6 +1828,13 @@ function Workspace({ kind, state, backend, setScreen, contentReady = true }) {
           />
         </>
       )}
+      <ImportWindow
+        active={batch?state.batchImportBusy:state.previewBusy}
+        progress={batch?state.batchImportProgress:state.previewProgress}
+        status={batch?state.batchImportStatus:state.status}
+        batch={batch}
+        onGame={()=>setScreen("game")}
+      />
     </main>
   );
 }
@@ -1865,7 +1870,7 @@ function Compare({ index, state, backend, setScreen, contentReady = true }) {
           ← К СПИСКУ
         </Button>
         <div>
-          <small>DEEP ANALYSIS · {item.textureKind||"COLOR"}</small>
+          <small>DEEP ANALYSIS · RGB24</small>
           <h1>{item.name}</h1>
         </div>
       </div>
@@ -1934,6 +1939,19 @@ function SecretScene({ active, onDone }) {
   );
 }
 
+function IntroSequence({active,onSkip}){
+  return <AnimatePresence>
+    {active&&<motion.div className="intro-sequence" initial={{opacity:1}} exit={{opacity:0,filter:"blur(16px)",scale:1.035}} transition={{duration:.72,ease:[.18,.72,.2,1]}}>
+      <div className="intro-grid"/>
+      <div className="intro-blades">{Array.from({length:34},(_,i)=><i key={i} style={{"--i":i}}/>)}</div>
+      <div className="intro-iris"><i/><i/><i/></div>
+      <motion.div className="intro-copy" initial={{opacity:0,y:18}} animate={{opacity:1,y:0}} transition={{delay:.55,duration:.8}}><small>ADAPTIVE TEXTURE SYSTEM</small><strong>ISSMAKER</strong><span>RGB24 · VISUAL CORE v59</span></motion.div>
+      <div className="intro-progress"><i/><span>INITIALIZING OPTICAL PIPELINE</span></div>
+      <button onClick={onSkip}>ПРОПУСТИТЬ</button>
+    </motion.div>}
+  </AnimatePresence>;
+}
+
 function App() {
   const { backend, state } = useBackend(),
     appRoot = useRef(null),
@@ -1943,6 +1961,8 @@ function App() {
     [hold,setHold]=useState(0),
     [holdPoint,setHoldPoint]=useState({x:innerWidth/2,y:innerHeight/2}),
     [diving, setDiving] = useState(false),
+    [revealing,setRevealing]=useState(false),
+    [intro,setIntro]=useState(()=>!HEADLESS_TEST),
     [contentReady, setContentReady] = useState(true),
     [settings, setSettings] = useState(false),
     [theme, setTheme] = useState(() =>
@@ -1971,6 +1991,7 @@ function App() {
           return;
         }
         const nextScreen=next.startsWith("compare")?"compare":next;
+        setRevealing(false);
         setDiving(true);
         setContentReady(false);
         setSettings(false);
@@ -1984,9 +2005,10 @@ function App() {
             setRoute(next);
           }, 880),
           setTimeout(() => {
-            setDiving(false);
+            setDiving(false);setRevealing(true);
             setContentReady(true);
-          }, 1580),
+          }, 1450),
+          setTimeout(()=>setRevealing(false),2150),
         ];
       },
       [route, screen,shapeState],
@@ -2002,6 +2024,11 @@ function App() {
     return () => removeEventListener("agr-focus", update);
   }, []);
   useEffect(() => () => routeTimers.current.forEach(clearTimeout), []);
+  useEffect(()=>{
+    if(!intro)return undefined;
+    const finish=()=>{setIntro(false);setRevealing(true);setTimeout(()=>setRevealing(false),820);};
+    const timer=setTimeout(finish,3600);return()=>clearTimeout(timer);
+  },[intro]);
   useEffect(() => writePreference("agr-theme", theme), [theme]);
   useEffect(() => writePreference("agr-quality", quality), [quality]);
   useEffect(() => writePreference("agr-brightness", brightness), [brightness]);
@@ -2022,17 +2049,19 @@ function App() {
   },[screen]);
   const setSettingsOpen=useCallback((open)=>{setSettings(open);},[]);
   const openSecret=useCallback(()=>{
-    routeTimers.current.forEach(clearTimeout);setSettings(false);setDiving(true);
+    routeTimers.current.forEach(clearTimeout);setSettings(false);setRevealing(false);setDiving(true);
     routeTimers.current=[
       setTimeout(()=>{setSecret(true);setTransitionKind(`${shapeState}>secret`);setShapeState("secret");},320),
-      setTimeout(()=>setDiving(false),1580),
+      setTimeout(()=>{setDiving(false);setRevealing(true);},1450),
+      setTimeout(()=>setRevealing(false),2150),
     ];
   },[shapeState]);
   const closeSecret=useCallback(()=>{
-    routeTimers.current.forEach(clearTimeout);setDiving(true);
+    routeTimers.current.forEach(clearTimeout);setRevealing(false);setDiving(true);
     routeTimers.current=[
       setTimeout(()=>{setSecret(false);setTransitionKind(`secret>${screen}`);setShapeState(screen);},320),
-      setTimeout(()=>setDiving(false),1580),
+      setTimeout(()=>{setDiving(false);setRevealing(true);},1450),
+      setTimeout(()=>setRevealing(false),2150),
     ];
   },[screen]);
   const page =
@@ -2054,6 +2083,13 @@ function App() {
         setScreen={setScreen}
         contentReady={contentReady}
       />
+    ) : screen === "game" ? (
+      <BladeGrid
+        backgroundBusy={state.previewBusy||state.batchImportBusy||state.busy||state.batchBusy}
+        backgroundProgress={state.batchImportBusy?state.batchImportProgress:state.previewBusy?state.previewProgress:state.batchBusy?state.batchProgress:state.progress}
+        backgroundStatus={state.batchImportBusy?state.batchImportStatus:state.batchBusy?state.batchStatus:state.status}
+        onBack={()=>setScreen("home")}
+      />
     ) : (
       <Compare
         index={Number(route.split(":")[1] || 0)}
@@ -2066,7 +2102,7 @@ function App() {
   return (
     <div
       ref={appRoot}
-      className={`app theme-${theme} quality-${quality} scene-${screen} ${diving ? "is-diving" : ""} ${hold>.01?"is-holding":""} ${secret?"has-secret":""} ${state.busy||state.batchBusy||state.batchImportBusy?"is-processing":""}`}
+      className={`app theme-${theme} quality-${quality} scene-${screen} ${diving ? "is-diving" : ""} ${revealing?"is-revealing":""} ${intro?"is-intro":""} ${hold>.01?"is-holding":""} ${secret?"has-secret":""} ${state.busy||state.batchBusy||state.batchImportBusy||state.previewBusy?"is-processing":""}`}
       style={{"--ui-brightness":brightness,"--effect-level":effects,"--hold":hold}}
     >
       <BackgroundFlowLines/>
@@ -2085,7 +2121,7 @@ function App() {
               effects={effects}
               hold={hold}
               holdPoint={holdPoint}
-              processing={state.busy||state.batchBusy||state.batchImportBusy}
+              processing={state.busy||state.batchBusy||state.batchImportBusy||state.previewBusy}
             />
           </SceneBoundary>
         )}
@@ -2142,6 +2178,7 @@ function App() {
         active={secret}
         onDone={closeSecret}
       />
+      <IntroSequence active={intro} onSkip={()=>{setIntro(false);setRevealing(true);setTimeout(()=>setRevealing(false),820);}}/>
     </div>
   );
 }

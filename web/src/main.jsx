@@ -97,7 +97,7 @@ const THEME_COLORS = {
   cobalt: ["#2778ff", "#d6f6ff"],
 };
 const QUALITY_LEVELS = ["eco", "balanced", "max"];
-const MAX_ZOOM = 8;
+const MAX_ZOOM = 16;
 const DETAIL_ZOOM = 7.95;
 
 function readPreference(key, allowed, fallback) {
@@ -1370,7 +1370,7 @@ function ZoomControl({ view, setView }) {
         <span>{Math.round(view.s * 100)}%</span>
         <i />
       </div>
-      <Hint text="Плавный масштаб от «Вписать» до 800%">
+      <Hint text="Плавный масштаб от «Вписать» до 1600%">
         <input
           aria-label="Масштаб"
           type="range"
@@ -1655,9 +1655,9 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({
   }} onPointerUp={() => { drag.current=null;setInteraction(false); }} onPointerCancel={() => { drag.current=null;setInteraction(false); }}>
     <canvas ref={canvas} />
     {previewLoading&&<div className="compare-loader"><i/><strong>{contentReady?"ЗАГРУЖАЕМ ИЗОБРАЖЕНИЕ":"ПЕРЕХОД"}</strong></div>}
-    {!previewLoading&&detailState==="loading"&&<div className="detail-loader"><i/><span>FULL 1:1 · ПОДГРУЖАЕМ ВИДИМЫЙ ФРАГМЕНТ</span></div>}
+    {!previewLoading&&detailState==="loading"&&<div className="detail-loader"><i/><span>FULL 1:1</span></div>}
     {before&&<span className="compare-label before">ОРИГИНАЛ {detailState==="ready"&&target.current.s>=DETAIL_ZOOM?"· FULL":""}</span>}{after&&<span className="compare-label after">РЕЗУЛЬТАТ {detailState==="ready"&&target.current.s>=DETAIL_ZOOM?"· FULL":""}</span>}
-    <div className="viewport-actions" onPointerDown={(e)=>e.stopPropagation()}><button type="button" onClick={(e)=>{e.stopPropagation();reset(1)}}>ВПИСАТЬ</button><button type="button" onClick={(e)=>{e.stopPropagation();reset(4)}}>400%</button><button type="button" onClick={(e)=>{e.stopPropagation();reset(8)}}>800%</button></div>
+    <div className="viewport-actions" onPointerDown={(e)=>e.stopPropagation()}><button type="button" data-pulse="sweep" onClick={(e)=>{e.stopPropagation();reset(1)}}>ВПИСАТЬ</button><button type="button" data-pulse="corners" onClick={(e)=>{e.stopPropagation();reset(4)}}>400%</button><button type="button" data-pulse="orbit" onClick={(e)=>{e.stopPropagation();reset(8)}}>800%</button><button type="button" data-pulse="split" onClick={(e)=>{e.stopPropagation();reset(16)}}>1600%</button></div>
   </div>;
 });
 
@@ -1709,8 +1709,8 @@ const ComparisonSurface = React.memo(function ComparisonSurface({
         externalLoading={loading}
       />
       <div className="comparison-truth">
-        <span>ОРИГИНАЛ · ПРЕВЬЮ 100–400% · FULL 1:1 НА 800%</span>
-        <span>РЕЗУЛЬТАТ · ПРЕВЬЮ 100–400% · FULL 1:1 НА 800%</span>
+        <span>ОРИГИНАЛ · ПРЕВЬЮ ДО 799% · FULL 1:1 ОТ 800%</span>
+        <span>РЕЗУЛЬТАТ · ПРЕВЬЮ ДО 799% · FULL 1:1 ОТ 800%</span>
       </div>
       <div className="compare-tools">
         <span className="live-zoom">ZOOM {zoomLabel}% · MAX {MAX_ZOOM * 100}%</span>
@@ -1734,17 +1734,18 @@ function ImportWindow({ active, progress = 0, status, batch = false, onGame }) {
   </AnimatePresence>;
 }
 
-function DeleteEdgePulse(){
+const EDGE_PULSE_VARIANTS=["orbit","sweep","corners","split","echo"];
+function EdgePulseLayer(){
   const [pulses,setPulses]=useState([]),serial=useRef(0);
   useEffect(()=>{
     const fire=(event)=>{
-      const id=++serial.current,pulse={id,x:Number(event.detail?.x||innerWidth/2),y:Number(event.detail?.y||innerHeight/2)};
+      const detail=event.detail||{},id=++serial.current,pulse={id,x:Number(detail.x||innerWidth/2),y:Number(detail.y||innerHeight/2),variant:detail.variant||"orbit",hue:Number(detail.hue||0),angle:Number(detail.angle||0)};
       setPulses((values)=>[...values.slice(-2),pulse]);
-      setTimeout(()=>setPulses((values)=>values.filter((value)=>value.id!==id)),880);
+      setTimeout(()=>setPulses((values)=>values.filter((value)=>value.id!==id)),980);
     };
-    addEventListener("agr-delete-pulse",fire);return()=>removeEventListener("agr-delete-pulse",fire);
+    addEventListener("agr-edge-pulse",fire);return()=>removeEventListener("agr-edge-pulse",fire);
   },[]);
-  return <div className="delete-edge-pulses" aria-hidden="true">{pulses.map((pulse)=><i key={pulse.id} style={{"--pulse-x":`${pulse.x}px`,"--pulse-y":`${pulse.y}px`}}><b/><b/><b/><b/></i>)}</div>;
+  return <div className="edge-pulses" aria-hidden="true">{pulses.map((pulse)=><i key={pulse.id} className={`pulse-${pulse.variant}`} style={{"--pulse-x":`${pulse.x}px`,"--pulse-y":`${pulse.y}px`,"--pulse-hue":pulse.hue,"--pulse-angle":`${pulse.angle}deg`}}><b/><b/><b/><b/><b/><b/></i>)}</div>;
 }
 
 const BATCH_ROW_HEIGHT=194;
@@ -1757,16 +1758,16 @@ const VirtualBatchList=React.memo(function VirtualBatchList({items,state,backend
   const onScroll=()=>{if(!scrollFrame.current)scrollFrame.current=requestAnimationFrame(measure);};
   const start=Math.max(0,Math.floor(viewport.top/BATCH_ROW_HEIGHT)-2),end=Math.min(items.length,Math.ceil((viewport.top+viewport.height)/BATCH_ROW_HEIGHT)+3);
   return <section ref={node} className="batch-list virtual-batch-list" onScroll={onScroll}>
-    {!items.length&&<div className="empty"><Plus/><h2>Добавьте PNG-файлы</h2><p>Здесь появятся лёгкие превью до и после.</p></div>}
+    {!items.length&&<div className="empty"><Plus/><h2>Добавьте PNG-файлы</h2></div>}
     {!!items.length&&<div className="batch-virtual-spacer" style={{height:items.length*BATCH_ROW_HEIGHT}}>
       {items.slice(start,end).map((item,offset)=>{const i=start+offset,key=item.sourceUrl||item.name||String(i),isRemoving=removingKey===key;return <article className={`batch-row virtualized ${item.importing?"is-importing":""} ${item.failed?"has-error":""} ${isRemoving?"is-removing":""}`} style={{top:i*BATCH_ROW_HEIGHT}} key={key}>
         <Button className="remove-file" quiet danger disabled={state.batchBusy||state.batchImportBusy||Boolean(removingKey)} tip={`Удалить ${item.name} из очереди`} aria-label={`Удалить ${item.name}`} onClick={(event)=>{
           if(removingKey)return;const box=event.currentTarget.getBoundingClientRect();setRemovingKey(key);
-          dispatchEvent(new CustomEvent("agr-delete-pulse",{detail:{x:box.left+box.width/2,y:box.top+box.height/2}}));
+           dispatchEvent(new CustomEvent("agr-edge-pulse",{detail:{x:box.left+box.width/2,y:box.top+box.height/2,variant:"danger",hue:0,angle:0}}));
           removeTimer.current=setTimeout(()=>{const currentIndex=itemsRef.current.findIndex((value)=>(value.sourceUrl||value.name)===key);if(currentIndex>=0)backend?.removeBatchItem(currentIndex);},420);
         }}><X/></Button>
         <div className="thumb">{item.importing?<div className="preview-loader"><i/><span>ПОДГОТОВКА</span></div>:<img loading="lazy" decoding="async" draggable="false" src={item.thumbnailSourceUrl||item.comparisonSourceUrl||item.sourceUrl}/>}<span>BEFORE</span></div>
-        <div className="thumb">{item.resultUrl?<img loading="lazy" decoding="async" draggable="false" src={item.thumbnailResultUrl||item.comparisonResultUrl||item.resultUrl}/>:<p>AFTER<br/>ожидает</p>}<span>AFTER</span></div>
+        <div className="thumb">{item.resultUrl?<img loading="lazy" decoding="async" draggable="false" src={item.thumbnailResultUrl||item.comparisonResultUrl||item.resultUrl}/>:<p>AFTER</p>}<span>AFTER</span></div>
         <div className="file-data"><h3>{item.name}</h3><p>{item.width?`${item.width} × ${item.height} · `:""}{mb(item.sourceMb)} {item.done&&`→ ${mb(item.outputMb)}`}</p><FluidProgress value={item.progress||0}/><ProcessSignal compact progress={item.progress||(item.done?1:0)} status={item.status||item.report}/><div><Button disabled={!item.done} onClick={()=>setScreen(`compare:${i}`)}>СРАВНИТЕЛЬНЫЙ АНАЛИЗ</Button><Button quiet disabled={!item.done} onClick={()=>backend?.openBatchOutput(i)}>ПАПКА</Button></div></div>
       </article>;})}
     </div>}
@@ -2024,7 +2025,7 @@ function JourneyTransition({ journey }) {
         <motion.path className="journey-branch selected" d={selected} initial={{pathLength:0,opacity:.2}} animate={{pathLength:1,opacity:1}} transition={{duration:1.3,ease:[.2,.72,.18,1]}} />
         <circle r="7" className="journey-node"><animateMotion dur="1.3s" fill="freeze" path={selected} keyPoints={journey.reverse?"1;0":"0;1"} keyTimes="0;1" calcMode="linear" /></circle>
       </svg>
-      <div><small>ACTIVE ROUTE</small><strong>{journey.label}</strong><span>ПЕРЕМЕЩЕНИЕ ПО ПОТОКУ</span></div>
+      <div><small>ACTIVE ROUTE</small><strong>{journey.label}</strong></div>
     </motion.div>}
   </AnimatePresence>;
 }
@@ -2056,7 +2057,7 @@ function SecretScene({ active, onDone }) {
 
 function IntroSequence({active,onSkip}){
   return <AnimatePresence>
-    {active&&<motion.div className="intro-sequence" initial={{opacity:1}} exit={{opacity:0,filter:"blur(16px)",scale:1.035}} transition={{duration:.72,ease:[.18,.72,.2,1]}}>
+    {active&&<motion.div className="intro-sequence" initial={{opacity:1}} exit={{opacity:0}} transition={{duration:.72,ease:[.18,.72,.2,1]}}>
       <div className="intro-grid"/>
       <div className="intro-blades">{Array.from({length:34},(_,i)=><i key={i} style={{"--i":i}}/>)}</div>
       <div className="intro-iris"><i/><i/><i/></div>
@@ -2111,19 +2112,17 @@ function App() {
         setContentReady(false);
         setSettings(false);
         dispatchEvent(new CustomEvent("agr-hint", { detail: { open: false } }));
+        setTransitionKind(`${shapeState}>${nextScreen}`);
+        setShapeState(nextScreen);
         routeTimers.current = [
           setTimeout(() => {
-            setTransitionKind(`${shapeState}>${nextScreen}`);
-            setShapeState(nextScreen);
-          }, 320),
-          setTimeout(() => {
             setRoute(next);
-          }, 880),
+          }, 260),
           setTimeout(() => {
             setDiving(false);setRevealing(true);
             setContentReady(true);
-          }, 1450),
-          setTimeout(()=>setRevealing(false),2150),
+          }, 620),
+          setTimeout(()=>setRevealing(false),1280),
         ];
       },
       [route, screen,shapeState],
@@ -2138,6 +2137,16 @@ function App() {
     addEventListener("agr-focus", update);
     return () => removeEventListener("agr-focus", update);
   }, []);
+  useEffect(()=>{
+    const pulse=(event)=>{
+      const button=event.target?.closest?.("button");
+      if(!button||button.disabled||button.classList.contains("remove-file"))return;
+      const rect=button.getBoundingClientRect(),key=button.dataset.route||button.getAttribute("aria-label")||button.textContent||button.className||"button";
+      let hash=2166136261;for(const char of key){hash^=char.charCodeAt(0);hash=Math.imul(hash,16777619);}hash>>>=0;
+      dispatchEvent(new CustomEvent("agr-edge-pulse",{detail:{x:rect.left+rect.width/2,y:rect.top+rect.height/2,variant:button.dataset.pulse||EDGE_PULSE_VARIANTS[hash%EDGE_PULSE_VARIANTS.length],hue:(hash*37)%360,angle:(hash*29)%360}}));
+    };
+    addEventListener("click",pulse);return()=>removeEventListener("click",pulse);
+  },[]);
   useEffect(() => () => routeTimers.current.forEach(clearTimeout), []);
   useEffect(()=>{
     if(!intro)return undefined;
@@ -2243,7 +2252,7 @@ function App() {
       </div>
       <HoldSpace progress={hold} point={holdPoint}/>
       <CursorEffects effects={effects}/>
-      <DeleteEdgePulse/>
+      <EdgePulseLayer/>
       <TooltipLayer />
       <Header
         screen={screen}
@@ -2255,14 +2264,14 @@ function App() {
         setScreen={setScreen}
         state={state}
       />
-      <AnimatePresence initial={false} mode="wait">
+      <AnimatePresence initial={false} mode="sync">
         <motion.div
           className="route-stage"
           key={route}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: HEADLESS_TEST ? 0 : .38, ease: [0.3, 0.72, 0.2, 1] }}
+          transition={{ duration: HEADLESS_TEST ? 0 : .56, ease: [0.22, 0.72, 0.2, 1] }}
         >
           {page}
         </motion.div>

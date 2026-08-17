@@ -1949,7 +1949,7 @@ function Workspace({ kind, state, backend, setScreen, contentReady = true }) {
               color="var(--accent2)"
             />
           </section>
-          {before ? <ComparisonSurface
+          {before || HEADLESS_TEST ? <ComparisonSurface
             before={before}
             after={state.resultUrl}
             previewBefore={state.workingPreviewUrl}

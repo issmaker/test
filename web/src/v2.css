@@ -194,21 +194,49 @@
   100%{background-position:7% 18%,91% 79%,0 0}
 }
 
-/* The panel under the pointer/focus becomes the front optical plane. */
-.route-stage :is(.hero-panel,.workspace-head,.telemetry,.npm-command-top,.batch-import-panel,.batch-list,.analysis-summary,.compare-card){
-  transform:translateZ(0) scale(1);
-  opacity:.93;
-  transition:opacity .56s ease,transform .62s cubic-bezier(.2,.72,.18,1),box-shadow .62s ease,filter .62s ease!important;
+/* v5 · the reference panel is the permanent material. Content never blurs,
+   scales or dims when a pointer enters a window. */
+.topbar{
+  background:transparent!important;
+  background-image:none!important;
+  border:0!important;
+  box-shadow:none!important;
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+}
+.route-stage :is(.hero-panel,.workspace-head,.telemetry,.npm-command-top,.batch-import-panel,.batch-list,.analysis-summary,.compare-card),
+:is(.settings-panel,.image-load-window,.blade-game-shell,.right-dock){
+  opacity:1!important;
+  transform:none!important;
+  filter:none!important;
+  border-color:#bde9ff35!important;
+  background:
+    radial-gradient(ellipse at 4% 18%,color-mix(in srgb,var(--accent) 25%,#4d93ff20),transparent 43%),
+    linear-gradient(128deg,#15354bcf 0,#0a2232e8 34%,#061725ee 68%,#04121df2 100%)!important;
+  box-shadow:inset 0 1px #e8f9ff4d,inset 0 -30px 66px #00101a55,0 22px 72px #0009!important;
+  backdrop-filter:blur(34px) saturate(1.22)!important;
+  -webkit-backdrop-filter:blur(34px) saturate(1.22)!important;
+  transition:border-color .58s ease,box-shadow .72s ease,background-color .72s ease!important;
 }
 .route-stage :is(.hero-panel,.workspace-head,.telemetry,.npm-command-top,.batch-import-panel,.batch-list,.analysis-summary,.compare-card):is(:hover,:focus-within){
-  z-index:3;
-  opacity:1;
-  transform:translateY(-2px) scale(1.004);
-  filter:brightness(1.065) saturate(1.04);
-  box-shadow:inset 0 1px #f7ffff66,inset 0 -28px 64px #0010195c,0 31px 88px #000b,0 0 46px color-mix(in srgb,var(--accent) 16%,transparent)!important;
+  opacity:1!important;
+  transform:none!important;
+  filter:none!important;
 }
-.route-stage:has(:is(.hero-panel,.workspace-head,.telemetry,.npm-command-top,.batch-import-panel,.batch-list,.analysis-summary,.compare-card):is(:hover,:focus-within))
-  :is(.hero-panel,.workspace-head,.telemetry,.npm-command-top,.batch-import-panel,.batch-list,.analysis-summary,.compare-card):not(:hover):not(:focus-within){opacity:.78;filter:brightness(.86) saturate(.9)}
+.app:has(.button:hover) .route-stage>*,
+.app:has(.right-dock button:hover) .route-stage,
+.app:has(.topbar .button:hover) .route-stage,
+.app:has(.button:hover) .route-stage>*{
+  filter:none!important;
+  transform:none!important;
+}
+/* The original one-second sidebar focus remains, but it only strengthens
+   the matte edge and never touches text sharpness or the background scene. */
+.app:has(.right-dock button:hover) .route-stage :is(.hero-panel,.workspace-head,.telemetry,.npm-command-top,.batch-import-panel,.batch-list,.analysis-summary,.compare-card){
+  border-color:color-mix(in srgb,var(--accent) 42%,#dff7ff55)!important;
+  box-shadow:inset 0 1px #f4ffff72,inset 0 -34px 72px #00101a62,0 25px 78px #000a,0 0 38px color-mix(in srgb,var(--accent) 13%,transparent)!important;
+  transition-delay:.82s!important;
+}
 
 /* Empty states are an action surface, not explanatory copy. */
 .empty-drop-zone{

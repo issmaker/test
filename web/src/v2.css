@@ -187,6 +187,7 @@
 }
 .hero-panel,.settings-panel,.image-load-window{animation-duration:29s}
 .telemetry,.analysis-summary,.batch-import-panel{animation-delay:-9s}
+.is-headless-test :is(.topbar,.hero-panel,.workspace-head,.telemetry,.npm-command-top,.batch-import-panel,.batch-list,.analysis-summary,.compare-card,.settings-panel,.image-load-window,.blade-game-shell,.right-dock){animation:none!important}
 @keyframes v4-glass-drift{
   0%{background-position:3% 2%,96% 98%,0 0}
   48%{background-position:18% 11%,84% 88%,0 0}

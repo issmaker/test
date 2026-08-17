@@ -758,7 +758,7 @@ function Button({ children, quiet = false, danger = false, tip, className = "", 
     <motion.button
       layout={Boolean(layoutId)}
       layoutId={layoutId}
-      transition={layoutId ? { layout: { duration: .58, ease: [.2, .72, .18, 1] } } : undefined}
+      transition={layoutId ? { layout: { duration: HEADLESS_TEST ? 0 : .58, ease: [.2, .72, .18, 1] } } : undefined}
       className={`button ${quiet ? "quiet" : ""} ${danger ? "danger" : ""} ${className}`.trim()}
       data-no-hold
       onPointerMove={move}
@@ -2264,7 +2264,7 @@ function App() {
   return (
     <div
       ref={appRoot}
-      className={`app theme-${theme} quality-${quality} scene-${screen} ${diving ? "is-diving" : ""} ${revealing?"is-revealing":""} ${intro?"is-intro":""} ${hold>.01?"is-holding":""} ${secret?"has-secret":""} ${state.busy||state.batchBusy||state.batchImportBusy||state.previewBusy?"is-processing":""}`}
+      className={`app theme-${theme} quality-${quality} scene-${screen} ${HEADLESS_TEST?"is-headless-test":""} ${diving ? "is-diving" : ""} ${revealing?"is-revealing":""} ${intro?"is-intro":""} ${hold>.01?"is-holding":""} ${secret?"has-secret":""} ${state.busy||state.batchBusy||state.batchImportBusy||state.previewBusy?"is-processing":""}`}
       style={{"--ui-brightness":brightness,"--effect-level":effects,"--hold":hold}}
     >
       <BackgroundFlowLines/>

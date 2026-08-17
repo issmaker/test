@@ -72,7 +72,7 @@ const EMPTY = {
 };
 const HEADLESS_TEST = new URLSearchParams(location.search).has("headless-test");
 const TEST_TEXTURE = "qrc:/icons/liquid.svg";
-const TEST_FULL_TEXTURE = "qrc:/icons/house.svg";
+const TEST_FULL_TEXTURE = "qrc:/icons/lucide/house.svg";
 const ROUTES = [
   ["home", "Главная", House],
   ["npm", "НПМ · 3 MB", ScanLine],
@@ -1614,7 +1614,7 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({
         }catch{failedDetail++;if(cancelled)break;}
       }
       detailBusy=false;
-      if(!cancelled){const ready=expectedDetail>0&&loadedDetail===expectedDetail;setDetailState(ready?"ready":failedDetail?"fallback":"preview");if(ready)window.__AGR_FULL_DETAIL_READY__=(window.__AGR_FULL_DETAIL_READY__||0)+1;}
+      if(!cancelled){const ready=expectedDetail>0&&loadedDetail===expectedDetail;setDetailState(ready?"ready":failedDetail?"fallback":"preview");if(ready){window.__AGR_FULL_DETAIL_READY__=(window.__AGR_FULL_DETAIL_READY__||0)+1;window.__AGR_FULL_DETAIL_SCALE__=target.current.s;}}
       if(detailPending&&!cancelled){detailPending=false;setTimeout(()=>detailRequest.current(),0);}
     };
     return () => { cancelled = true;controller.abort();alive.current = false; cancelAnimationFrame(frame.current); frame.current = 0;clearTimeout(interactionTimer.current);clearTimeout(detailTimer.current);interaction.current=false;dispatchEvent(new CustomEvent("agr-drag",{detail:false}));detailRequest.current=()=>{};release(); };

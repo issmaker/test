@@ -208,7 +208,8 @@
    The former header band made viewport-centering look correct; once that band
    became transparent, the same 50% anchor appeared slightly too low. */
 .right-dock{
-  top:calc(50% - 22px)!important;
+  top:50%!important;
+  translate:0 -50%!important;
 }
 .route-stage :is(.hero-panel,.workspace-head,.telemetry,.npm-command-top,.batch-import-panel,.batch-list,.analysis-summary,.compare-card),
 :is(.settings-panel,.image-load-window,.blade-game-shell,.right-dock){

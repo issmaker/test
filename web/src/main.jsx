@@ -1,2358 +1,39 @@
-import React, {
-  useCallback,
-  useEffect,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import { createRoot } from "react-dom/client";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Environment, Lightformer, Sparkles } from "@react-three/drei";
-import { AnimatePresence, motion } from "motion/react";
-import { gsap } from "gsap";
-import {
-  Activity,
-  Columns2,
-  Cpu,
-  FolderOpen,
-  Focus,
-  Gamepad2,
-  House,
-  Images,
-  Maximize2,
-  Minus,
-  Palette,
-  Plus,
-  ScanLine,
-  X,
-} from "lucide-react";
-import * as THREE from "three";
-import BladeGrid from "./BladeGrid.jsx";
-import "./style.css";
-import "./v47.css";
-import "./v48.css";
-import "./v49.css";
-import "./v54.css";
-import "./v59.css";
-import "./v2.css";
+YªçŠx-®éÜj×¢ëiºÚ+Š§j[h‘éÜ¢éíß½µÑ:-jZ.¶›­–)Þ³V–×÷'B&V7BÂ°¢W6T6ÆÆ&6²À¢W6TVffV7BÀ¢W6T–BÀ¢W6TÖVÖòÀ¢W6U&VbÀ¢W6U7FFRÀ§Òg&öÒ'&V7B#°¦–×÷'B²7&VFU&ö÷BÒg&öÒ'&V7BÖFöÒö6Æ–VçB#°¦–×÷'B²6çf2ÂW6Tg&ÖRÂW6UF‡&VRÒg&öÒ$&V7B×F‡&VRöf–&W"#°¦–×÷'B²Vçf—&öæÖVçBÂÆ–v‡Ff÷&ÖW"Â7&¶ÆW2Òg&öÒ$&V7B×F‡&VRöG&V’#°¦–×÷'B²æ–ÖFU&W6Væ6RÂÖ÷F–öâÒg&öÒ&Ö÷F–öâ÷&V7B#°¦–×÷'B²w6Òg&öÒ&w6#°¦–×÷'B°¢7F—f—G’À¢6öÇVÖç3"À¢7RÀ¢föÆFW$÷VâÀ¢fö7W2À¢vÖWC"À¢†÷W6RÀ¢–ÖvW2À¢Ö†–Ö—¦S"À¢Ö–çW2À¢ÆWGFRÀ¢ÇW2À¢66äÆ–æRÀ¢‚À§Òg&öÒ&ÇV6–FR×&V7B#°¦–×÷'B¢2D…$TRg&öÒ'F‡&VR#°¦–×÷'B&ÆFTw&–Bg&öÒ"âô&ÆFTw&–Bæ§7‚#°¦–×÷'B"â÷7G–ÆRæ772#°¦–×÷'B"â÷cCræ772#°¦–×÷'B"â÷cC‚æ772#°¦–×÷'B"â÷cC’æ772#°¦–×÷'B"â÷cSBæ772#°¦–×÷'B"â÷cS’æ772#°¦–×÷'B"â÷c"æ772#° ¦6öç7BTÕE’Ò°¢6÷W&6UW&Ã¢""À¢6÷W&6TæÖS¢""À¢&W7VÇEW&Ã¢""À¢&VfW&Væ6UW&Ã¢""À¢v÷&¶–æu&Wf–WuW&Ã¢""À¢7FGW3¢-	-½]-Rär"À¢&W÷'C¢""À¢÷WGWEFƒ¢""À¢&öw&W73¢À¢6÷W&6Tf–ÆTÖ#¢À¢÷WGWDf–ÆTÖ#¢À¢6÷W&6Uv–GFƒ¢À¢6÷W&6T†V–v‡C¢À¢v÷&¶–æuv–GFƒ¢À¢v÷&¶–æt†V–v‡C¢À¢6÷W&6T—4Æ&vS¢fÇ6RÀ¢'W7“¢fÇ6RÀ¢&Wf–Wt'W7“¢fÇ6RÀ¢&Wf–Wu&öw&W73¢À¢&öw&W74†—7F÷'“¢µÒÀ¢7F—f—G”†—7F÷'“¢µÒÀ¢&F6„—FV×3¢µÒÀ¢&F6„'W7“¢fÇ6RÀ¢&F6…&öw&W73¢À¢&F6…7FGW3¢-	Mí-Í-RärÝM½²"À¢&F6„–×÷'D'W7“¢fÇ6RÀ¢&F6„–×÷'E&öw&W73¢À¢&F6„–×÷'E7FGW3¢%ärÝR-½Ý²"À¢&F6…v÷&¶W'3¢À¢&F6…&öw&W74†—7F÷'“¢µÒÀ¢&F6„7F—f—G”†—7F÷'“¢µÒÀ§Ó°¦6öç7B„TDÄU55õDU5BÒæWrU$Å6V&6…&×2†Æö6F–öâç6V&6‚’æ†2‚&†VFÆW72×FW7B"“°¦6öç7BDU5EõDU…EU$RÒ'&3¢ö–6öç2öÆ—V–Bç7fr#°¦6öç7BDU5EôeTÄÅõDU…EU$RÒ&FF¦–ÖvR÷æs¶&6ScBÆ•d$õ's´vvôå5V„UVtT$4”5CTEVÄUe#C&Õ‡£„%Gtfu”c’¶ÆGt$¥%STW&´¦vvsÓÒ#°¦6öç7B$õUDU2Ò°¢²&†öÖR"Â-	=½-Ýò"Â†÷W6UÒÀ¢²&çÒ"Â-	Ý	ý	Â+r2Ô""Â66äÆ–æUÒÀ¢²&&F6‚"Â-
+-]­-=²"Â–ÖvW5ÒÀ¢²&6ö×&R"Â-
+-Ý]ÝR"Â6öÇVÖç3%ÒÀ¢²&vÖR"Â$&ÆFRw&–B"ÂvÖWC%ÒÀ¥Ó°¦6öç7B$U4UE2Ò°¢²'&÷6R"Â%&÷6R6–væÂ"Â"6fc6c“2%ÒÀ¢²&7–â"Â$&7F–27–â"Â"33vSvfb%ÒÀ¢²'f–öÆWB"Â%VÇG&f–öÆWB"Â"3–s&fb%ÒÀ¢²&Ö&W""Â$Ö&W"VÇ6R"Â"6ffCC"%ÒÀ¢²&VÖW&ÆB"Â$VÖW&ÆBÖG&—‚"Â"3–Sc–"%ÒÀ¢²&6ö&ÇB"Â$VÆV7G&–26ö&ÇB"Â"3#ss†fb%ÒÀ¥Ó°¦6öç7BD„TÔUô4ôÄõ%2Ò°¢&÷6S¢²"6fc6c“2"Â"3†3SFfb%ÒÀ¢7–ã¢²"33vSvfb"Â"33ƒs–fb%ÒÀ¢f–öÆWC¢²"6cv6fb"Â"6cVFfb%ÒÀ¢Ö&W#¢²"6ffCC""Â"6fcFcs2%ÒÀ¢VÖW&ÆC¢²"3–Sc–""Â"3#†C–cr%ÒÀ¢6ö&ÇC¢²"3#ss†fb"Â"6Cfcffb%ÒÀ§Ó°¦6öç7BTÄ•E•ôÄUdTÅ2Ò²&V6ò"Â&&Ææ6VB"Â&Ö‚%Ó°¦6öç7BÔ…õ¤ôôÒÒc°¦6öç7BDUD”Åõ¤ôôÒÒrã“S° ¦gVæ7F–öâ&VE&VfW&Væ6R†¶W’ÂÆÆ÷vVBÂfÆÆ&6²’°¢G'’°¢6öç7BfÇVRÒÆö6Å7F÷&vRævWD—FVÒ†¶W’“°¢&WGW&âÆÆ÷vVBæ–æ6ÇVFW2‡fÇVR’òfÇVR¢fÆÆ&6³°¢Ò6F6‚°¢&WGW&âfÆÆ&6³°¢Ð§Ð ¦gVæ7F–öâw&—FU&VfW&Væ6R†¶W’ÂfÇVR’°¢G'’°¢Æö6Å7F÷&vRç6WD—FVÒ†¶W’ÂfÇVR“°¢Ò6F6‚°¢òòF†RT’&VÖ–ç2W6&ÆRv†Vâ6‡&öÖ—VÒ7F÷&vR—2F—6&ÆVB÷"Væf–Æ&ÆRà¢Ð§Ð¦gVæ7F–öâ&VDçVÖ&W%&VfW&Væ6R†¶W’ÆfÆÆ&6²ÆÖ–âÆÖ‚—°¢G'—¶6öç7BfÇVSÔçVÖ&W"†Æö6Å7F÷&vRævWD—FVÒ†¶W’’“·&WGW&âçVÖ&W"æ—4f–æ—FR‡fÇVR“ôÖF‚æÖ‚†Ö–âÄÖF‚æÖ–â†Ö‚ÇfÇVR’“¦fÆÆ&6³·Ö6F6‡·&WGW&âfÆÆ&6³·Ð§Ð ¦gVæ7F–öâW6T&6¶VæB‚’°¢6öç7B¶&6¶VæBÂ6WD&6¶VæEÒÒW6U7FFR†çVÆÂ’À¢·7FFRÂ6WE7FFUÒÒW6U7FFR„TÕE’“°¢W6TVffV7B‚‚’Óâ°¢–b‚v–æF÷rçCòçvV$6†ææVÅG&ç7÷'BÇÂv–æF÷råvV$6†ææVÂ’&WGW&ã°¢æWrv–æF÷råvV$6†ææVÂ‡v–æF÷rçBçvV$6†ææVÅG&ç7÷'BÂ†6†ææVÂ’Óâ°¢6öç7B’Ò6†ææVÂæö&¦V7G2æ÷F–Ö—¦W#°¢6WD&6¶VæB†’“°¢ÆWBg&ÖRÒÂF–ÖW"ÒÂÆ7E6æ6†÷BÒ°¢6öç7B6öÖÖ—E6æ6†÷BÒ‚’Óâ°¢g&ÖRÒ°¢F–ÖW"Ò°¢Æ7E6æ6†÷BÒW&f÷&Öæ6Rææ÷r‚“°¢’ç6æ6†÷B‚‡b’Óâ6WE7FFR‡²ââäTÕE’ÂââçbÒ’“°¢Ó°¢6öç7B&Vg&W6‚Ò‚’Óâ°¢–b†g&ÖRÇÂF–ÖW"’&WGW&ã°¢òò&F6‚&öw&W726–væÂ6â'&—fRF÷¦Vç2öbF–ÖW2W"6V6öæBâ¢òò6ö×ÆWFR6æ6†÷BÇ6ò6W&–Æ—6W2F†Rv†öÆRVWVRÂ6ò6'&–FvP¢òòG&ff–2v—F†÷WB6Æ÷v–æræF—fRv÷&²÷"W6W"–çWBà¢6öç7Bv—BÒÖF‚æÖ‚ƒÂSRÒ‡W&f÷&Öæ6Rææ÷r‚’ÒÆ7E6æ6†÷B’“°¢–b‡v—Bâ’F–ÖW"Ò6WEF–ÖV÷WB‚‚’Óâ²F–ÖW"Ò²g&ÖRÒ&WVW7Dæ–ÖF–öäg&ÖR†6öÖÖ—E6æ6†÷B“²ÒÂv—B“°¢VÇ6Rg&ÖRÒ&WVW7Dæ–ÖF–öäg&ÖR†6öÖÖ—E6æ6†÷B“°¢Ó°¢°¢'6÷W&6UW&Ä6†ævVB"À¢'&W7VÇEW&Ä6†ævVB"À¢'&VfW&Væ6UW&Ä6†ævVB"À¢'&Wf–Wt6†ævVB"À¢'7FGW46†ævVB"À¢'&W÷'D6†ævVB"À¢&÷WGWEF„6†ævVB"À¢&÷WGWE6—¦T6†ævVB"À¢'6÷W&6T–æfô6†ævVB"À¢'&Wf–Wt'W7”6†ævVB"À¢'&Wf–Wu&öw&W746†ævVB"À¢'&öw&W746†ævVB"À¢&'W7”6†ævVB"À¢'FVÆVÖWG'”6†ævVB"À¢&&F6„—FV×46†ævVB"À¢&&F6„'W7”6†ævVB"À¢&&F6…&öw&W746†ævVB"À¢&&F6…7FGW46†ævVB"À¢&&F6„–×÷'D'W7”6†ævVB"À¢&&F6„–×÷'E&öw&W746†ævVB"À¢&&F6„–×÷'E7FGW46†ævVB"À¢&&F6…v÷&¶W'46†ævVB"À¢&&F6…FVÆVÖWG'”6†ævVB"À¢Òæf÷$V6‚‚†â’Óâ•¶åÓòæ6öææV7B‡&Vg&W6‚’“°¢&Vg&W6‚‚“°¢Ò“°¢ÒÂµÒ“°¢&WGW&â²&6¶VæBÂ7FFRÓ°§Ð ¦gVæ7F–öâ†–çB‡²FW‡BÂ6†–ÆG&VâÒ’°¢–b‚FW‡B’&WGW&â6†–ÆG&Vã°¢6öç7B6†–ÆBÒ&V7Bä6†–ÆG&VâæöæÇ’†6†–ÆG&Vâ“°¢6öç7BV&Æ—6‚Ò†RÂ÷VâÒG'VR’Óà¢F—7F6„WfVçB€¢æWr7W7FöÔWfVçB‚&w"Ö†–çB"Â°¢FWF–Ã¢²÷VâÂFW‡BÂƒ¢Sòæ6Æ–VçE‚ÇÂÂ“¢Sòæ6Æ–VçE’ÇÂÒÀ¢Ò’À¢“°¢&WGW&â&V7Bæ6ÆöæTVÆVÖVçB†6†–ÆBÂ°¢öåö–çFW$VçFW#¢†R’Óâ°¢6†–ÆBç&÷2æöåö–çFW$VçFW#òâ†R“°¢V&Æ—6‚†R“°¢ÒÀ¢öåö–çFW$Ö÷fS¢†R’Óâ°¢6†–ÆBç&÷2æöåö–çFW$Ö÷fSòâ†R“°¢–b‚Ræ7W'&VçEF&vWBæ†5ö–çFW$6GW&Sòâ†Rçö–çFW$–B’’V&Æ—6‚†R“°¢ÒÀ¢öåö–çFW$ÆVfS¢†R’Óâ°¢6†–ÆBç&÷2æöåö–çFW$ÆVfSòâ†R“°¢V&Æ—6‚†RÂfÇ6R“°¢ÒÀ¢öäfö7W3¢†R’Óâ°¢6†–ÆBç&÷2æöäfö7W3òâ†R“°¢6öç7B&V7BÒRæ7W'&VçEF&vWBævWD&÷VæF–æt6Æ–VçE&V7B‚“°¢V&Æ—6‚‡²6Æ–VçEƒ¢&V7BæÆVgB²&V7Bçv–GF‚ò"Â6Æ–VçE“¢&V7Bæ&÷GFöÒÒ“°¢ÒÀ¢öä&ÇW#¢†R’Óâ°¢6†–ÆBç&÷2æöä&ÇW#òâ†R“°¢V&Æ—6‚†RÂfÇ6R“°¢ÒÀ¢Ò“°§Ð ¦gVæ7F–öâFööÇF—Æ–W"‚’°¢6öç7B¶†–çBÂ6WD†–çEÒÒW6U7FFR‡²÷Vã¢fÇ6RÂFW‡C¢""Âƒ¢Â“¢Ò“°¢W6TVffV7B‚‚’Óâ°¢6öç7BWFFRÒ†R’Óâ6WD†–çB†RæFWF–Â“°¢FDWfVçDÆ—7FVæW"‚&w"Ö†–çB"ÂWFFR“°¢&WGW&â‚’Óâ&VÖ÷fTWfVçDÆ—7FVæW"‚&w"Ö†–çB"ÂWFFR“°¢ÒÂµÒ“°¢6öç7B‚ÒÖF‚æÖ‚ƒ"ÂÖF‚æÖ–â†–ææW%v–GF‚Ò3“"Â†–çBç‚²‚’“°¢6öç7B’Ò†–çBç’â–ææW$†V–v‡BÒ“ò†–çBç’ÒC‚¢†–çBç’²ƒ°¢&WGW&â€¢Äæ–ÖFU&W6Væ6Sà¢¶†–çBæ÷Vâbb€¢ÆÖ÷F–öâæF—`¢6Æ74æÖSÒ&fÆöF–ærÖ†–çB ¢7G–ÆS×·²ÆVgC¢‚ÂF÷¢’×Ð¢–æ—F–Ã×·²÷6—G“¢Â66ÆS¢ã“bÂ“¢ÓB×Ð¢æ–ÖFS×·²÷6—G“¢Â66ÆS¢Â“¢×Ð¢W†—C×·²÷6—G“¢Â66ÆS¢ã“‚×Ð¢à¢¶†–çBçFW‡GÐ¢ÂöÖ÷F–öâæF—cà¢—Ð¢Âôæ–ÖFU&W6Væ6Sà¢“°§Ð ¦gVæ7F–öâFV6öFUFW‡B‡²6†–ÆG&VâÒ’°¢6öç7B÷&–v–æÂÒ7G&–ær†6†–ÆG&Vâ’À¢·fÇVRÂ6WEfÇVUÒÒW6U7FFR†÷&–v–æÂ’À¢g&ÖRÒW6U&Vbƒ’À¢vÇ—‡2Ò#ÃâõÅÇ·ÕµÒ2R¢¾(	B#°¢6öç7BFV6öFRÒ†WfVçB’Óâ°¢6æ6VÄæ–ÖF–öäg&ÖR†g&ÖRæ7W'&VçB“°¢6öç7B7F'BÒW&f÷&Öæ6Rææ÷r‚’Æ&÷ƒÖWfVçBæ7W'&VçEF&vWBævWD&÷VæF–æt6Æ–VçE&V7B‚’Æg&öÔÆVgCÖWfVçBæ6Æ–VçEƒÆ&÷‚æÆVgB¶&÷‚çv–GF‚ó#°¢6öç7B'VâÒ†æ÷r’Óâ°¢6öç7BÒÖF‚æÖ–âƒÂ†æ÷rÒ7F'B’òS’À¢f—†VBÒÖF‚æfÆö÷"†÷&–v–æÂæÆVæwF‚¢“°¢6WEfÇVR€¢÷&–v–æÀ¢ç7Æ—B‚""¢æÖ‚†2Â’’Óà¢2ÓÓÒ" ¢ò0¢¢†g&öÔÆVgCö“¦÷&–v–æÂæÆVæwF‚ÓÖ’’Âf—†V@¢ò0¢¢vÇ—‡5´ÖF‚æfÆö÷"„ÖF‚ç&æFöÒ‚’¢vÇ—‡2æÆVæwF‚•ÒÀ¢¢æ¦ö–â‚""’À¢“°¢–b‡Â’g&ÖRæ7W'&VçBÒ&WVW7Dæ–ÖF–öäg&ÖR‡'Vâ“°¢Ó°¢g&ÖRæ7W'&VçBÒ&WVW7Dæ–ÖF–öäg&ÖR‡'Vâ“°¢Ó°¢&WGW&â€¢Ç7â6Æ74æÖSÒ&FV6öFR×FW‡B"öåö–çFW$VçFW#×¶FV6öFWÓà¢·fÇVWÐ¢Â÷7ãà¢“°§Ð ¦gVæ7F–öâ7W'6÷%G&–Â‡²7F—fRÒ’°¢6öç7BF÷G2ÒW6U&Vb…µÒ’À¢F&vWBÒW6U&Vb‡²ƒ¢–ææW%v–GF‚ò"Â“¢–ææW$†V–v‡Bò"Ò’À¢ö–çG2ÒW6U&Vb„'&’æg&öÒ‡²ÆVæwFƒ¢"ÒÂ‚’Óâ‡²ââçF&vWBæ7W'&VçBÒ’’“°¢W6TVffV7B‚‚’Óâ°¢–b‚7F—fR’&WGW&âVæFVf–æVC°¢6öç7BÖ÷fRÒ†R’Óâ°¢F&vWBæ7W'&VçBÒ²ƒ¢Ræ6Æ–VçE‚Â“¢Ræ6Æ–VçE’Ó°¢Ó°¢ÆWB&c°¢6öç7BF–6²Ò‚’Óâ°¢ÆWBÆVBÒF&vWBæ7W'&VçC°¢ö–çG2æ7W'&VçBæf÷$V6‚‚‡Â’’Óâ°¢6öç7BV6RÒã#‚Ò’¢ã#°¢ç‚³Ò†ÆVBç‚Òç‚’¢V6S°¢ç’³Ò†ÆVBç’Òç’’¢V6S°¢F÷G2æ7W'&VçE¶•Óòç7G–ÆRç6WE&÷W'G’€¢'G&ç6f÷&Ò"À¢G&ç6ÆFS6B‚G·ç‡×‚ÂG·ç—×‚Ã’G&ç6ÆFR‚ÓSRÂÓSR’66ÆR‚G³Ò’òWÒ–À¢“°¢ÆVBÒ°¢Ò“°¢&bÒ&WVW7Dæ–ÖF–öäg&ÖR‡F–6²“°¢Ó°¢FDWfVçDÆ—7FVæW"‚'ö–çFW&Ö÷fR"ÂÖ÷fR“°¢F–6²‚“°¢&WGW&â‚’Óâ°¢&VÖ÷fTWfVçDÆ—7FVæW"‚'ö–çFW&Ö÷fR"ÂÖ÷fR“°¢6æ6VÄæ–ÖF–öäg&ÖR‡&b“°¢Ó°¢ÒÂ¶7F—fUÒ“°¢–b‚7F—fR’&WGW&âçVÆÃ°¢&WGW&â€¢ÆF—b6Æ74æÖSÒ&7W'6÷"×G&–Â#à¢·ö–çG2æ7W'&VçBæÖ‚…òÂ’’Óâ€¢Æ’¶W“×¶—Ò&Vc×²†VÂ’Óâ†F÷G2æ7W'&VçE¶•ÒÒVÂ—Òóà¢’—Ð¢ÂöF—cà¢“°§Ð ¦gVæ7F–öâÖ&–VçD&6¶G&÷‡²F†VÖRÂ6V7&WBÂ7F—fRÒ’°¢6öç7B·Â6WEÒÒW6U7FFR‡²ƒ¢ãRÂ“¢ãRÒ’À¢&bÒW6U&Vbƒ’À¢&ö÷BÒW6U&Vb†çVÆÂ’À¢VæW&w’ÒW6U&Vb‡²fÇVS¢Ò“°¢W6TVffV7B‚‚’Óâ°¢–b‚7F—fR’°¢6WE‡²ƒ¢ãRÂ“¢ãRÒ“°¢&WGW&âVæFVf–æVC°¢Ð¢6öç7BÖ÷fRÒ†R’Óâ°¢6æ6VÄæ–ÖF–öäg&ÖR‡&bæ7W'&VçB“°¢&bæ7W'&VçBÒ&WVW7Dæ–ÖF–öäg&ÖR‚‚’Óà¢6WE‡²ƒ¢Ræ6Æ–VçE‚ò–ææW%v–GF‚Â“¢Ræ6Æ–VçE’ò–ææW$†V–v‡BÒ’À¢“°¢Ó°¢FDWfVçDÆ—7FVæW"‚'ö–çFW&Ö÷fR"ÂÖ÷fR“°¢&WGW&â‚’Óâ&VÖ÷fTWfVçDÆ—7FVæW"‚'ö–çFW&Ö÷fR"ÂÖ÷fR“°¢ÒÂ¶7F—fUÒ“°¢W6TVffV7B‚‚’Óâ°¢6öç7B&V7BÒ†R’Óâ°¢6öç7BæöFRÒ&ö÷Bæ7W'&VçC°¢–b‚æöFR’&WGW&ã°¢6öç7BFWF–ÂÒRæFWF–ÂÇÂ·Ó°¢æöFRç7G–ÆRç6WE&÷W'G’‚"ÒÖÖ÷F–öâ×‚"ÂçVÖ&W"†FWF–Âç‚ÇÂ’“°¢æöFRç7G–ÆRç6WE&÷W'G’‚"ÒÖÖ÷F–öâ×’"ÂçVÖ&W"†FWF–Âç’ÇÂ’“°¢VæW&w’æ7W'&VçBçfÇVRÒÖF‚æÖ‚ƒÂÖF‚æÖ–âƒÂçVÖ&W"†FWF–ÂæVæW&w’ÇÂ’’“°¢æöFRç7G–ÆRç6WE&÷W'G’‚"ÒÖVæW&w’"ÂVæW&w’æ7W'&VçBçfÇVR“°¢w6æ¶–ÆÅGvVVç4öb†VæW&w’æ7W'&VçB“°¢w6çFò†VæW&w’æ7W'&VçBÂ°¢fÇVS¢À¢GW&F–öã¢ãs"À¢V6S¢'÷vW#2æ÷WB"À¢÷fW'w&—FS¢G'VRÀ¢öåWFFS¢‚’Óà¢&ö÷Bæ7W'&VçCòç7G–ÆRç6WE&÷W'G’‚"ÒÖVæW&w’"ÂVæW&w’æ7W'&VçBçfÇVR’À¢Ò“°¢Ó°¢FDWfVçDÆ—7FVæW"‚&w"ÖÖ÷F–öâ"Â&V7B“°¢&WGW&â‚’Óâ°¢&VÖ÷fTWfVçDÆ—7FVæW"‚&w"ÖÖ÷F–öâ"Â&V7B“°¢w6æ¶–ÆÅGvVVç4öb†VæW&w’æ7W'&VçB“°¢Ó°¢ÒÂµÒ“°¢6öç7B‚Òç‚¢cÀ¢’Òç’¢“°¢&WGW&â€¢ÆF—`¢&Vc×·&ö÷GÐ¢6Æ74æÖS×¶Ö&–VçBÖ&6¶G&÷G·6V7&WBò'6V7&WBÖVæW&w’"¢"'ÖÐ¢FF×F†VÖS×·F†VÖWÐ¢7G–ÆS×·°¢"ÒÖ×‚#¢G·ç‚¢ÒVÀ¢"ÒÖ×’#¢G·ç’¢ÒVÀ¢"Ò×‚#¢ç‚ÒãRÀ¢"Ò×’#¢ç’ÒãRÀ¢"ÒÖVæW&w’#¢À¢×Ð¢à¢ÆF—b6Æ74æÖSÒ&Ö&–VçBÖvÆ÷r"óà¢Ç7frf–Wt&÷ƒÒ#c“"&W6W'fT7V7E&F–óÒ&æöæR#à¢Ær6Æ74æÖSÒ&f–VÆBÖÆ–æW2#à¢´'&’æg&öÒ‡²ÆVæwFƒ¢rÒÂ…òÂ’’Óâ°¢6öç7B’Ò#"²’¢SRÀ¢BÒÖF‚æÖ‚ƒÂÒÖF‚æ'2‡’Ò’’òS’À¢&VæBÒ‡‚Òƒ’¢ãb¢C°¢&WGW&â€¢ÇF€¢¶W“×¶—Ð¢C×¶ÒÓƒG·—Ò2G³3²&VæGÒG·’Ò“R¢GÒÂG·‚Ò“ÒG·’²‡’Ò’’¢ãGÒÂG·‡ÒG·’²‡’Ò’’¢ã'Ò2G³#“Ò&VæGÒG·’²s‚¢GÒÃcƒG·—ÖÐ¢óà¢“°¢Ò—Ð¢Âösà¢Â÷7fsà¢Æ’6Æ74æÖSÒ&7W'6÷"ÖW&"óà¢ÂöF—cà¢“°§Ð ¦gVæ7F–öâfV7F÷%67VÇGW&R‚’°¢&WGW&â€¢ÆF—b6Æ74æÖSÒ'fV7F÷"×67VÇGW&R"&–Ö†–FFVãÒ'G'VR#à¢Ç7frf–Wt&÷ƒÒ##sc"&W6W'fT7V7E&F–óÒ'„Ö–E”Ö–B6Æ–6R#à¢ÆFVg3à¢ÆÆ–æV$w&F–VçB–CÒ'fV7F÷"ÖfÆ÷r"ƒÒ#"“Ò#"ƒ#Ò#"“#Ò##à¢Ç7F÷7F÷6öÆ÷#Ò'f"‚ÒÖ66VçC"’"óà¢Ç7F÷öfg6WCÒ"ãC‚"7F÷6öÆ÷#Ò'f"‚ÒÖ66VçB’"óà¢Ç7F÷öfg6WCÒ#"7F÷6öÆ÷#Ò"6ffb"óà¢ÂöÆ–æV$w&F–VçCà¢Æf–ÇFW"–CÒ'fV7F÷"ÖvÆ÷r#à¢ÆfTvW76–ä&ÇW"7FDFWf–F–öãÒ#r"&W7VÇCÒ&&ÇW""óà¢ÆfTÖW&vSà¢ÆfTÖW&vTæöFR–ãÒ&&ÇW""óà¢ÆfTÖW&vTæöFR–ãÒ%6÷W&6Tw&†–2"óà¢ÂöfTÖW&vSà¢Âöf–ÇFW#à¢ÂöFVg3à¢Ær6Æ74æÖSÒ'fV7F÷"Ö6÷&R"f–ÆÃÒ&æöæR"7G&ö¶TÆ–æV6Ò'&÷VæB#à¢´'&’æg&öÒ‡²ÆVæwFƒ¢rÒÂ…òÂ’’Óâ€¢Ç&V7@¢¶W“×¶—Ð¢ƒ×³C3²’¢7Ð¢“×³ƒR²’¢Ð¢v–GFƒ×³3ƒÒ’¢#gÐ¢†V–v‡C×³3s‚Ò’¢#Ð¢'ƒ×³‚Ò’¢‡Ð¢G&ç6f÷&Ó×¶&÷FFR‚G¶’¢"Ò3gÒc#3sB–Ð¢7G&ö¶S×¶’ÓÓÒ2ò'W&Â‚7fV7F÷"ÖfÆ÷r’"¢’R"ò'f"‚ÒÖ66VçC"’"¢'f"‚ÒÖ66VçB’'Ð¢7G&ö¶Uv–GFƒ×¶’ÓÓÒ2ò"ã‚¢ã‚²’¢ã'Ð¢÷6—G“×¶’ÓÓÒ2òãs"¢ã²’¢ã#WÐ¢f–ÇFW#×¶’ÓÓÒ2ò'W&Â‚7fV7F÷"ÖvÆ÷r’"¢VæFVf–æVGÐ¢óà¢’—Ð¢Æ6—&6ÆR7ƒÒ#c#"7“Ò#3sB"#Ò#SB"7G&ö¶SÒ'f"‚ÒÖ66VçB’"÷6—G“Ò"ã2"óà¢Æ6—&6ÆR7ƒÒ#c#"7“Ò#3sB"#Ò##"7G&ö¶SÒ'v†—FR"÷6—G“Ò"ãCR"óà¢Âösà¢Â÷7fsà¢ÆF—b6Æ74æÖSÒ'6–FRÖf÷&Ò6–FRÖf÷&ÒÖÆVgB#à¢Æ’óà¢Æ’óà¢Æ’óà¢ÂöF—cà¢ÆF—b6Æ74æÖSÒ'6–FRÖf÷&Ò6–FRÖf÷&Ò×&–v‡B#à¢Æ’óà¢Æ’óà¢Æ’óà¢ÂöF—cà¢ÂöF—cà¢“°§Ð ¦gVæ7F–öâ6–væÄÆGF–6R‡²&öw&W72Â6öÆ÷'2Ò’°¢6öç7Bw&÷WÒW6U&Vb‚“°¢W6Tg&ÖR‚‡²6Æö6²Âö–çFW"Ò’Óâ°¢–b‚w&÷Wæ7W'&VçB’&WGW&ã°¢6öç7BBÒ6Æö6²æVÆ6VEF–ÖS°¢w&÷Wæ7W'&VçBç&÷FF–öâç’ÒD…$TRäÖF…WF–Ç2æÆW'€¢w&÷Wæ7W'&VçBç&÷FF–öâç’À¢ö–çFW"ç‚¢ãB²B¢ã3RÀ¢ã‚À¢“°¢w&÷Wæ7W'&VçBç&÷FF–öâç‚ÒD…$TRäÖF…WF–Ç2æÆW'€¢w&÷Wæ7W'&VçBç&÷FF–öâç‚À¢Óã²ö–çFW"ç’¢ã²&öw&W72¢ã‚À¢ã‚À¢“°¢w&÷Wæ7W'&VçBç&÷FF–öâç¢ÒD…$TRäÖF…WF–Ç2æÆW'€¢w&÷Wæ7W'&VçBç&÷FF–öâç¢À¢ö–çFW"ç‚¢ãbÒ&öw&W72¢ã"À¢ã‚À¢“°¢6öç7B66ÆRÒ²&öw&W72¢ãs°¢w&÷Wæ7W'&VçBç66ÆRç6WE66Æ"€¢D…$TRäÖF…WF–Ç2æÆW'†w&÷Wæ7W'&VçBç66ÆRç‚Â66ÆRÂã3R’À¢“°¢Ò“°¢&WGW&â€¢Æw&÷W&Vc×¶w&÷WÒ÷6—F–öã×µ³ãs"Âã‚ÂÓã…×Óà¢´'&’æg&öÒ‡²ÆVæwFƒ¢RÒÂ…òÂ’’Óâ€¢ÆÖW6€¢¶W“×¶—Ð¢&÷FF–öã×µ²†’Ò"’¢ã3Â†’Ò"’¢ãC"Â†’Ò"’¢ã•×Ð¢66ÆS×³²’¢ãgÐ¢à¢ÇF÷'W4vVöÖWG'’&w3×µ³ãRÂã‚²’¢ãbÂ‚Â“e×Òóà¢ÆÖW6…‡—6–6ÄÖFW&–À¢6öÆ÷#×¶6öÆ÷'5¶’R%×Ð¢VÖ—76—fS×¶6öÆ÷'5¶’R%×Ð¢VÖ—76—fT–çFVç6—G“×³ã#'Ð¢ÖWFÆæW73×³ãƒgÐ¢&÷Vv†æW73×³ã#‡Ð¢6ÆV&6öC×³Ð¢óà¢ÂöÖW6ƒà¢’—Ð¢ÆÖW6‚66ÆS×³ãc‡Óà¢Æ–6÷6†VG&öävVöÖWG'’&w3×µ³Â×Òóà¢ÆÖW6…‡—6–6ÄÖFW&–Â6öÆ÷#Ò"3“s2"ÖWFÆæW73×³ãƒ'Ò&÷Vv†æW73×³ã3Òv—&Vg&ÖRóà¢ÂöÖW6ƒà¢ÆÖW6‚66ÆS×³ã‡Óà¢Æö7F†VG&öävVöÖWG'’óà¢ÆÖW6„&6–4ÖFW&–Â6öÆ÷#×¶6öÆ÷'5³×Òóà¢ÂöÖW6ƒà¢Âöw&÷Wà¢“°§Ð ¦gVæ7F–öâVFvTg&ÖW2‡²6öÆ÷'2Ò’°¢6öç7B–V6W2Òµ²ÓRã#RÂ"ãCRÂÓãRÂãs%ÒÂ³Rã3RÂÓ"ãCRÂÓãbÂÓãc%ÕÓ°¢&WGW&â€¢Ãà¢·–V6W2æÖ‚‡Â’’Óâ€¢Æw&÷W¶W“×¶—Ò÷6—F–öã×·ç6Æ–6RƒÂ2—Ò&÷FF–öã×µ·³5ÒÂ’òÓãR¢ãRÂ³5Õ×Óà¢´'&’æg&öÒ‡²ÆVæwFƒ¢BÒÂ…òÂ&–ær’Óâ€¢ÆÖW6‚¶W“×·&–æwÒ&÷FF–öã×µ·&–ær¢ã3bÂ&–ær¢ã#"Â&–ær¢ãC×Ò66ÆS×³²&–ær¢ã#7Óà¢ÇF÷'W4vVöÖWG'’&w3×µ³ãRÂã#"Â‚Âƒ×Òóà¢ÆÖW6…‡—6–6ÄÖFW&–Â6öÆ÷#×¶6öÆ÷'5²†’²&–ær’R%×ÒVÖ—76—fS×¶6öÆ÷'5²†’²&–ær’R%×ÒVÖ—76—fT–çFVç6—G“×³ã'ÒÖWFÆæW73×³ã—Ò&÷Vv†æW73×³ã3GÒóà¢ÂöÖW6ƒà¢’—Ð¢Âöw&÷Wà¢’—Ð¢Âóà¢“°§Ð ¦gVæ7F–öâæWW&ÄÆ–æW2‡²7F—fRÂÖ÷F–öåfÇVRÂ6öÆ÷'2Ò’°¢6öç7BvVöÖWG'’ÒW6U&Vb‚’À¢&÷w2ÒrÀ¢6öÇ2Ò#’À¢&6RÒW6TÖVÖò‚‚’Óâ°¢6öç7BÒµÓ°¢f÷"†ÆWB"Ò²"Â&÷w3²"²²¢f÷"†ÆWB2Ò²2Â6öÇ2Ò²2²²¢çW6‚€¢²†2ò†6öÇ2Ò’ÒãR’¢"Â‡"ò‡&÷w2Ò’ÒãR’¢bã…ÒÀ¢²‚†2²’ò†6öÇ2Ò’ÒãR’¢"Â‡"ò‡&÷w2Ò’ÒãR’¢bã…ÒÀ¢“°¢&WGW&â°¢ÒÂµÒ’À¢÷6—F–öç2ÒW6TÖVÖò‚‚’ÓâæWrfÆöC3$'&’†&6RæÆVæwF‚¢2’Â¶&6UÒ’À¢²ö–çFW"ÒÒW6UF‡&VR‚“°¢W6Tg&ÖR‚‡²6Æö6²Ò’Óâ°¢–b‚vVöÖWG'’æ7W'&VçB’&WGW&ã°¢6öç7BBÒ6Æö6²æVÆ6VEF–ÖRÀ¢‚Òö–çFW"ç‚¢Rã‚À¢’Òö–çFW"ç’¢2ã#°¢&6Ræf÷$V6‚‚‡Â’’Óâ°¢6öç7BBÒÖF‚æ‡—÷B‡³ÒÒ‚Â³ÒÒ’’À¢–æbÒÖF‚æW‡‚ÖB¢B¢ã3b“°¢÷6—F–öç5¶’¢5ÒÒ³Ó°¢÷6—F–öç5¶’¢2²ÒÐ¢³Ò°¢ÖF‚ç6–â‡³Ò¢ã3R²B²³Ò’¢ãCR°¢–æb¢ö–çFW"ç’¢ã##°¢÷6—F–öç5¶’¢2²%ÒÐ¢Ó°¢–æb¢†7F—fRòãr¢ã3B’°¢†Ö÷F–öåfÇVSòæVæW&w’ÇÂ’¢ãR¢ÖF‚æW‡‚ÖB¢B¢ãR“°¢Ò“°¢vVöÖWG'’æ7W'&VçBæGG&–'WFW2ç÷6—F–öâææVVG5WFFRÒG'VS°¢Ò“°¢&WGW&â€¢ÆÆ–æU6VvÖVçG3à¢Æ'VffW$vVöÖWG'’&Vc×¶vVöÖWG'—Óà¢Æ'VffW$GG&–'WFRGF6ƒÒ&GG&–'WFW2×÷6—F–öâ"&w3×µ·÷6—F–öç2Â5×Òóà¢Âö'VffW$vVöÖWG'“à¢ÆÆ–æT&6–4ÖFW&–À¢6öÆ÷#×¶6öÆ÷'5³×Ð¢G&ç7&Vç@¢÷6—G“×¶7F—fRòã3B¢ãGÐ¢&ÆVæF–æs×µD…$TRäFF—F—fT&ÆVæF–æwÐ¢óà¢ÂöÆ–æU6VvÖVçG3à¢“°§Ð ¦gVæ7F–öâ–çFW&7F–öäg&ÖT'VFvWB‚—°¢6öç7B6WDg&ÖVÆö÷×W6UF‡&VR‚‡7FFR“Óç7FFRç6WDg&ÖVÆö÷’Æ–çfÆ–FFS×W6UF‡&VR‚‡7FFR“Óç7FFRæ–çfÆ–FFR“°¢W6TVffV7B‚‚“Óç¶6öç7BWFFSÒ†WfVçB“Óç·6WDg&ÖVÆö÷†WfVçBæFWF–Ãò&æWfW"#¢&Çv—2"“¶–b‚WfVçBæFWF–Â––çfÆ–FFR‚“·Ó¶FDWfVçDÆ—7FVæW"‚&w"ÖG&r"ÇWFFR“·&WGW&â‚“Óç·&VÖ÷fTWfVçDÆ—7FVæW"‚&w"ÖG&r"ÇWFFR“·6WDg&ÖVÆö÷‚&Çv—2"“·Ó·ÒÅ¶–çfÆ–FFRÇ6WDg&ÖVÆö÷Ò“°¢&WGW&âçVÆÃ°§Ð ¦6öç7B&ÆFU÷6SÒ‡7FFRÇRÇF–ÖSÓÆ÷WB“Óç°¢6öç7B×R¤ÖF‚å’£"Â'&VF†SÔÖF‚ç6–â‡F–ÖR¢ã3‚¶£"’¢ã3S°¢ÆWBƒÓÇ“ÓÇ£ÓÇv–GFƒÓã‚ÇGv—7CÓ°¢–b‡7FFSÓÓÒ&çÒ"—°¢ƒÒ‡RÒãR’£rã·“ÔÖF‚ç6–â†’£ã3B¢‚ãs"´ÖF‚æ'2‡RÒãR’“·£ÔÖF‚æ6÷2†’¢ãsC·Gv—7CÖ¢ãs#·v–GFƒÓã#R´ÖF‚ç6–â„ÖF‚å’§R’£ãS°¢ÖVÇ6R–b‡7FFSÓÓÒ&&F6‚"—°¢ƒÒ‡RÒãR’£rã#·“ÔÖF‚ç6–â†£ãR’£ãS#·£ÔÖF‚æ6÷2†£2’¢ãSƒ·Gv—7CÔÖF‚ç6–â†£ãR’£ãS·v–GFƒÓãR²ãr¢‚ãR²ãR¤ÖF‚æ6÷2†£2’“°¢ÖVÇ6R–b‡7FFSÓÓÒ&6ö×&R"—°¢ƒÔÖF‚ç6–â†’£2ã#S·“ÔÖF‚ç6–vâ„ÖF‚æ6÷2†’’£ãR²ã3B¤ÖF‚æ6÷2†£"“·£ÒãS‚¤ÖF‚ç6–â†£"“·Gv—7CÔÖF‚å’¢ãR¤ÖF‚ç6–â†“·v–GFƒÓã"²ãs"¤ÖF‚æ'2„ÖF‚æ6÷2†’“°¢ÖVÇ6R–b‡7FFSÓÓÒ&vÖR"—°¢6öç7BÆæSÒ„ÖF‚æfÆö÷"‡R£‚’Ó2ãR’Æ6VÆÃÒ‡R£‚’S°¢ƒÖÆæR¢ãs‚²ã"¤ÖF‚ç6–â†£2“·“Ò†6VÆÂÒãR’£RãC·£Òãs"¤ÖF‚ç6–â†ÆæR¢ã‚¶’²ã‚¤ÖF‚æ6÷2‡F–ÖR¢ãB¶£"“·Gv—7CÒ†ÆæRS#ó¢Ó’¢ãs"²ã#‚¤ÖF‚ç6–â†£"“·v–GFƒÒã“"²ã3‚¢‚ãR²ãR¤ÖF‚æ6÷2†£‚’“°¢ÖVÇ6R–b‡7FFSÓÓÒ'6WGF–æw2"—°¢ƒÔÖF‚æ6÷2†’£"ãsS·“ÔÖF‚ç6–â†’£ãs#·£Òã3‚¤ÖF‚ç6–â†£"“·Gv—7CÖ¢ã3C·v–GFƒÓãCR²ã#"¤ÖF‚ç6–â†£2“°¢ÖVÇ6R–b‡7FFSÓÓÒ'6V7&WB"—°¢òòWF†÷"6WVVæ6S¢F†RW†—7F–ær67VÇGW&Rf—'7B6öÆÆ6W2–çFò'&–v‡@¢òò6÷&RÂF†Vâ÷Vç22F‡&VR×&–ærÖWFÂ—&—2â—B—27F–ÆÂF†R6ÖR6W@¢òòöb&ÆFW2Âæ÷B&WÆ6VÖVçBö&¦V7Bà¢6öç7B&WfVÃÕD…$TRäÖF…WF–Ç2ç6Öö÷F‡7FW‡F–ÖRÂãC‚Ã"ãR’ÇVÇ6SÔÖF‚æW‡‚ÔÖF‚ç÷r‡F–ÖRÓ"ã‚Ã"’òãsR“°¢6öç7BfÆ÷vW#Òãb·&WfVÂ¢ƒ"ãS‚²ãSB¤ÖF‚æ6÷2†£2’“°¢ƒÔÖF‚æ6÷2†’¦fÆ÷vW"£ã3·“ÔÖF‚ç6–â†’¦fÆ÷vW"¢ãs3·£×&WfVÂ¢ƒã‚¤ÖF‚ç6–â†£2·F–ÖR¢ã3B’’·VÇ6R¤ÖF‚æ6÷2†£r’¢ãc#°¢Gv—7CÖ¢‚ãSR·&WfVÂ¢ã“"’·&WfVÂ§F–ÖR¢ãc·v–GFƒÒã#‚·&WfVÂ¢ƒã#"²ãc"¢‚ãR²ãR¤ÖF‚æ6÷2†£2’’“°¢ÖVÇ6W°¢òò7F–ÂF‡&VRÖÆö&VBfÆ÷s¢F†R7–æRG&fVÇ2–âFWF‚v†–ÆRWfW'¢òò&ÆFR&÷FFW2–æFWVæFVçFÇ’ÂÖF6†–ærF†R&VfW&Væ6Rfâ&F†W"F†à¢òò6öÆÆ6–ær–çFòfÆB–æf–æ—G’&–&&öâà¢6öç7B&F—W3Ó"ãs"²ãS‚¤ÖF‚æ6÷2†£2²ã3R“°¢ƒÒã#R´ÖF‚æ6÷2†’§&F—W2£ã#ƒ°¢“ÔÖF‚ç6–â†’§&F—W2¢ãcB²ã3B¤ÖF‚ç6–â†£"“°¢£Óã"¤ÖF‚ç6–â†£"Òã3R’²ãC"¤ÖF‚æ6÷2†£2“°¢Gv—7CÖ£ã‚²ãCB¤ÖF‚ç6–â†£"“°¢v–GFƒÓãc"²ãs"¢‚ãR²ãR¤ÖF‚æ6÷2†£2ÒãR’“°¢Ð¢6öç7B÷6SÖ÷WGÇÇ·÷6—F–öã¦æWrD…$TRåfV7F÷#2‚’Ç&÷FF–öã¦æWrD…$TRäWVÆW"ƒÃÃÂ%…•¢"’Ç66ÆS¦æWrD…$TRåfV7F÷#2‚—Ó°¢÷6Rç÷6—F–öâç6WB‡‚Ç’¶'&VF†RÇ¢“·÷6Rç&÷FF–öâç6WB‚ã3B¤ÖF‚ç6–â†£"’ÇGv—7BÂãR¤ÖF‚æ6÷2†’Â%…•¢"“·÷6Rç66ÆRç6WB‡v–GF‚ÃÃ²ã‚¤ÖF‚ç6–â†£2’“·&WGW&â÷6S°§Ó° ¦gVæ7F–öâ&ÆFU67VÇGW&R‡²7FFRÂF†VÖRÂVÆ—G’Â'&–v‡FæW73ÓÂVffV7G3ÓÂG&ç6—F–öä¶–æCÒ&†öÖSæ†öÖR"Â†öÆCÓÂ†öÆEö–çBÂ&ö6W76–æsÖfÇ6RÒ—°¢6öç7B6÷VçC×VÆ—G“ÓÓÒ&V6ò#óC§VÆ—G“ÓÓÒ&Ö‚#óƒƒ£Cƒ°¢6öç7B&öG“×W6U&Vb‚’ÆVFvS×W6U&Vb‚’ÆVFvT&6³×W6U&Vb‚’ÇG&–Ã×W6U&Vb‚’Æ7W'&VçC×W6U&Vb…µÒ’ÇF&vWG3×W6U&Vb…µÒ’Æ†÷fW#×W6U&Vb‚Ó’Æ†öÆES×W6U&Vb‚ãSb’Æg&ÖUF–6³×W6U&Vbƒ’Ç7FFT6Æö6³×W6U&Vb‡¶æÖS§7FFRÇ7F'C£Ò’ÆÆ7Eö–çFW#×W6U&Vb†æWrD…$TRåfV7F÷#"‚’’ÇF××W6TÖVÖò‚‚“Óâ‡¶ÖG&—ƒ¦æWrD…$TRäÖG&—ƒB‚’Ç¦æWrD…$TRåVFW&æ–öâ‚’Ç¦æWrD…$TRåfV7F÷#2‚’ÇG&–Å¦æWrD…$TRåfV7F÷#2‚’Ç3¦æWrD…$TRåfV7F÷#2‚’Ç&ö¦V7FVC¦æWrD…$TRåfV7F÷#2‚’Æöfg6WC¦æWrD…$TRåfV7F÷#2‚’Çö–çFW#¦æWrD…$TRåfV7F÷#"‚’Æ6öÆ÷#¦æWrD…$TRä6öÆ÷"‚’Æ&öG”6öÆ÷#¦æWrD…$TRä6öÆ÷"‚’ÆF&³¦æWrD…$TRä6öÆ÷"‚"3#3cF"’Çv†—FS¦æWrD…$TRä6öÆ÷"‚"6fffffb"—Ò’ÅµÒ“°¢6öç7B6öÆ÷'3ÕD„TÔUô4ôÄõ%5·F†VÖU×ÇÅD„TÔUô4ôÄõ%2æ7–ã°¢6öç7B66VçC×W6TÖVÖò‚‚“ÓææWrD…$TRä6öÆ÷"†6öÆ÷'5³Ò’Å¶6öÆ÷'5Ò“°¢6öç7B66VçC#×W6TÖVÖò‚‚“ÓææWrD…$TRä6öÆ÷"†6öÆ÷'5³Ò’Å¶6öÆ÷'5Ò“°¢6öç7BG&ç6—F–öäÖöFS×W6TÖVÖò‚‚“Óå²ââçG&ç6—F–öä¶–æEÒç&VGV6R‚‡7VÒÆ6†"“Óç7VÒ¶6†"æ6†$6öFTBƒ’Ã’SBÅ·G&ç6—F–öä¶–æEÒ“°¢W6TVffV7B‚‚“Óç¶7W'&VçBæ7W'&VçCÕµÓ·F&vWG2æ7W'&VçCÕµÓ·ÒÅ¶6÷VçEÒ“°¢W6Tg&ÖR‚‡¶6Æö6²Çö–çFW"Æ6ÖW&Ò“Óç°¢–b‡&ö6W76–ærbf†öÆCÃÓbb²¶g&ÖUF–6²æ7W'&VçBS"—&WGW&ã°¢–b‚&öG’æ7W'&VçGÇÂVFvRæ7W'&VçGÇÂVFvT&6²æ7W'&VçGÇÂG&–Âæ7W'&VçB—&WGW&ã°¢6öç7B7F—fUö–çFW#Ö†öÆCãbf†öÆEö–çC÷F×çö–çFW"ç6WB††öÆEö–çBç‚ö–ææW%v–GF‚£"ÓÃÖ†öÆEö–çBç’ö–ææW$†V–v‡B£"“§ö–çFW#°¢6öç7BCÖ6Æö6²æVÆ6VEF–ÖS¶–b‡7FFT6Æö6²æ7W'&VçBææÖRÓ×7FFR—·7FFT6Æö6²æ7W'&VçC×¶æÖS§7FFRÇ7F'C§GÓ·Ö6öç7B÷6UF–ÖS×7FFSÓÓÒ'6V7&WB#÷B×7FFT6Æö6²æ7W'&VçBç7F'C§BÂ7VVCÖ7F—fUö–çFW"æF—7Fæ6UFò†Æ7Eö–çFW"æ7W'&VçB“¶Æ7Eö–çFW"æ7W'&VçBæÆW'†7F—fUö–çFW"Âã‚“°¢6öç7B†öÆD6VçFW#Ö†öÆERæ7W'&VçC°¢ÆWBæV&W7CÒÓÆæV&W7DF—7Fæ6SÒã#“°¢f÷"†ÆWB“Ó¶“Æ6÷VçC¶’²²—°¢6öç7BSÖ’ö6÷VçBÇF&vWCÖ&ÆFU÷6R‡7FFRÇRÇ÷6UF–ÖRÇF&vWG2æ7W'&VçE¶•Ò’Ç†6S×G&ç6—F–öäÖöFSÓÓÓö“§G&ç6—F–öäÖöFSÓÓÓö6÷VçBÖ“§G&ç6—F–öäÖöFSÓÓÓ#ôÖF‚æ'2†’Ö6÷VçBó"’£#¢†’S#ö“¦6÷VçBÖ’“·F&vWG2æ7W'&VçE¶•Ó×F&vWC°¢–b††öÆCã—¶6öç7BævÆS×R¤ÖF‚å’£"Æ6—&7VÆ#ÔÖF‚æÖ–â„ÖF‚æ'2‡RÖ†öÆD6VçFW"’ÃÔÖF‚æ'2‡RÖ†öÆD6VçFW"’’ÇVÆÃÔÖF‚æW‡‚Ö6—&7VÆ"¦6—&7VÆ"£s"’¦†öÆBÆvÆö&ÃÓ¶†öÆB¢ãSS·F&vWBç÷6—F–öâç‚£ÖvÆö&Ã·F&vWBç÷6—F–öâç’£ÖvÆö&Ã·F&vWBç÷6—F–öâç¢³×VÆÂ£ãS‚´ÖF‚ç6–â†ævÆR£B×B£B’¦†öÆB¢ã3·F&vWBç66ÆRç‚£Ó·VÆÂ¢ã3C·F&vWBç66ÆRç¢£Ó·VÆÂ¢ãƒ·F&vWBç&÷FF–öâç’³×VÆÂ¢ãs"´ÖF‚ç6–â†ævÆR£"×B’¦†öÆB¢ãƒ·Ð¢–b‚7W'&VçBæ7W'&VçE¶•Ò–7W'&VçBæ7W'&VçE¶•Ó×·§F&vWBç÷6—F–öâæ6ÆöæR‚’Ç¦æWrD…$TRåVFW&æ–öâ‚’ç6WDg&öÔWVÆW"‡F&vWBç&÷FF–öâ’Ç3§F&vWBç66ÆRæ6ÆöæR‚—Ó°¢6öç7B3Ö7W'&VçBæ7W'&VçE¶•ÒÆFVÆ“ÒãCR´ÖF‚æÖ–â‚ãSRÇ†6Rö6÷VçB¢ãCR“°¢2çæÆW'‡F&vWBç÷6—F–öâÆFVÆ’“¶2çç6ÆW'‡F×çç6WDg&öÔWVÆW"‡F&vWBç&÷FF–öâ’ÆFVÆ’“¶2ç2æÆW'‡F&vWBç66ÆRÆFVÆ’“°¢F×æÖG&—‚æ6ö×÷6R†2çÆ2çÆ2ç2“¶&öG’æ7W'&VçBç6WDÖG&—„B†’ÇF×æÖG&—‚“°¢F×æöfg6WBç6WBƒÂã#bÂã3c2¦2ç2ç¢’æÇ•VFW&æ–öâ†2ç“·F×çæ6÷’†2ç’æFB‡F×æöfg6WB“·F×ç2ç6WB†2ç2ç‚ÃÃ“·F×æÖG&—‚æ6ö×÷6R‡F×çÆ2çÇF×ç2“¶VFvRæ7W'&VçBç6WDÖG&—„B†’ÇF×æÖG&—‚“°¢F×æöfg6WBç6WBƒÂÒã#bÂÒã3c2¦2ç2ç¢’æÇ•VFW&æ–öâ†2ç“·F×çæ6÷’†2ç’æFB‡F×æöfg6WB“·F×æÖG&—‚æ6ö×÷6R‡F×çÆ2çÇF×ç2“¶VFvT&6²æ7W'&VçBç6WDÖG&—„B†’ÇF×æÖG&—‚“°¢F×çG&–Åæ6÷’†2ç’æÆW'‡F&vWBç÷6—F–öâÂÒã#B“·F×ç2æ6÷’†2ç2’æ×VÇF—Ç•66Æ"ƒãR“·F×æÖG&—‚æ6ö×÷6R‡F×çG&–ÅÆ2çÇF×ç2“·G&–Âæ7W'&VçBç6WDÖG&—„B†’ÇF×æÖG&—‚“°¢F×ç&ö¦V7FVBæ6÷’†2ç“¶&öG’æ7W'&VçBæÆö6ÅFõv÷&ÆB‡F×ç&ö¦V7FVB“·F×ç&ö¦V7FVBç&ö¦V7B†6ÖW&“¶6öç7BF—7Fæ6SÔÖF‚æ‡—÷B‡F×ç&ö¦V7FVBç‚Ö7F—fUö–çFW"ç‚ÇF×ç&ö¦V7FVBç’Ö7F—fUö–çFW"ç’“°¢–b†F—7Fæ6SÆæV&W7DF—7Fæ6R—¶æV&W7DF—7Fæ6SÖF—7Fæ6S¶æV&W7CÖ“·Ð¢Ð¢†÷fW"æ7W'&VçCÖæV&W7C°¢–b†æV&W7CãÓ—¶ÆWBFVÇFÖæV&W7Bö6÷VçBÖ†öÆERæ7W'&VçC¶–b†FVÇFâãR–FVÇFÓÓ¶–b†FVÇFÂÒãR–FVÇF³Ó¶†öÆERæ7W'&VçCÒ††öÆERæ7W'&VçB¶FVÇF¢††öÆCãòãc¢ã#‚’³’S·Ð¢f÷"†ÆWB“Ó¶“Æ6÷VçC¶’²²—°¢6öç7BFVÇFÖæV&W7CÃö6÷VçC¤ÖF‚æÖ–â„ÖF‚æ'2†’ÖæV&W7B’Æ6÷VçBÔÖF‚æ'2†’ÖæV&W7B’“°¢6öç7B6—&7VÆ#ÔÖF‚æÖ–â„ÖF‚æ'2†’ö6÷VçBÖ†öÆD6VçFW"’ÃÔÖF‚æ'2†’ö6÷VçBÖ†öÆD6VçFW"’’Æ†öÆDÆ–v‡CÖ†öÆB¤ÖF‚æW‡‚Ö6—&7VÆ"¦6—&7VÆ"£S"’£ãSS°¢6öç7BvfSÔÖF‚æW‡‚ÖFVÇF¦FVÇFó3‚’¦VffV7G2¶†öÆDÆ–v‡C°¢6öç7B'VææW#ÖæV&W7CÃó¤ÖF‚æW‡‚ÔÖF‚ç÷r†FVÇFÒ‚‡B£‚·7VVB£S’S#’Ã"’ó"’¢ãS‚¦VffV7G3°¢F×æ6öÆ÷"æ6÷’†66VçB’æÆW'†66VçC"Âã#‚²ã#R¤ÖF‚ç6–â†’¢ãr·B¢ã3R’’æ×VÇF—Ç•66Æ"‚ã3B²‡vfR·'VææW"’£ã3‚¦'&–v‡FæW72“°¢–b†FVÇFÃ"—F×æ6öÆ÷"æÆW'‡F×çv†—FRÂãC"“°¢VFvRæ7W'&VçBç6WD6öÆ÷$B†’ÇF×æ6öÆ÷"“°¢VFvT&6²æ7W'&VçBç6WD6öÆ÷$B†’ÇF×æ6öÆ÷"“°¢F×æ&öG”6öÆ÷"æ6÷’‡F×æF&²’æÆW'†66VçBÂã3B²ãb¤ÖF‚ç6–â†’¢ã’·B¢ã#"’’æ×VÇF—Ç•66Æ"‚ƒãB²ã"¤ÖF‚ç6–â†’¢ã·B¢ã‚’’¦'&–v‡FæW72“¶&öG’æ7W'&VçBç6WD6öÆ÷$B†’ÇF×æ&öG”6öÆ÷"“°¢Ð¢&öG’æ7W'&VçBæ–ç7Fæ6TÖG&—‚ææVVG5WFFS×G'VS¶VFvRæ7W'&VçBæ–ç7Fæ6TÖG&—‚ææVVG5WFFS×G'VS¶VFvT&6²æ7W'&VçBæ–ç7Fæ6TÖG&—‚ææVVG5WFFS×G'VS·G&–Âæ7W'&VçBæ–ç7Fæ6TÖG&—‚ææVVG5WFFS×G'VS¶–b†&öG’æ7W'&VçBæ–ç7Fæ6T6öÆ÷"–&öG’æ7W'&VçBæ–ç7Fæ6T6öÆ÷"ææVVG5WFFS×G'VS¶–b†VFvRæ7W'&VçBæ–ç7Fæ6T6öÆ÷"–VFvRæ7W'&VçBæ–ç7Fæ6T6öÆ÷"ææVVG5WFFS×G'VS¶–b†VFvT&6²æ7W'&VçBæ–ç7Fæ6T6öÆ÷"–VFvT&6²æ7W'&VçBæ–ç7Fæ6T6öÆ÷"ææVVG5WFFS×G'VS°¢6öç7B'“ÕD…$TRäÖF…WF–Ç2æÆW'†&öG’æ7W'&VçBç&÷FF–öâç’Çö–çFW"ç‚¢ã2¦VffV7G2Âã#"’Ç'ƒÕD…$TRäÖF…WF–Ç2æÆW'†&öG’æ7W'&VçBç&÷FF–öâç‚Â×ö–çFW"ç’¢ãƒR¦VffV7G2Âã#"“¶f÷"†6öç7BÖW6‚öb¶&öG’æ7W'&VçBÆVFvRæ7W'&VçBÆVFvT&6²æ7W'&VçBÇG&–Âæ7W'&VçEÒ—¶ÖW6‚ç&÷FF–öâç“×'“¶ÖW6‚ç&÷FF–öâçƒ×'ƒ·Ð¢Ò“°¢&WGW&âÆw&÷W÷6—F–öã×µ²ãƒ"Âã"ÂÒã…×Ò66ÆS×µ³ã2Ãã2Ãã#E×Óà¢Æ–ç7Fæ6VDÖW6‚&Vc×·G&–ÇÒ&w3×µ¶çVÆÂÆçVÆÂÆ6÷VçE×Òg'W7GVÔ7VÆÆVC×¶fÇ6WÓà¢Æ&÷„vVöÖWG'’&w3×µ³ÂãBÂãs%×Òóà¢ÆÖW6„&6–4ÖFW&–Â6öÆ÷#×¶6öÆ÷'5³×ÒG&ç7&VçB÷6—G“×²ãSR¦VffV7G7ÒFWF…w&—FS×¶fÇ6WÒ&ÆVæF–æs×µD…$TRäFF—F—fT&ÆVæF–æwÒóà¢Âö–ç7Fæ6VDÖW6ƒà¢Æ–ç7Fæ6VDÖW6‚&Vc×¶&öG—Ò&w3×µ¶çVÆÂÆçVÆÂÆ6÷VçE×Òg'W7GVÔ7VÆÆVC×¶fÇ6WÓà¢Æ&÷„vVöÖWG'’&w3×µ³ÂãCRÂãs%×Òóà¢ÆÖW6…‡—6–6ÄÖFW&–ÂfW'FW„6öÆ÷'26öÆ÷#Ò"6fffffb"VÖ—76—fS×¶6öÆ÷'5³×ÒVÖ—76—fT–çFVç6—G“×²ãsR¦VffV7G7ÒÖWFÆæW73×²ãƒ'Ò&÷Vv†æW73×²ã'Ò6ÆV&6öC×³Ò6ÆV&6öE&÷Vv†æW73×²ã‡ÒVçdÖ–çFVç6—G“×³RãB¦'&–v‡FæW77Òóà¢Âö–ç7Fæ6VDÖW6ƒà¢Æ–ç7Fæ6VDÖW6‚&Vc×¶VFvWÒ&w3×µ¶çVÆÂÆçVÆÂÆ6÷VçE×Òg'W7GVÔ7VÆÆVC×¶fÇ6WÓà¢Æ&÷„vVöÖWG'’&w3×µ³ÂãBÂã#…×Òóà¢ÆÖW6„&6–4ÖFW&–ÂfW'FW„6öÆ÷'2FöæTÖVC×¶fÇ6WÒG&ç7&VçB÷6—G“×²ã“‡Ò&ÆVæF–æs×µD…$TRäFF—F—fT&ÆVæF–æwÒóà¢Âö–ç7Fæ6VDÖW6ƒà¢Æ–ç7Fæ6VDÖW6‚&Vc×¶VFvT&6·Ò&w3×µ¶çVÆÂÆçVÆÂÆ6÷VçE×Òg'W7GVÔ7VÆÆVC×¶fÇ6WÓà¢Æ&÷„vVöÖWG'’&w3×µ³ÂãBÂã#…×Òóà¢ÆÖW6„&6–4ÖFW&–ÂfW'FW„6öÆ÷'2FöæTÖVC×¶fÇ6WÒG&ç7&VçB÷6—G“×²ã“gÒ&ÆVæF–æs×µD…$TRäFF—F—fT&ÆVæF–æwÒóà¢Âö–ç7Fæ6VDÖW6ƒà¢Âöw&÷Wã°§Ð ¦gVæ7F–öâÖ÷f–æu&VfÆV7F–öç2‡¶6öÆ÷'2Æ'&–v‡FæW77Ò—°¢6öç7B×W6U&Vb‚’Æ#×W6U&Vb‚“°¢W6Tg&ÖR‚‡¶6Æö6²Çö–çFW'Ò“Óç¶6öç7BCÖ6Æö6²æVÆ6VEF–ÖS¶–b†æ7W'&VçB–æ7W'&VçBç÷6—F–öâç6WB‚Ó2ã‚´ÖF‚ç6–â‡B¢ã3’£"ã"·ö–çFW"ç‚Ã"ã‚´ÖF‚æ6÷2‡B¢ã#2’£ã"Ã2ãR“¶–b†"æ7W'&VçB–"æ7W'&VçBç÷6—F–öâç6WBƒBã"´ÖF‚æ6÷2‡B¢ã#r’£ã‚ÂÓ"ã´ÖF‚ç6–â‡B¢ã3R’£ãÃ"ã‚“·Ò“°¢&WGW&âÃãÇö–çDÆ–v‡B&Vc×¶Ò–çFVç6—G“×³#"¦'&–v‡FæW77ÒF—7Fæ6S×³7Ò6öÆ÷#×¶6öÆ÷'5³×ÒóãÇö–çDÆ–v‡B&Vc×¶'Ò–çFVç6—G“×³‚¦'&–v‡FæW77ÒF—7Fæ6S×³'Ò6öÆ÷#×¶6öÆ÷'5³×ÒóãÂóã°§Ð ¦gVæ7F–öâ66VæR‡²F†VÖRÂVÆ—G’Â67&VVâÂ6WGF–æw4÷VâÂ6V7&WBÂG&ç6—F–öä¶–æBÂ'&–v‡FæW72ÂVffV7G2Â†öÆBÂ†öÆEö–çBÂ&ö6W76–ærÒ’°¢6öç7B6öÆ÷'2ÒD„TÔUô4ôÄõ%5·F†VÖUÒÇÂD„TÔUô4ôÄõ%2ç&÷6S°¢6öç7BFVç6—G’ÒVÆ—G’ÓÓÒ&V6ò"ò¢VÆ—G’ÓÓÒ&Ö‚"òC"¢#C°¢6öç7B7FFS×6V7&WCò'6V7&WB#§67&VVã°¢&WGW&â€¢Ä6çf0¢G#×·&ö6W76–æsõ³ãc"Ããs…Ó ¢VÆ—G’ÓÓÒ&V6ò ¢ò³ãrÂã•Ð¢¢VÆ—G’ÓÓÒ&Ö‚ ¢ò³ã’ÂãÐ¢¢³ã‚ÂÐ¢Ð¢6ÖW&×·²÷6—F–öã¢³ÂÂrãÒÂf÷c¢C‚×Ð¢vÃ×·°¢çF–Æ–3¢G'VRÀ¢Ç†¢G'VRÀ¢÷vW%&VfW&Væ6S¢&†–v‚×W&f÷&Öæ6R"À¢&W6W'fTG&v–æt'VffW#¢fÇ6RÀ¢×Ð¢öä7&VFVC×²‡¶vÇÒ“Óç¶vÂçFöæTÖ–æsÕD…$TRä4U4f–ÆÖ–5FöæTÖ–æs¶vÂçFöæTÖ–ætW‡÷7W&SÓãSc¶vÂæ÷WGWD6öÆ÷%76SÕD…$TRå5$t$6öÆ÷%76S·×Ð¢à¢ÆÖ&–VçDÆ–v‡B–çFVç6—G“×²ãsB¦'&–v‡FæW77Ò6öÆ÷#Ò"3–63vF""óà¢Æ†VÖ—7†W&TÆ–v‡B–çFVç6—G“×³ã3R¦'&–v‡FæW77Ò6öÆ÷#Ò"6#–c–fb"w&÷VæD6öÆ÷#Ò"3ƒ#C3‚"óà¢ÆF—&V7F–öæÄÆ–v‡B÷6—F–öã×µ²ÓBÃRÃU×Ò–çFVç6—G“×³Bã¦'&–v‡FæW77Ò6öÆ÷#Ò"6C†c–fb"óà¢Çö–çDÆ–v‡B÷6—F–öã×µ³RÃ"Ã5×Ò–çFVç6—G“×³R¦'&–v‡FæW77ÒF—7Fæ6S×³WÒ6öÆ÷#×¶6öÆ÷'5³×Òóà¢Çö–çDÆ–v‡B÷6—F–öã×µ²ÓRÂÓ"Ã%×Ò–çFVç6—G“×³"¦'&–v‡FæW77ÒF—7Fæ6S×³7Ò6öÆ÷#×¶6öÆ÷'5³×Òóà¢ÄÖ÷f–æu&VfÆV7F–öç26öÆ÷'3×¶6öÆ÷'7Ò'&–v‡FæW73×¶'&–v‡FæW77Òóà¢ÄVçf—&öæÖVçB&W6öÇWF–öã×·VÆ—G“ÓÓÒ&V6ò#ócC£#‡Óà¢ÄÆ–v‡Ff÷&ÖW"f÷&ÓÒ'&V7B"–çFVç6—G“×³‚¦'&–v‡FæW77Ò6öÆ÷#×¶6öÆ÷'5³×Ò66ÆS×µ³rÃ"ãRÃ×Ò÷6—F–öã×µ²ÓBÃ"Ã%×Ò&÷FF–öâ×“×´ÖF‚å’ó'Òóà¢ÄÆ–v‡Ff÷&ÖW"f÷&ÓÒ'&–ær"–çFVç6—G“×³r¦'&–v‡FæW77Ò6öÆ÷#×¶6öÆ÷'5³×Ò66ÆS×µ³RÃ2Ã×Ò÷6—F–öã×µ³BÂÓÃ×Ò&÷FF–öâ×“×²ÔÖF‚å’ó'Òóà¢ÄÆ–v‡Ff÷&ÖW"f÷&ÓÒ&6—&6ÆR"–çFVç6—G“×³"ãR¦'&–v‡FæW77Ò6öÆ÷#Ò"6Fff6fb"66ÆS×³'Ò÷6—F–öã×µ³ÃRÂÓ%×Ò&÷FF–öâ×ƒ×´ÖF‚å’ó'Òóà¢ÂôVçf—&öæÖVçCà¢Ä&ÆFU67VÇGW&R7FFS×·7FFWÒF†VÖS×·F†VÖWÒVÆ—G“×·&ö6W76–ærbgVÆ—G“ÓÓÒ&Ö‚#ò&&Ææ6VB#§VÆ—G—Ò'&–v‡FæW73×¶'&–v‡FæW77ÒVffV7G3×¶VffV7G7ÒG&ç6—F–öä¶–æC×·G&ç6—F–öä¶–æGÒ†öÆC×¶†öÆGÒ†öÆEö–çC×¶†öÆEö–çGÒ&ö6W76–æs×·&ö6W76–æwÒóà¢Å7&¶ÆW0¢6÷VçC×·&ö6W76–æsôÖF‚æÖ‚ƒbÄÖF‚æfÆö÷"†FVç6—G’ó"’“¦FVç6—G—Ð¢66ÆS×µ³"ÂrÂE×Ð¢6—¦S×³Ð¢7VVC×³ã7Ð¢6öÆ÷#×¶6öÆ÷'5³×Ð¢óà¢Ä–çFW&7F–öäg&ÖT'VFvWBóà¢Âô6çf3à¢“°§Ð¦6Æ7266VæT&÷VæF'’W‡FVæG2&V7Bä6ö×öæVçB°¢6öç7G'V7F÷"‡’°¢7WW"‡“°¢F†—2ç7FFRÒ²f–ÆVC¢fÇ6RÓ°¢Ð¢7FF–2vWDFW&—fVE7FFTg&öÔW'&÷"‚’°¢&WGW&â²f–ÆVC¢G'VRÓ°¢Ð¢6ö×öæVçDF–D6F6‚†W'&÷"’°¢6öç6öÆRæW'&÷"‚%vV$tÂ66VæR—6öÆFVC¢"ÂW'&÷"“°¢Ð¢&VæFW"‚’°¢&WGW&âF†—2ç7FFRæf–ÆVBòçVÆÂ¢F†—2ç&÷2æ6†–ÆG&Vã°¢Ð§Ð ¦gVæ7F–öâ'WGFöâ‡²6†–ÆG&VâÂV–WBÒfÇ6RÂFævW"ÒfÇ6RÂF—Â6Æ74æÖRÒ""Âöåö–çFW$VçFW"ÂÆ–÷WD–BÂââç&÷2Ò’°¢6öç7B6÷W&6S×G—Vöb6†–ÆG&VãÓÓÒ'7G&–ær#ö6†–ÆG&Vã¦çVÆÂÅ¶FV6öFVBÇ6WDFV6öFVEÓ×W6U7FFR‡6÷W&6R’ÆFV6öFUF–ÖW#×W6U&Vbƒ“°¢W6TVffV7B‚‚“Óç·6WDFV6öFVB‡6÷W&6R“·&WGW&â‚“Óæ6ÆV$–çFW'fÂ†FV6öFUF–ÖW"æ7W'&VçB“·ÒÅ·6÷W&6UÒ“°¢6öç7BFV6öFSÒ†WfVçB“Óç°¢öåö–çFW$VçFW#òâ†WfVçB“¶–b‚6÷W&6WÇÇ&÷2æF—6&ÆVB—&WGW&ã°¢6ÆV$–çFW'fÂ†FV6öFUF–ÖW"æ7W'&VçB“¶6öç7B6†'3Ô'&’æg&öÒ‡6÷W&6R’Æg&öÔÆVgCÖWfVçBæ6Æ–VçE‚ÖWfVçBæ7W'&VçEF&vWBævWD&÷VæF–æt6Æ–VçE&V7B‚’æÆVgCÆWfVçBæ7W'&VçEF&vWBæöfg6WEv–GF‚ó"ÆÇ†&WCÒ$$4DTdt„”¤´ÄÔäõ%5EUeu…•£#3CScsƒ			-	=	M	]	m	}		­	½	Í	Ý	í	ý
 
-const EMPTY = {
-  sourceUrl: "",
-  sourceName: "",
-  resultUrl: "",
-  referenceUrl: "",
-  workingPreviewUrl: "",
-  status: "Ð’Ñ‹Ð±ÐµÑ€Ð¸Ñ‚Ðµ PNG",
-  report: "",
-  outputPath: "",
-  progress: 0,
-  sourceFileMb: 0,
-  outputFileMb: 0,
-  sourceWidth: 0,
-  sourceHeight: 0,
-  workingWidth: 0,
-  workingHeight: 0,
-  sourceIsLarge: false,
-  busy: false,
-  previewBusy: false,
-  previewProgress: 0,
-  progressHistory: [],
-  activityHistory: [],
-  batchItems: [],
-  batchBusy: false,
-  batchProgress: 0,
-  batchStatus: "Ð”Ð¾Ð±Ð°Ð²ÑŒÑ‚Ðµ PNG-Ñ„Ð°Ð¹Ð»Ñ‹",
-  batchImportBusy: false,
-  batchImportProgress: 0,
-  batchImportStatus: "PNG Ð½Ðµ Ð²Ñ‹Ð±Ñ€Ð°Ð½Ñ‹",
-  batchWorkers: 1,
-  batchProgressHistory: [],
-  batchActivityHistory: [],
-};
-const HEADLESS_TEST = new URLSearchParams(location.search).has("headless-test");
-const TEST_TEXTURE = "qrc:/icons/liquid.svg";
-const TEST_FULL_TEXTURE = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADUlEQVR42mP8z8BQDwAFgQIAf9+ldwAAAABJRU5ErkJggg==";
-const ROUTES = [
-  ["home", "Ð“Ð»Ð°Ð²Ð½Ð°Ñ", House],
-  ["npm", "ÐÐŸÐœ Â· 3 MB", ScanLine],
-  ["batch", "Ð¢ÐµÐºÑÑ‚ÑƒÑ€Ñ‹", Images],
-  ["compare", "Ð¡Ñ€Ð°Ð²Ð½ÐµÐ½Ð¸Ðµ", Columns2],
-  ["game", "Blade Grid", Gamepad2],
-];
-const PRESETS = [
-  ["rose", "Rose signal", "#ff3f93"],
-  ["cyan", "Arctic cyan", "#37e7ff"],
-  ["violet", "Ultraviolet", "#9a72ff"],
-  ["amber", "Amber pulse", "#ffad42"],
-  ["emerald", "Emerald matrix", "#19e69b"],
-  ["cobalt", "Electric cobalt", "#2778ff"],
-];
-const THEME_COLORS = {
-  rose: ["#ff3f93", "#8c54ff"],
-  cyan: ["#37e7ff", "#3879ff"],
-  violet: ["#a67cff", "#f05dff"],
-  amber: ["#ffad42", "#ff4f73"],
-  emerald: ["#19e69b", "#28d9f7"],
-  cobalt: ["#2778ff", "#d6f6ff"],
-};
-const QUALITY_LEVELS = ["eco", "balanced", "max"];
-const MAX_ZOOM = 16;
-const DETAIL_ZOOM = 7.95;
-
-function readPreference(key, allowed, fallback) {
-  try {
-    const value = localStorage.getItem(key);
-    return allowed.includes(value) ? value : fallback;
-  } catch {
-    return fallback;
-  }
+
+-
+=
+M
+]
+m
 }
-
-function writePreference(key, value) {
-  try {
-    localStorage.setItem(key, value);
-  } catch {
-    // The UI remains usable when Chromium storage is disabled or unavailable.
-  }
-}
-function readNumberPreference(key,fallback,min,max){
-  try{const value=Number(localStorage.getItem(key));return Number.isFinite(value)?Math.max(min,Math.min(max,value)):fallback;}catch{return fallback;}
-}
-
-function useBackend() {
-  const [backend, setBackend] = useState(null),
-    [state, setState] = useState(EMPTY);
-  useEffect(() => {
-    if (!window.qt?.webChannelTransport || !window.QWebChannel) return;
-    new window.QWebChannel(window.qt.webChannelTransport, (channel) => {
-      const api = channel.objects.optimizer;
-      setBackend(api);
-      let frame = 0, timer = 0, lastSnapshot = 0;
-      const commitSnapshot = () => {
-        frame = 0;
-        timer = 0;
-        lastSnapshot = performance.now();
-        api.snapshot((v) => setState({ ...EMPTY, ...v }));
-      };
-      const refresh = () => {
-        if (frame || timer) return;
-        // A batch progress signal can arrive dozens of times per second. A
-        // complete snapshot also serialises the whole queue, so cap bridge
-        // traffic without slowing native work or user input.
-        const wait = Math.max(0, 55 - (performance.now() - lastSnapshot));
-        if (wait > 1) timer = setTimeout(() => { timer = 0; frame = requestAnimationFrame(commitSnapshot); }, wait);
-        else frame = requestAnimationFrame(commitSnapshot);
-      };
-      [
-        "sourceUrlChanged",
-        "resultUrlChanged",
-        "referenceUrlChanged",
-        "previewChanged",
-        "statusChanged",
-        "reportChanged",
-        "outputPathChanged",
-        "outputSizeChanged",
-        "sourceInfoChanged",
-        "previewBusyChanged",
-        "previewProgressChanged",
-        "progressChanged",
-        "busyChanged",
-        "telemetryChanged",
-        "batchItemsChanged",
-        "batchBusyChanged",
-        "batchProgressChanged",
-        "batchStatusChanged",
-        "batchImportBusyChanged",
-        "batchImportProgressChanged",
-        "batchImportStatusChanged",
-        "batchWorkersChanged",
-        "batchTelemetryChanged",
-      ].forEach((n) => api[n]?.connect(refresh));
-      refresh();
-    });
-  }, []);
-  return { backend, state };
-}
-
-function Hint({ text, children }) {
-  if (!text) return children;
-  const child = React.Children.only(children);
-  const publish = (e, open = true) =>
-    dispatchEvent(
-      new CustomEvent("agr-hint", {
-        detail: { open, text, x: e?.clientX || 0, y: e?.clientY || 0 },
-      }),
-    );
-  return React.cloneElement(child, {
-    onPointerEnter: (e) => {
-      child.props.onPointerEnter?.(e);
-      publish(e);
-    },
-    onPointerMove: (e) => {
-      child.props.onPointerMove?.(e);
-      if (!e.currentTarget.hasPointerCapture?.(e.pointerId)) publish(e);
-    },
-    onPointerLeave: (e) => {
-      child.props.onPointerLeave?.(e);
-      publish(e, false);
-    },
-    onFocus: (e) => {
-      child.props.onFocus?.(e);
-      const rect = e.currentTarget.getBoundingClientRect();
-      publish({ clientX: rect.left + rect.width / 2, clientY: rect.bottom });
-    },
-    onBlur: (e) => {
-      child.props.onBlur?.(e);
-      publish(e, false);
-    },
-  });
-}
-
-function TooltipLayer() {
-  const [hint, setHint] = useState({ open: false, text: "", x: 0, y: 0 });
-  useEffect(() => {
-    const update = (e) => setHint(e.detail);
-    addEventListener("agr-hint", update);
-    return () => removeEventListener("agr-hint", update);
-  }, []);
-  const x = Math.max(12, Math.min(innerWidth - 392, hint.x + 18));
-  const y = hint.y > innerHeight - 90 ? hint.y - 48 : hint.y + 18;
-  return (
-    <AnimatePresence>
-      {hint.open && (
-        <motion.div
-          className="floating-hint"
-          style={{ left: x, top: y }}
-          initial={{ opacity: 0, scale: 0.96, y: -4 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.98 }}
-        >
-          {hint.text}
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-}
-
-function DecodeText({ children }) {
-  const original = String(children),
-    [value, setValue] = useState(original),
-    frame = useRef(0),
-    glyphs = "01<>/\\{}[]#%*+â€”";
-  const decode = (event) => {
-    cancelAnimationFrame(frame.current);
-    const start = performance.now(),box=event.currentTarget.getBoundingClientRect(),fromLeft=event.clientX<box.left+box.width/2;
-    const run = (now) => {
-      const p = Math.min(1, (now - start) / 500),
-        fixed = Math.floor(original.length * p);
-      setValue(
-        original
-          .split("")
-          .map((c, i) =>
-            c === " "
-              ? c
-              : (fromLeft?i:original.length-1-i) < fixed
-                ? c
-                : glyphs[Math.floor(Math.random() * glyphs.length)],
-          )
-          .join(""),
-      );
-      if (p < 1) frame.current = requestAnimationFrame(run);
-    };
-    frame.current = requestAnimationFrame(run);
-  };
-  return (
-    <span className="decode-text" onPointerEnter={decode}>
-      {value}
-    </span>
-  );
-}
-
-function CursorTrail({ active }) {
-  const dots = useRef([]),
-    target = useRef({ x: innerWidth / 2, y: innerHeight / 2 }),
-    points = useRef(Array.from({ length: 12 }, () => ({ ...target.current })));
-  useEffect(() => {
-    if (!active) return undefined;
-    const move = (e) => {
-      target.current = { x: e.clientX, y: e.clientY };
-    };
-    let raf;
-    const tick = () => {
-      let lead = target.current;
-      points.current.forEach((p, i) => {
-        const ease = 0.28 - i * 0.012;
-        p.x += (lead.x - p.x) * ease;
-        p.y += (lead.y - p.y) * ease;
-        dots.current[i]?.style.setProperty(
-          "transform",
-          `translate3d(${p.x}px,${p.y}px,0) translate(-50%,-50%) scale(${1 - i / 15})`,
-        );
-        lead = p;
-      });
-      raf = requestAnimationFrame(tick);
-    };
-    addEventListener("pointermove", move);
-    tick();
-    return () => {
-      removeEventListener("pointermove", move);
-      cancelAnimationFrame(raf);
-    };
-  }, [active]);
-  if (!active) return null;
-  return (
-    <div className="cursor-trail">
-      {points.current.map((_, i) => (
-        <i key={i} ref={(el) => (dots.current[i] = el)} />
-      ))}
-    </div>
-  );
-}
-
-function AmbientBackdrop({ theme, secret, active }) {
-  const [p, setP] = useState({ x: 0.5, y: 0.5 }),
-    raf = useRef(0),
-    root = useRef(null),
-    energy = useRef({ value: 0 });
-  useEffect(() => {
-    if (!active) {
-      setP({ x: 0.5, y: 0.5 });
-      return undefined;
-    }
-    const move = (e) => {
-      cancelAnimationFrame(raf.current);
-      raf.current = requestAnimationFrame(() =>
-        setP({ x: e.clientX / innerWidth, y: e.clientY / innerHeight }),
-      );
-    };
-    addEventListener("pointermove", move);
-    return () => removeEventListener("pointermove", move);
-  }, [active]);
-  useEffect(() => {
-    const react = (e) => {
-      const node = root.current;
-      if (!node) return;
-      const detail = e.detail || {};
-      node.style.setProperty("--motion-x", Number(detail.x || 0));
-      node.style.setProperty("--motion-y", Number(detail.y || 0));
-      energy.current.value = Math.max(0, Math.min(1, Number(detail.energy || 0)));
-      node.style.setProperty("--energy", energy.current.value);
-      gsap.killTweensOf(energy.current);
-      gsap.to(energy.current, {
-        value: 0,
-        duration: 0.72,
-        ease: "power3.out",
-        overwrite: true,
-        onUpdate: () =>
-          root.current?.style.setProperty("--energy", energy.current.value),
-      });
-    };
-    addEventListener("agr-motion", react);
-    return () => {
-      removeEventListener("agr-motion", react);
-      gsap.killTweensOf(energy.current);
-    };
-  }, []);
-  const px = p.x * 1600,
-    py = p.y * 900;
-  return (
-    <div
-      ref={root}
-      className={`ambient-backdrop ${secret ? "secret-energy" : ""}`}
-      data-theme={theme}
-      style={{
-        "--mx": `${p.x * 100}%`,
-        "--my": `${p.y * 100}%`,
-        "--px": p.x - 0.5,
-        "--py": p.y - 0.5,
-        "--energy": 0,
-      }}
-    >
-      <div className="ambient-glow" />
-      <svg viewBox="0 0 1600 900" preserveAspectRatio="none">
-        <g className="field-lines">
-          {Array.from({ length: 17 }, (_, i) => {
-            const y = 22 + i * 55,
-              d = Math.max(0, 1 - Math.abs(y - py) / 500),
-              bend = (px - 800) * 0.06 * d;
-            return (
-              <path
-                key={i}
-                d={`M-80 ${y} C ${310 + bend} ${y - 95 * d},${px - 190} ${py + (y - py) * 0.4},${px} ${py + (y - py) * 0.2} S ${1290 - bend} ${y + 78 * d},1680 ${y}`}
-              />
-            );
-          })}
-        </g>
-      </svg>
-      <i className="cursor-aura" />
-    </div>
-  );
-}
-
-function VectorSculpture() {
-  return (
-    <div className="vector-sculpture" aria-hidden="true">
-      <svg viewBox="0 0 1200 760" preserveAspectRatio="xMidYMid slice">
-        <defs>
-          <linearGradient id="vector-flow" x1="0" y1="0" x2="1" y2="1">
-            <stop stopColor="var(--accent2)" />
-            <stop offset=".48" stopColor="var(--accent)" />
-            <stop offset="1" stopColor="#fff" />
-          </linearGradient>
-          <filter id="vector-glow">
-            <feGaussianBlur stdDeviation="7" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-        </defs>
-        <g className="vector-core" fill="none" strokeLinecap="round">
-          {Array.from({ length: 7 }, (_, i) => (
-            <rect
-              key={i}
-              x={430 + i * 13}
-              y={185 + i * 10}
-              width={380 - i * 26}
-              height={378 - i * 20}
-              rx={118 - i * 8}
-              transform={`rotate(${i * 12 - 36} 620 374)`}
-              stroke={i === 3 ? "url(#vector-flow)" : i % 2 ? "var(--accent2)" : "var(--accent)"}
-              strokeWidth={i === 3 ? 2.8 : 0.8 + i * 0.12}
-              opacity={i === 3 ? 0.72 : 0.11 + i * 0.025}
-              filter={i === 3 ? "url(#vector-glow)" : undefined}
-            />
-          ))}
-          <circle cx="620" cy="374" r="54" stroke="var(--accent)" opacity=".3" />
-          <circle cx="620" cy="374" r="20" stroke="white" opacity=".45" />
-        </g>
-      </svg>
-      <div className="side-form side-form-left">
-        <i />
-        <i />
-        <i />
-      </div>
-      <div className="side-form side-form-right">
-        <i />
-        <i />
-        <i />
-      </div>
-    </div>
-  );
-}
-
-function SignalLattice({ progress, colors }) {
-  const group = useRef();
-  useFrame(({ clock, pointer }) => {
-    if (!group.current) return;
-    const t = clock.elapsedTime;
-    group.current.rotation.y = THREE.MathUtils.lerp(
-      group.current.rotation.y,
-      pointer.x * 0.14 + t * 0.035,
-      0.018,
-    );
-    group.current.rotation.x = THREE.MathUtils.lerp(
-      group.current.rotation.x,
-      -0.1 + pointer.y * 0.1 + progress * 0.18,
-      0.018,
-    );
-    group.current.rotation.z = THREE.MathUtils.lerp(
-      group.current.rotation.z,
-      pointer.x * 0.06 - progress * 0.12,
-      0.018,
-    );
-    const scale = 1 + progress * 0.07;
-    group.current.scale.setScalar(
-      THREE.MathUtils.lerp(group.current.scale.x, scale, 0.035),
-    );
-  });
-  return (
-    <group ref={group} position={[0.72, 0.08, -0.8]}>
-      {Array.from({ length: 5 }, (_, i) => (
-        <mesh
-          key={i}
-          rotation={[(i - 2) * 0.31, (i - 2) * 0.42, (i - 2) * 0.19]}
-          scale={1 + i * 0.16}
-        >
-          <torusGeometry args={[1.05, 0.018 + i * 0.006, 8, 96]} />
-          <meshPhysicalMaterial
-            color={colors[i % 2]}
-            emissive={colors[i % 2]}
-            emissiveIntensity={0.22}
-            metalness={0.86}
-            roughness={0.28}
-            clearcoat={1}
-          />
-        </mesh>
-      ))}
-      <mesh scale={0.68}>
-        <icosahedronGeometry args={[1, 1]} />
-        <meshPhysicalMaterial color="#09070c" metalness={0.82} roughness={0.31} wireframe />
-      </mesh>
-      <mesh scale={0.18}>
-        <octahedronGeometry />
-        <meshBasicMaterial color={colors[0]} />
-      </mesh>
-    </group>
-  );
-}
-
-function EdgeFrames({ colors }) {
-  const pieces = [[-5.25, 2.45, -1.5, 0.72], [5.35, -2.45, -1.6, -0.62]];
-  return (
-    <>
-      {pieces.map((p, i) => (
-        <group key={i} position={p.slice(0, 3)} rotation={[p[3], i ? -0.5 : 0.5, p[3]]}>
-          {Array.from({ length: 4 }, (_, ring) => (
-            <mesh key={ring} rotation={[ring * 0.36, ring * 0.22, ring * 0.41]} scale={1 + ring * 0.23}>
-              <torusGeometry args={[1.05, 0.022, 8, 80]} />
-              <meshPhysicalMaterial color={colors[(i + ring) % 2]} emissive={colors[(i + ring) % 2]} emissiveIntensity={0.12} metalness={0.9} roughness={0.34} />
-            </mesh>
-          ))}
-        </group>
-      ))}
-    </>
-  );
-}
-
-function NeuralLines({ active, motionValue, colors }) {
-  const geometry = useRef(),
-    rows = 17,
-    cols = 29,
-    base = useMemo(() => {
-      const a = [];
-      for (let r = 0; r < rows; r++)
-        for (let c = 0; c < cols - 1; c++)
-          a.push(
-            [(c / (cols - 1) - 0.5) * 12, (r / (rows - 1) - 0.5) * 6.8],
-            [((c + 1) / (cols - 1) - 0.5) * 12, (r / (rows - 1) - 0.5) * 6.8],
-          );
-      return a;
-    }, []),
-    positions = useMemo(() => new Float32Array(base.length * 3), [base]),
-    { pointer } = useThree();
-  useFrame(({ clock }) => {
-    if (!geometry.current) return;
-    const t = clock.elapsedTime,
-      px = pointer.x * 5.8,
-      py = pointer.y * 3.2;
-    base.forEach((p, i) => {
-      const d = Math.hypot(p[0] - px, p[1] - py),
-        inf = Math.exp(-d * d * 0.36);
-      positions[i * 3] = p[0];
-      positions[i * 3 + 1] =
-        p[1] +
-        Math.sin(p[0] * 1.35 + t + p[1]) * 0.045 +
-        inf * pointer.y * 0.22;
-      positions[i * 3 + 2] =
-        -1 +
-        inf * (active ? 0.7 : 0.34) +
-        (motionValue?.energy || 0) * 0.15 * Math.exp(-d * d * 0.15);
-    });
-    geometry.current.attributes.position.needsUpdate = true;
-  });
-  return (
-    <lineSegments>
-      <bufferGeometry ref={geometry}>
-        <bufferAttribute attach="attributes-position" args={[positions, 3]} />
-      </bufferGeometry>
-      <lineBasicMaterial
-        color={colors[0]}
-        transparent
-        opacity={active ? 0.34 : 0.14}
-        blending={THREE.AdditiveBlending}
-      />
-    </lineSegments>
-  );
-}
-
-function InteractionFrameBudget(){
-  const setFrameloop=useThree((state)=>state.setFrameloop),invalidate=useThree((state)=>state.invalidate);
-  useEffect(()=>{const update=(event)=>{setFrameloop(event.detail?"never":"always");if(!event.detail)invalidate();};addEventListener("agr-drag",update);return()=>{removeEventListener("agr-drag",update);setFrameloop("always");};},[invalidate,setFrameloop]);
-  return null;
-}
-
-const bladePose=(state,u,time=0,out)=>{
-  const a=u*Math.PI*2, breathe=Math.sin(time*.38+a*2)*.035;
-  let x=0,y=0,z=0,width=1.8,twist=0;
-  if(state==="npm"){
-    x=(u-.5)*7.1;y=Math.sin(a)*1.34*(.72+Math.abs(u-.5));z=Math.cos(a)*.74;twist=a*.72;width=1.25+Math.sin(Math.PI*u)*1.05;
-  }else if(state==="batch"){
-    x=(u-.5)*7.2;y=Math.sin(a*1.5)*1.52;z=Math.cos(a*3)*.58;twist=Math.sin(a*1.5)*1.05;width=1.05+.7*(.5+.5*Math.cos(a*3));
-  }else if(state==="compare"){
-    x=Math.sin(a)*3.25;y=Math.sign(Math.cos(a))*1.05+.34*Math.cos(a*2);z=.58*Math.sin(a*2);twist=Math.PI*.5*Math.sin(a);width=1.2+.72*Math.abs(Math.cos(a));
-  }else if(state==="game"){
-    const lane=(Math.floor(u*8)-3.5),cell=(u*8)%1;
-    x=lane*.78+.2*Math.sin(a*3);y=(cell-.5)*5.4;z=.72*Math.sin(lane*.8+a)+.18*Math.cos(time*.4+a*2);twist=(lane%2?1:-1)*.72+.28*Math.sin(a*2);width=.92+.38*(.5+.5*Math.cos(a*8));
-  }else if(state==="settings"){
-    x=Math.cos(a)*2.75;y=Math.sin(a)*1.72;z=.38*Math.sin(a*2);twist=a*.34;width=1.45+.22*Math.sin(a*3);
-  }else if(state==="secret"){
-    // Author sequence: the existing sculpture first collapses into a bright
-    // core, then opens as a three-ring metal iris. It is still the same set
-    // of blades, not a replacement object.
-    const reveal=THREE.MathUtils.smoothstep(time,.48,2.05),pulse=Math.exp(-Math.pow(time-2.18,2)/.075);
-    const flower=.16+reveal*(2.58+.54*Math.cos(a*3));
-    x=Math.cos(a)*flower*1.3;y=Math.sin(a)*flower*.73;z=reveal*(1.08*Math.sin(a*3+time*.34))+pulse*Math.cos(a*7)*.62;
-    twist=a*(.55+reveal*.92)+reveal*time*.16;width=.28+reveal*(1.22+.62*(.5+.5*Math.cos(a*3)));
-  }else{
-    // A spatial three-lobed flow: the spine travels in depth while every
-    // blade rotates independently, matching the reference fan rather than
-    // collapsing into a flat infinity ribbon.
-    const radius=2.72+.58*Math.cos(a*3+.35);
-    x=.25+Math.cos(a)*radius*1.28;
-    y=Math.sin(a)*radius*.64+.34*Math.sin(a*2);
-    z=1.12*Math.sin(a*2-.35)+.42*Math.cos(a*3);
-    twist=a*1.18+.44*Math.sin(a*2);
-    width=1.62+.72*(.5+.5*Math.cos(a*3-.5));
-  }
-  const pose=out||{position:new THREE.Vector3(),rotation:new THREE.Euler(0,0,0,"XYZ"),scale:new THREE.Vector3()};
-  pose.position.set(x,y+breathe,z);pose.rotation.set(.34*Math.sin(a*2),twist,.5*Math.cos(a),"XYZ");pose.scale.set(width,1,1+.18*Math.sin(a*3));return pose;
-};
-
-function BladeSculpture({ state, theme, quality, brightness=1, effects=1, transitionKind="home>home", hold=0, holdPoint, processing=false }){
-  const count=quality==="eco"?104:quality==="max"?188:148;
-  const body=useRef(),edge=useRef(),edgeBack=useRef(),trail=useRef(),current=useRef([]),targets=useRef([]),hover=useRef(-1),holdU=useRef(.56),frameTick=useRef(0),stateClock=useRef({name:state,start:0}),lastPointer=useRef(new THREE.Vector2()),tmp=useMemo(()=>({matrix:new THREE.Matrix4(),q:new THREE.Quaternion(),p:new THREE.Vector3(),trailP:new THREE.Vector3(),s:new THREE.Vector3(),projected:new THREE.Vector3(),offset:new THREE.Vector3(),pointer:new THREE.Vector2(),color:new THREE.Color(),bodyColor:new THREE.Color(),dark:new THREE.Color("#12364a"),white:new THREE.Color("#ffffff")}),[]);
-  const colors=THEME_COLORS[theme]||THEME_COLORS.cyan;
-  const accent=useMemo(()=>new THREE.Color(colors[0]),[colors]);
-  const accent2=useMemo(()=>new THREE.Color(colors[1]),[colors]);
-  const transitionMode=useMemo(()=>[...transitionKind].reduce((sum,char)=>sum+char.charCodeAt(0),0)%4,[transitionKind]);
-  useEffect(()=>{current.current=[];targets.current=[];},[count]);
-  useFrame(({clock,pointer,camera})=>{
-    if(processing&&hold<=0&&++frameTick.current%2)return;
-    if(!body.current||!edge.current||!edgeBack.current||!trail.current)return;
-    const activePointer=hold>0&&holdPoint?tmp.pointer.set(holdPoint.x/innerWidth*2-1,1-holdPoint.y/innerHeight*2):pointer;
-    const t=clock.elapsedTime;if(stateClock.current.name!==state){stateClock.current={name:state,start:t};}const poseTime=state==="secret"?t-stateClock.current.start:t, speed=activePointer.distanceTo(lastPointer.current);lastPointer.current.lerp(activePointer,.18);
-    const holdCenter=holdU.current;
-    let nearest=-1,nearestDistance=.29;
-    for(let i=0;i<count;i++){
-      const u=i/count,target=bladePose(state,u,poseTime,targets.current[i]),phase=transitionMode===0?i:transitionMode===1?count-i:transitionMode===2?Math.abs(i-count/2)*2:(i%2?i:count-i);targets.current[i]=target;
-      if(hold>0){const angle=u*Math.PI*2,circular=Math.min(Math.abs(u-holdCenter),1-Math.abs(u-holdCenter)),pull=Math.exp(-circular*circular*72)*hold,global=1+hold*.055;target.position.x*=global;target.position.y*=global;target.position.z+=pull*1.58+Math.sin(angle*4-t*4)*hold*.13;target.scale.x*=1+pull*.34;target.scale.z*=1+pull*.18;target.rotation.y+=pull*.72+Math.sin(angle*2-t)*hold*.08;}
-      if(!current.current[i])current.current[i]={p:target.position.clone(),q:new THREE.Quaternion().setFromEuler(target.rotation),s:target.scale.clone()};
-      const c=current.current[i],delay=.045+Math.min(.055,phase/count*.045);
-      c.p.lerp(target.position,delay);c.q.slerp(tmp.q.setFromEuler(target.rotation),delay);c.s.lerp(target.scale,delay);
-      tmp.matrix.compose(c.p,c.q,c.s);body.current.setMatrixAt(i,tmp.matrix);
-      tmp.offset.set(0,.026,.363*c.s.z).applyQuaternion(c.q);tmp.p.copy(c.p).add(tmp.offset);tmp.s.set(c.s.x,1,1);tmp.matrix.compose(tmp.p,c.q,tmp.s);edge.current.setMatrixAt(i,tmp.matrix);
-      tmp.offset.set(0,-.026,-.363*c.s.z).applyQuaternion(c.q);tmp.p.copy(c.p).add(tmp.offset);tmp.matrix.compose(tmp.p,c.q,tmp.s);edgeBack.current.setMatrixAt(i,tmp.matrix);
-      tmp.trailP.copy(c.p).lerp(target.position,-.24);tmp.s.copy(c.s).multiplyScalar(1.015);tmp.matrix.compose(tmp.trailP,c.q,tmp.s);trail.current.setMatrixAt(i,tmp.matrix);
-      tmp.projected.copy(c.p);body.current.localToWorld(tmp.projected);tmp.projected.project(camera);const distance=Math.hypot(tmp.projected.x-activePointer.x,tmp.projected.y-activePointer.y);
-      if(distance<nearestDistance){nearestDistance=distance;nearest=i;}
-    }
-    hover.current=nearest;
-    if(nearest>=0){let delta=nearest/count-holdU.current;if(delta>.5)delta-=1;if(delta<-.5)delta+=1;holdU.current=(holdU.current+delta*(hold>0?.16:.28)+1)%1;}
-    for(let i=0;i<count;i++){
-      const delta=nearest<0?count:Math.min(Math.abs(i-nearest),count-Math.abs(i-nearest));
-      const circular=Math.min(Math.abs(i/count-holdCenter),1-Math.abs(i/count-holdCenter)),holdLight=hold*Math.exp(-circular*circular*52)*1.55;
-      const wave=Math.exp(-delta*delta/38)*effects+holdLight;
-      const runner=nearest<0?0:Math.exp(-Math.pow(delta-((t*18+speed*150)%20),2)/12)*.58*effects;
-      tmp.color.copy(accent).lerp(accent2,.28+.25*Math.sin(i*.17+t*.35)).multiplyScalar(.34+(wave+runner)*1.38*brightness);
-      if(delta<2)tmp.color.lerp(tmp.white,.42);
-      edge.current.setColorAt(i,tmp.color);
-      edgeBack.current.setColorAt(i,tmp.color);
-      tmp.bodyColor.copy(tmp.dark).lerp(accent,.34+.16*Math.sin(i*.09+t*.22)).multiplyScalar((1.04+.2*Math.sin(i*.11+t*.18))*brightness);body.current.setColorAt(i,tmp.bodyColor);
-    }
-    body.current.instanceMatrix.needsUpdate=true;edge.current.instanceMatrix.needsUpdate=true;edgeBack.current.instanceMatrix.needsUpdate=true;trail.current.instanceMatrix.needsUpdate=true;if(body.current.instanceColor)body.current.instanceColor.needsUpdate=true;if(edge.current.instanceColor)edge.current.instanceColor.needsUpdate=true;if(edgeBack.current.instanceColor)edgeBack.current.instanceColor.needsUpdate=true;
-    const ry=THREE.MathUtils.lerp(body.current.rotation.y,pointer.x*.13*effects,.022),rx=THREE.MathUtils.lerp(body.current.rotation.x,-pointer.y*.085*effects,.022);for(const mesh of [body.current,edge.current,edgeBack.current,trail.current]){mesh.rotation.y=ry;mesh.rotation.x=rx;}
-  });
-  return <group position={[.82,.02,-.18]} scale={[1.3,1.3,1.24]}>
-    <instancedMesh ref={trail} args={[null,null,count]} frustumCulled={false}>
-      <boxGeometry args={[1,.04,.72]} />
-      <meshBasicMaterial color={colors[0]} transparent opacity={.055*effects} depthWrite={false} blending={THREE.AdditiveBlending}/>
-    </instancedMesh>
-    <instancedMesh ref={body} args={[null,null,count]} frustumCulled={false}>
-      <boxGeometry args={[1,.045,.72]} />
-      <meshPhysicalMaterial vertexColors color="#ffffff" emissive={colors[0]} emissiveIntensity={.075*effects} metalness={.82} roughness={.2} clearcoat={1} clearcoatRoughness={.08} envMapIntensity={5.4*brightness} />
-    </instancedMesh>
-    <instancedMesh ref={edge} args={[null,null,count]} frustumCulled={false}>
-      <boxGeometry args={[1,.014,.028]} />
-      <meshBasicMaterial vertexColors toneMapped={false} transparent opacity={.98} blending={THREE.AdditiveBlending} />
-    </instancedMesh>
-    <instancedMesh ref={edgeBack} args={[null,null,count]} frustumCulled={false}>
-      <boxGeometry args={[1,.014,.028]} />
-      <meshBasicMaterial vertexColors toneMapped={false} transparent opacity={.96} blending={THREE.AdditiveBlending} />
-    </instancedMesh>
-  </group>;
-}
-
-function MovingReflections({colors,brightness}){
-  const a=useRef(),b=useRef();
-  useFrame(({clock,pointer})=>{const t=clock.elapsedTime;if(a.current)a.current.position.set(-3.8+Math.sin(t*.31)*2.2+pointer.x,2.8+Math.cos(t*.23)*1.2,3.5);if(b.current)b.current.position.set(4.2+Math.cos(t*.27)*1.8,-2.1+Math.sin(t*.35)*1.1,2.8);});
-  return <><pointLight ref={a} intensity={22*brightness} distance={13} color={colors[0]}/><pointLight ref={b} intensity={18*brightness} distance={12} color={colors[1]}/></>;
-}
-
-function Scene({ theme, quality, screen, settingsOpen, secret, transitionKind, brightness, effects, hold, holdPoint, processing }) {
-  const colors = THEME_COLORS[theme] || THEME_COLORS.rose;
-  const density = quality === "eco" ? 10 : quality === "max" ? 42 : 24;
-  const state=secret?"secret":screen;
-  return (
-    <Canvas
-      dpr={processing?[0.62,0.78]:
-        quality === "eco"
-          ? [0.7, 0.9]
-          : quality === "max"
-            ? [0.9, 1.1]
-            : [0.8, 1]
-      }
-      camera={{ position: [0, 0, 7.1], fov: 48 }}
-      gl={{
-        antialias: true,
-        alpha: true,
-        powerPreference: "high-performance",
-        preserveDrawingBuffer: false,
-      }}
-      onCreated={({gl})=>{gl.toneMapping=THREE.ACESFilmicToneMapping;gl.toneMappingExposure=1.56;gl.outputColorSpace=THREE.SRGBColorSpace;}}
-    >
-      <ambientLight intensity={.74*brightness} color="#9cc7db" />
-      <hemisphereLight intensity={1.35*brightness} color="#b9f9ff" groundColor="#082438"/>
-      <directionalLight position={[-4,5,5]} intensity={4.1*brightness} color="#d8f9ff" />
-      <pointLight position={[5,2,3]} intensity={15*brightness} distance={15} color={colors[1]} />
-      <pointLight position={[-5,-2,2]} intensity={12*brightness} distance={13} color={colors[0]} />
-      <MovingReflections colors={colors} brightness={brightness}/>
-      <Environment resolution={quality==="eco"?64:128}>
-        <Lightformer form="rect" intensity={8*brightness} color={colors[0]} scale={[7,2.5,1]} position={[-4,2,2]} rotation-y={Math.PI/2}/>
-        <Lightformer form="ring" intensity={7*brightness} color={colors[1]} scale={[5,3,1]} position={[4,-1,1]} rotation-y={-Math.PI/2}/>
-        <Lightformer form="circle" intensity={2.5*brightness} color="#dffcff" scale={2} position={[0,5,-2]} rotation-x={Math.PI/2}/>
-      </Environment>
-      <BladeSculpture state={state} theme={theme} quality={processing&&quality==="max"?"balanced":quality} brightness={brightness} effects={effects} transitionKind={transitionKind} hold={hold} holdPoint={holdPoint} processing={processing}/>
-      <Sparkles
-        count={processing?Math.max(6,Math.floor(density/2)):density}
-        scale={[12, 7, 4]}
-        size={1}
-        speed={0.13}
-        color={colors[0]}
-      />
-      <InteractionFrameBudget />
-    </Canvas>
-  );
-}
-class SceneBoundary extends React.Component {
-  constructor(p) {
-    super(p);
-    this.state = { failed: false };
-  }
-  static getDerivedStateFromError() {
-    return { failed: true };
-  }
-  componentDidCatch(error) {
-    console.error("WebGL scene isolated:", error);
-  }
-  render() {
-    return this.state.failed ? null : this.props.children;
-  }
-}
-
-function Button({ children, quiet = false, danger = false, tip, className = "", onPointerEnter, layoutId, ...props }) {
-  const source=typeof children==="string"?children:null,[decoded,setDecoded]=useState(source),decodeTimer=useRef(0);
-  useEffect(()=>{setDecoded(source);return()=>clearInterval(decodeTimer.current);},[source]);
-  const decode=(event)=>{
-    onPointerEnter?.(event);if(!source||props.disabled)return;
-    clearInterval(decodeTimer.current);const chars=Array.from(source),fromLeft=event.clientX-event.currentTarget.getBoundingClientRect().left<event.currentTarget.offsetWidth/2,alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789ÐÐ‘Ð’Ð“Ð”Ð•Ð–Ð—Ð˜ÐšÐ›ÐœÐÐžÐŸÐ Ð¡Ð¢Ð£Ð¤Ð¥Ð¦Ð§Ð¨";let frame=0;
-    decodeTimer.current=setInterval(()=>{frame++;const resolved=Math.ceil(chars.length*Math.min(1,frame/11));setDecoded(chars.map((char,index)=>{if(char===" ")return char;const rank=fromLeft?index:chars.length-1-index;return rank<resolved?char:alphabet[Math.floor(Math.random()*alphabet.length)];}).join(""));if(frame>=11){clearInterval(decodeTimer.current);setDecoded(source);}},30);
-  };
-  const move = (e) => {
-    const r = e.currentTarget.getBoundingClientRect();
-    e.currentTarget.style.setProperty("--bx", `${e.clientX - r.left}px`);
-    e.currentTarget.style.setProperty("--by", `${e.clientY - r.top}px`);
-  };
-  const node = (
-    <motion.button
-      layout={Boolean(layoutId)}
-      layoutId={layoutId}
-      transition={layoutId ? { layout: { duration: HEADLESS_TEST ? 0 : .58, ease: [.2, .72, .18, 1] } } : undefined}
-      className={`button ${quiet ? "quiet" : ""} ${danger ? "danger" : ""} ${className}`.trim()}
-      data-no-hold
-      onPointerMove={move}
-      onPointerEnter={decode}
-      {...props}
-    >
-      <i />
-      <span>{source?decoded:children}</span>
-    </motion.button>
-  );
-  return <Hint text={tip}>{node}</Hint>;
-}
-const mb = (n) => (n ? `${Number(n).toFixed(2)} MB` : "â€”");
-function RingMetric({ label, value, progress = 0, tip }) {
-  const n = Math.max(0, Math.min(1, progress));
-  return (
-    <Hint text={tip}>
-      <div className="ring-metric">
-        <svg viewBox="0 0 52 52">
-          <defs>
-            <linearGradient id={`ring-${label}`}>
-              <stop stopColor="var(--accent)" />
-              <stop offset="1" stopColor="var(--accent2)" />
-            </linearGradient>
-          </defs>
-          <circle className="ring-track" cx="26" cy="26" r="21" />
-          <circle
-            className="ring-value"
-            cx="26"
-            cy="26"
-            r="21"
-            pathLength="1"
-            style={{ strokeDasharray: `${n} 1` }}
-          />
-        </svg>
-        <div>
-          <small>{label}</small>
-          <strong>{value}</strong>
-        </div>
-      </div>
-    </Hint>
-  );
-}
-function Metric({ label, value, tip }) {
-  return (
-    <Hint text={tip || `${label}: ${value}`}>
-      <div className="metric">
-        <small>{label}</small>
-        <strong>{value}</strong>
-        <i />
-      </div>
-    </Hint>
-  );
-}
-function Sparkline({ values = [], label, color = "var(--accent)" }) {
-  const id = useId().replaceAll(":", ""),
-    data = values.length ? values : [0, 0.02, 0.03],
-    points = data
-      .map(
-        (v, i) =>
-          `${(i / Math.max(1, data.length - 1)) * 100},${44 - Number(v) * 38}`,
-      )
-      .join(" "),
-    last = Number(data.at(-1) || 0);
-  return (
-    <Hint text={`${label}: ${Math.round(last * 100)}%`}>
-      <div className="spark">
-        <small>{label}</small>
-        <b>{Math.round(last * 100)}%</b>
-        <svg viewBox="0 0 100 48" preserveAspectRatio="none">
-          <defs>
-            <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
-              <stop stopColor={color} stopOpacity=".4" />
-              <stop offset="1" stopColor={color} stopOpacity="0" />
-            </linearGradient>
-          </defs>
-          <path className="chart-grid" d="M0 12H100M0 24H100M0 36H100" />
-          <polygon points={`0,48 ${points} 100,48`} fill={`url(#${id})`} />
-          <polyline
-            className="chart-line"
-            points={points}
-            fill="none"
-            stroke={color}
-            strokeWidth="1.7"
-            vectorEffect="non-scaling-stroke"
-          />
-          <circle cx="100" cy={44 - last * 38} r="2" fill={color} />
-        </svg>
-      </div>
-    </Hint>
-  );
-}
-function ProcessSignal({ progress = 0, status = "ÐžÐ¶Ð¸Ð´Ð°Ð½Ð¸Ðµ", compact = false }) {
-  const p = Math.max(0, Math.min(1, Number(progress || 0)));
-  return <div className={`process-signal ${compact ? "compact" : ""}`} title={status}>
-    <div className="signal-copy"><small>{p >= 1 ? "RGB24 VERIFIED" : p > 0 ? "ADAPTIVE PIPELINE" : "READY CHANNEL"}</small><strong>{Math.round(p * 100)}%</strong></div>
-    <div className="signal-bars">{Array.from({length:18},(_,i)=><i key={i} style={{"--h":`${20 + ((i * 37 + Math.round(p*100)) % 75)}%`,"--on":i/17<=p?1:.12}} />)}</div>
-    <span>{String(status).split("Â·")[0].slice(0,72)}</span>
-  </div>;
-}
-function FluidProgress({ value = 0 }) {
-  return (
-    <div
-      className="fluid-progress"
-      style={{ "--value": Math.max(0, Math.min(1, value)) }}
-    >
-      <i />
-      <b />
-    </div>
-  );
-}
-
-function KineticArchitecture({ activity = 0 }) {
-  const level = Math.max(0.08, Math.min(1, Number(activity || 0)));
-  return (
-    <div className="kinetic-architecture" style={{ "--activity": level }} aria-hidden="true">
-      <div className="architecture-planes">
-        {Array.from({ length: 7 }, (_, i) => <i key={i} style={{ "--i": i }} />)}
-      </div>
-      <div className="kinetic-equalizer">
-        {Array.from({ length: 18 }, (_, i) => <i key={i} style={{ "--i": i }} />)}
-      </div>
-    </div>
-  );
-}
-
-function DataCathedral({ items = [], activity = 0, quality = "balanced" }) {
-  const visible = items.length ? items.slice(0, quality === "eco" ? 18 : quality === "max" ? 54 : 32) : Array.from({ length: 12 }, (_, i) => ({ name: `SLOT ${String(i + 1).padStart(2,"0")}` }));
-  return (
-    <div className="data-cathedral" style={{ "--activity": Math.max(.08, Number(activity || 0)) }} aria-hidden="true">
-      <div className="cathedral-vault"><i /><i /><i /><i /></div>
-      <div className="cathedral-floor" />
-      <div className="cathedral-modules">
-        {visible.map((item, i) => <div key={`${item.sourceUrl || item.name}-${i}`} className={`cathedral-module ${item.done ? "done" : item.importing ? "loading" : "queued"}`} style={{ "--i": i, "--count": visible.length }}><i /><b>{String(i + 1).padStart(2,"0")}</b><span>{item.name}</span></div>)}
-      </div>
-      <div className="cathedral-core"><span>{items.length}</span><small>TEXTURE NODES</small></div>
-    </div>
-  );
-}
-
-function Header({ screen, backend, onSettings }) {
-  const label = ROUTES.find((x) => x[0] === screen)?.[1] || "Ð¡Ñ€Ð°Ð²Ð½ÐµÐ½Ð¸Ðµ";
-  return (
-    <header className="topbar" data-no-hold>
-      <div className="brand">
-        <span className="brand-mark">
-          <ScanLine />
-        </span>
-        <div>
-          <b>ÐžÐ¿Ñ‚Ð¸Ð¼Ð¸Ð·Ð°Ñ‚Ð¾Ñ€ Ñ‚ÐµÐºÑÑ‚ÑƒÑ€</b>
-          <small>ADAPTIVE RGB24 / v2</small>
-        </div>
-      </div>
-      <div className="route-status">
-        <i />
-        <small>ACTIVE SPACE</small>
-        <strong>{label}</strong>
-      </div>
-      <div className="top-actions">
-        <Button data-action="settings" tip="Ð¦Ð²ÐµÑ‚, ÑÑ„Ñ„ÐµÐºÑ‚Ñ‹ Ð¸ Ð¸Ð½Ñ‚ÐµÑ€Ñ„ÐµÐ¹Ñ" quiet onClick={onSettings}>
-          <Palette />
-        </Button>
-        <Button
-          tip="ÐŸÐµÑ€ÐµÐºÐ»ÑŽÑ‡Ð¸Ñ‚ÑŒ Ð¿Ð¾Ð»Ð½Ñ‹Ð¹ ÑÐºÑ€Ð°Ð½ Ð¸ Ð¾ÐºÐ½Ð¾"
-          quiet
-          onClick={() => backend?.toggleFullscreen()}
-        >
-          <Maximize2 />
-        </Button>
-        <Button
-          tip="ÐŸÐµÑ€ÐµÐ·Ð°Ð¿ÑƒÑÑ‚Ð¸Ñ‚ÑŒ Ð¸Ð½Ñ‚ÐµÑ€Ñ„ÐµÐ¹Ñ"
-          quiet
-          onClick={() => location.reload()}
-        >
-          <Activity />
-        </Button>
-        <Button
-          tip="Ð—Ð°ÐºÑ€Ñ‹Ñ‚ÑŒ Ð¿Ñ€Ð¸Ð»Ð¾Ð¶ÐµÐ½Ð¸Ðµ"
-          quiet
-          onClick={() => backend?.quitApp()}
-        >
-          <X />
-        </Button>
-      </div>
-    </header>
-  );
-}
-function RightDock({ screen, setScreen, state }) {
-  const firstDone = state.batchItems?.findIndex((item) => item.done) ?? -1;
-  return (
-    <motion.aside
-      className="right-dock"
-      data-no-hold
-      initial={{ x: 110, y: "-50%", opacity: 0 }}
-      animate={{ x: 0, y: "-50%", opacity: 1 }}
-      transition={{ type: "spring", stiffness: 190, damping: 21, delay: 0.35 }}
-    >
-      <div className="dock-edge" />
-      {ROUTES.map(([id, label, I]) => {
-        const disabled = id === "compare" && firstDone < 0;
-        return (
-          <Hint
-            text={disabled ? "Ð¡Ð½Ð°Ñ‡Ð°Ð»Ð° Ð¾Ð¿Ñ‚Ð¸Ð¼Ð¸Ð·Ð¸Ñ€ÑƒÐ¹Ñ‚Ðµ Ñ‚ÐµÐºÑÑ‚ÑƒÑ€Ñƒ" : label}
-            key={id}
-          >
-            <button
-              data-route={id}
-              disabled={disabled}
-              className={screen === id ? "active" : ""}
-              onClick={() => setScreen(id === "compare" ? `compare:${firstDone}` : id)}
-            >
-              <I />
-              <span>{label}</span>
-            </button>
-          </Hint>
-        );
-      })}
-    </motion.aside>
-  );
-}
-function CursorEffects({effects}){
-  const ref=useRef();
-  useEffect(()=>{const move=(event)=>{if(!ref.current)return;ref.current.style.setProperty("--cursor-x",`${event.clientX}px`);ref.current.style.setProperty("--cursor-y",`${event.clientY}px`);ref.current.style.setProperty("--cursor-speed",String(Math.min(1,Math.hypot(event.movementX,event.movementY)/42)));};addEventListener("pointermove",move,{passive:true});return()=>removeEventListener("pointermove",move);},[]);
-  return <div ref={ref} className="cursor-effects" style={{"--cursor-effects":effects}} aria-hidden="true"><i/><i/><i/></div>;
-}
-function BackgroundFlowLines(){
-  const ref=useRef();
-  useEffect(()=>{const move=(event)=>{if(!ref.current)return;ref.current.style.setProperty("--flow-x",`${(event.clientX/innerWidth-.5)*-16}px`);ref.current.style.setProperty("--flow-y",`${(event.clientY/innerHeight-.5)*-12}px`);};addEventListener("pointermove",move,{passive:true});return()=>removeEventListener("pointermove",move);},[]);
-  return <div ref={ref} className="background-flow" aria-hidden="true"><svg viewBox="0 0 1920 1080" preserveAspectRatio="none">
-    {Array.from({length:18},(_,i)=><path key={`a${i}`} style={{"--i":i}} d={`M -120 ${160+i*22} C 280 ${20+i*11}, 510 ${390-i*7}, 820 ${245+i*8} S 1360 ${120+i*18}, 2040 ${280+i*16}`}/>)}
-    {Array.from({length:14},(_,i)=><path key={`b${i}`} style={{"--i":i}} d={`M ${220+i*18} 1160 C ${260+i*8} 760, ${820-i*19} 920, ${930+i*11} 560 S ${1440+i*17} ${240+i*13}, 2040 ${70+i*9}`}/>)}
-  </svg></div>;
-}
-function CursorParticleField({theme,effects}){
-  const canvas=useRef(null),frame=useRef(0),pointer=useRef({x:-9999,y:-9999}),points=useRef([]);
-  const colors=THEME_COLORS[theme]||THEME_COLORS.emerald;
-  useEffect(()=>{
-    const node=canvas.current;if(!node)return;
-    const rebuild=()=>{const w=innerWidth,h=innerHeight,dpr=Math.min(devicePixelRatio||1,1.25);node.width=Math.round(w*dpr);node.height=Math.round(h*dpr);node.style.width=`${w}px`;node.style.height=`${h}px`;const count=Math.max(54,Math.min(110,Math.round(w*h/21000)));let seed=0x51f15e;const random=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};points.current=Array.from({length:count},()=>({x:random()*w,y:random()*h,r:.45+random()*.85,phase:random()*6.28}));draw();};
-    const draw=()=>{frame.current=0;const ctx=node.getContext("2d",{alpha:true,desynchronized:true});if(!ctx)return;const dpr=node.width/Math.max(1,innerWidth);ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,innerWidth,innerHeight);const p=pointer.current;for(const dot of points.current){const dx=dot.x-p.x,dy=dot.y-p.y,d=Math.hypot(dx,dy),influence=Math.max(0,1-d/190),push=influence*influence*34,inv=d?1/d:0,x=dot.x+dx*inv*push,y=dot.y+dy*inv*push;ctx.globalAlpha=(.11+influence*.58)*Math.min(1,effects);ctx.fillStyle=influence>.35?colors[1]:colors[0];ctx.shadowColor=colors[0];ctx.shadowBlur=influence*9;ctx.beginPath();ctx.arc(x,y,dot.r+influence*1.25,0,Math.PI*2);ctx.fill();}ctx.shadowBlur=0;};
-    const queue=()=>{if(!frame.current)frame.current=requestAnimationFrame(draw);};
-    const move=(event)=>{pointer.current={x:event.clientX,y:event.clientY};queue();};
-    rebuild();addEventListener("resize",rebuild);addEventListener("pointermove",move,{passive:true});return()=>{cancelAnimationFrame(frame.current);removeEventListener("resize",rebuild);removeEventListener("pointermove",move);};
-  },[colors,effects]);
-  return <canvas ref={canvas} className="cursor-particle-field" aria-hidden="true"/>;
-}
-function HoldSpace({progress,point}){
-  return <div className={`hold-space ${progress>.01?"active":""}`} style={{"--hold":progress,"--hold-x":`${point.x}px`,"--hold-y":`${point.y}px`}} aria-hidden="true">
-    <div className="hold-cursor"><i/><i/><i/><b>{Math.round(progress*100).toString().padStart(2,"0")}</b></div>
-    <div className="hold-space-waves">{Array.from({length:5},(_,i)=><i key={i} style={{"--i":i}}/>)}</div>
-  </div>;
-}
-function SettingsPanel({
-  open,
-  setOpen,
-  theme,
-  setTheme,
-  quality,
-  setQuality,
-  brightness,
-  setBrightness,
-  effects,
-  setEffects,
-  performanceMode,
-  setPerformanceMode,
-  hardwareThreads,
-  backend,
-}) {
-  return (
-    <AnimatePresence>
-      {open && (
-        <motion.aside
-          className="settings-panel"
-          data-no-hold
-          initial={false}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: .14 }}
-        >
-          <div className="settings-head">
-            <div>
-              <small>VISUAL CONTROL</small>
-              <h2>ÐÐ°ÑÑ‚Ñ€Ð¾Ð¹ÐºÐ¸</h2>
-            </div>
-            <Button quiet onClick={() => setOpen(false)}>
-              <X />
-            </Button>
-          </div>
-          <p>Ð¦Ð²ÐµÑ‚Ð¾Ð²Ð¾Ð¹ ÑÐ¸Ð³Ð½Ð°Ð»</p>
-          <div className="preset-grid">
-            {PRESETS.map(([id, label, color]) => (
-              <button
-                key={id}
-                className={theme === id ? "active" : ""}
-                onClick={() => setTheme(id)}
-                style={{ "--swatch": color, "--swatch2": THEME_COLORS[id][1] }}
-              >
-                <i />
-                <span>{label}</span>
-              </button>
-            ))}
-          </div>
-          <p>Ð¡Ð²ÐµÑ‚ Ð¸ Ð¾Ð¿Ñ‚Ð¸Ñ‡ÐµÑÐºÐ¾Ðµ ÑÑ‚ÐµÐºÐ»Ð¾</p>
-          <label className="setting-range"><span>Ð¯Ð ÐšÐžÐ¡Ð¢Ð¬</span><b>{Math.round(brightness*100)}%</b><input type="range" min=".55" max="1.4" step=".01" value={brightness} onChange={(e)=>setBrightness(Number(e.target.value))}/></label>
-          <label className="setting-range"><span>Ð­Ð¤Ð¤Ð•ÐšÐ¢Ð«</span><b>{Math.round(effects*100)}%</b><input type="range" min="0" max="1.35" step=".01" value={effects} onChange={(e)=>setEffects(Number(e.target.value))}/></label>
-          <p>ÐšÐ°Ñ‡ÐµÑÑ‚Ð²Ð¾ 3D-ÑÑ†ÐµÐ½Ñ‹</p>
-          <div className="quality-switch">
-            {[
-              ["eco", "Ð›ÐÐ“ÐšÐžÐ•"],
-              ["balanced", "Ð‘ÐÐ›ÐÐÐ¡"],
-              ["max", "ÐŸÐžÐ›ÐÐžÐ•"],
-            ].map(([id, label]) => (
-              <button
-                className={quality === id ? "active" : ""}
-                onClick={() => setQuality(id)}
-                key={id}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          <p>ÐÐ°Ð³Ñ€ÑƒÐ·ÐºÐ° Ð½Ð° Ð¶ÐµÐ»ÐµÐ·Ð¾</p>
-          <button className={`auto-hardware ${performanceMode==="balanced"?"active":""}`} onClick={()=>{setPerformanceMode("balanced");backend?.setPerformanceMode?.("balanced");}}><Cpu/><span><b>ÐÐ’Ð¢ÐžÐœÐÐ¢Ð˜Ð§Ð•Ð¡ÐšÐÐ¯ ÐÐÐ“Ð Ð£Ð—ÐšÐ</b><small>AUTO Â· {hardwareThreads||"â€”"} ÐŸÐžÐ¢ÐžÐšÐžÐ’</small></span></button>
-          <div className="quality-switch hardware-switch">
-            <button className={performanceMode==="eco"?"active":""} onClick={()=>{setPerformanceMode("eco");backend?.setPerformanceMode?.("eco");}}>Ð¢Ð˜Ð¥Ð˜Ð™</button>
-            <button className={performanceMode==="max"?"active":""} onClick={()=>{setPerformanceMode("max");backend?.setPerformanceMode?.("max");}}>ÐœÐÐšÐ¡Ð˜ÐœÐ£Ðœ</button>
-          </div>
-          <small className="settings-note">Ð¦Ð²ÐµÑ‚ ÑƒÐ¿Ñ€Ð°Ð²Ð»ÑÐµÑ‚ UI, Ð¼ÐµÑ‚Ð°Ð»Ð»Ð¾Ð¼ Ð¸ Ð¾Ñ‚Ñ€Ð°Ð¶ÐµÐ½Ð¸ÑÐ¼Ð¸. Ð¡Ñ€Ð°Ð²Ð½ÐµÐ½Ð¸Ðµ Ð¿Ð¾ÐºÐ°Ð·Ñ‹Ð²Ð°ÐµÑ‚ Ñ€ÐµÐ°Ð»ÑŒÐ½Ñ‹Ðµ Ð¿Ð¸ÐºÑÐµÐ»Ð¸ PNG.</small>
-        </motion.aside>
-      )}
-    </AnimatePresence>
-  );
-}
-
-function Home({ setScreen }) {
-  return (
-    <main className="home">
-      <section className="hero-copy">
-        <p>REAL-TIME / RGB24 / WEBGL</p>
-        <h1>
-          <DecodeText>ÐžÐŸÐ¢Ð˜ÐœÐ˜Ð—ÐÐ¢ÐžÐ </DecodeText>
-          <br />
-          <em><DecodeText>Ð¢Ð•ÐšÐ¡Ð¢Ð£Ð </DecodeText></em>
-        </h1>
-        <div className="hero-line">
-          <span>2K</span>
-          <span>4K</span>
-          <span>8K</span>
-          <b>AGR RGB24</b>
-        </div>
-      </section>
-      <section className="hero-panel">
-        <div className="capability-grid">
-          <div><small>RGB24</small><strong>TRUE COLOR</strong><b>01</b></div>
-          <div><small>8K READY</small><strong>SAFE PREVIEW</strong><b>02</b></div>
-          <div><small>BATCH</small><strong>PARALLEL QUEUE</strong><b>03</b></div>
-        </div>
-        <Button
-          layoutId="route-primary-npm"
-          tip="ÐžÐ´Ð¸Ð½ PNG, Ñ€ÐµÐ·ÑƒÐ»ÑŒÑ‚Ð°Ñ‚ ÑÑ‚Ñ€Ð¾Ð³Ð¾ Ð¼ÐµÐ½ÑŒÑˆÐµ 3 MB"
-          onClick={() => setScreen("npm")}
-        >
-          ÐÐŸÐœ Â· ÐžÐŸÐ¢Ð˜ÐœÐ˜Ð—Ð˜Ð ÐžÐ’ÐÐ¢Ð¬ Ð”Ðž 3 MB
-        </Button>
-        <Button
-          layoutId="route-primary-batch"
-          tip="ÐÐµÑÐºÐ¾Ð»ÑŒÐºÐ¾ PNG Ð±ÐµÐ· Ð»Ð¸Ð¼Ð¸Ñ‚Ð° Ð¸Ñ‚Ð¾Ð³Ð¾Ð²Ð¾Ð³Ð¾ Ñ€Ð°Ð·Ð¼ÐµÑ€Ð°"
-          quiet
-          onClick={() => setScreen("batch")}
-        >
-          ÐžÐ¢ÐšÐ Ð«Ð¢Ð¬ ÐžÐŸÐ¢Ð˜ÐœÐ˜Ð—ÐÐ¢ÐžÐ  Ð¢Ð•ÐšÐ¡Ð¢Ð£Ð 
-        </Button>
-      </section>
-    </main>
-  );
-}
-
-const ZoomPane = React.memo(function ZoomPane({ title, src, view, setView }) {
-  const drag = useRef(null),
-    pane = useRef(null),
-    image = useRef(null),
-    canvas = useRef(null),
-    drawFrame = useRef(0),
-    [imageReady, setImageReady] = useState(false),
-    moveFrame = useRef(0),
-    pendingMove = useRef(null),
-    interactionTimer = useRef(0),
-    displaySrc = src || (HEADLESS_TEST ? TEST_TEXTURE : ""),
-    clamp = useCallback((next) => {
-      const box = pane.current,
-        img = image.current;
-      if (!box || !img?.naturalWidth)
-        return { ...next, x: 0, y: 0, s: Math.max(1, Math.min(MAX_ZOOM, next.s)) };
-      const cw = box.clientWidth,
-        ch = box.clientHeight,
-        fit = Math.min(cw / img.naturalWidth, ch / img.naturalHeight),
-        s = Math.max(1, Math.min(MAX_ZOOM, next.s)),
-        maxX = Math.max(0, (img.naturalWidth * fit * s - cw) / 2),
-        maxY = Math.max(0, (img.naturalHeight * fit * s - ch) / 2);
-      return {
-        s,
-        x: Math.max(-maxX, Math.min(maxX, next.x || 0)),
-        y: Math.max(-maxY, Math.min(maxY, next.y || 0)),
-      };
-    }, []);
-  const draw = useCallback(() => {
-    cancelAnimationFrame(drawFrame.current);
-    drawFrame.current = requestAnimationFrame(() => {
-      const box = pane.current,
-        img = image.current,
-        target = canvas.current;
-      if (!box || !target || !img?.naturalWidth) return;
-      const cw = box.clientWidth,
-        ch = box.clientHeight,
-        dpr = 1,
-        width = Math.max(1, Math.round(cw * dpr)),
-        height = Math.max(1, Math.round(ch * dpr));
-      if (target.width !== width) target.width = width;
-      if (target.height !== height) target.height = height;
-      const ctx = target.getContext("2d", {
-        alpha: true,
-        willReadFrequently: true,
-      });
-      if (!ctx) return;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, cw, ch);
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = view.s > 8 ? "medium" : "high";
-      const fit = Math.min(cw / img.naturalWidth, ch / img.naturalHeight),
-        scale = fit * view.s,
-        dw = img.naturalWidth * scale,
-        dh = img.naturalHeight * scale,
-        dx = cw / 2 - dw / 2 + view.x,
-        dy = ch / 2 - dh / 2 + view.y,
-        sx = Math.max(0, Math.min(img.naturalWidth, -dx / scale)),
-        sy = Math.max(0, Math.min(img.naturalHeight, -dy / scale)),
-        ex = Math.max(0, Math.min(img.naturalWidth, (cw - dx) / scale)),
-        ey = Math.max(0, Math.min(img.naturalHeight, (ch - dy) / scale)),
-        sw = Math.max(0, ex - sx),
-        sh = Math.max(0, ey - sy);
-      if (sw > 0 && sh > 0)
-        ctx.drawImage(
-          img,
-          sx,
-          sy,
-          sw,
-          sh,
-          Math.max(0, dx),
-          Math.max(0, dy),
-          sw * scale,
-          sh * scale,
-        );
-    });
-  }, [view]);
-  useEffect(() => {
-    setImageReady(false);
-    setView({ s: 1, x: 0, y: 0 });
-  }, [displaySrc, setView]);
-  useEffect(() => {
-    if (!imageReady) return;
-    draw();
-    const observer = new ResizeObserver(draw);
-    if (pane.current) observer.observe(pane.current);
-    return () => observer.disconnect();
-  }, [draw, imageReady]);
-  useEffect(() => {
-    if (!HEADLESS_TEST) return;
-    const testDrag = (e) =>
-      setView((v) => {
-        const next = clamp({
-          ...v,
-          x: v.x + Number(e.detail?.x || 0),
-          y: v.y + Number(e.detail?.y || 0),
-        });
-        window.__AGR_TEST_VERTICAL_Y__ = next.y;
-        return next;
-      });
-    const testZoom = (e) => {
-      window.__AGR_WHEEL_COUNT__ = (window.__AGR_WHEEL_COUNT__ || 0) + 1;
-      setView((v) => {
-        const s = Math.max(1, Math.min(MAX_ZOOM, v.s * Number(e.detail?.factor || 1.1)));
-        window.__AGR_ZOOM_TARGET__ = s;
-        return clamp({ ...v, s });
-      });
-    };
-    addEventListener("agr-test-drag", testDrag);
-    addEventListener("agr-test-zoom", testZoom);
-    return () => {
-      removeEventListener("agr-test-drag", testDrag);
-      removeEventListener("agr-test-zoom", testZoom);
-    };
-  }, [clamp, setView]);
-  useEffect(
-    () => () => {
-      cancelAnimationFrame(moveFrame.current);
-      cancelAnimationFrame(drawFrame.current);
-      clearTimeout(interactionTimer.current);
-    },
-    [],
-  );
-  const wheel = useCallback((e) => {
-    window.__AGR_WHEEL_COUNT__ = (window.__AGR_WHEEL_COUNT__ || 0) + 1;
-    e.preventDefault();
-    if (!pane.current) return;
-    const rect = pane.current.getBoundingClientRect(),
-      ox = e.clientX - rect.left - rect.width / 2,
-      oy = e.clientY - rect.top - rect.height / 2;
-    setView((v) => {
-      const factor = Math.max(
-          0.91,
-          Math.min(1.1, Math.exp(-e.deltaY * 0.0011)),
-        ),
-        s = Math.max(1, Math.min(MAX_ZOOM, v.s * factor)),
-        ratio = s / v.s;
-      window.__AGR_ZOOM_TARGET__ = s;
-      return clamp({
-        s,
-        x: ox - (ox - v.x) * ratio,
-        y: oy - (oy - v.y) * ratio,
-      });
-    });
-    dispatchEvent(new CustomEvent("agr-drag", { detail: true }));
-    clearTimeout(interactionTimer.current);
-    interactionTimer.current = setTimeout(
-      () => dispatchEvent(new CustomEvent("agr-drag", { detail: false })),
-      180,
-    );
-  }, [clamp, setView]);
-  useEffect(() => {
-    const node = pane.current;
-    if (!node) return;
-    node.addEventListener("wheel", wheel, { passive: false });
-    return () => node.removeEventListener("wheel", wheel);
-  }, [wheel]);
-  const move = (e) => {
-    if (!drag.current) return;
-    e.preventDefault();
-    pendingMove.current = { x: e.clientX, y: e.clientY };
-    if (moveFrame.current) return;
-    moveFrame.current = requestAnimationFrame(() => {
-      moveFrame.current = 0;
-      if (!drag.current || !pendingMove.current) return;
-      const dx = pendingMove.current.x - drag.current.px,
-        dy = pendingMove.current.y - drag.current.py;
-      setView((v) =>
-        clamp({ ...v, x: drag.current.x + dx, y: drag.current.y + dy }),
-      );
-    });
-  };
-  const stop = (e) => {
-    cancelAnimationFrame(moveFrame.current);
-    moveFrame.current = 0;
-    pendingMove.current = null;
-    drag.current = null;
-    if (e?.currentTarget?.hasPointerCapture?.(e.pointerId))
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    dispatchEvent(new CustomEvent("agr-drag", { detail: false }));
-  };
-  return (
-    <Hint text="ÐšÐ¾Ð»ÐµÑÐ¾ â€” Ð·ÑƒÐ¼ Ðº ÐºÑƒÑ€ÑÐ¾Ñ€Ñƒ Â· Ð¿ÐµÑ€ÐµÑ‚Ð°ÑÐºÐ¸Ð²Ð°Ð½Ð¸Ðµ â€” Ð¿Ð°Ð½Ð¾Ñ€Ð°Ð¼Ð°">
-      <div
-        ref={pane}
-        className="zoom-pane"
-        onPointerDown={(e) => {
-          if (view.s <= 1) return;
-          e.preventDefault();
-          drag.current = { px: e.clientX, py: e.clientY, x: view.x, y: view.y };
-          e.currentTarget.setPointerCapture(e.pointerId);
-          dispatchEvent(new CustomEvent("agr-drag", { detail: true }));
-        }}
-        onPointerMove={move}
-        onPointerUp={stop}
-        onPointerCancel={stop}
-        onLostPointerCapture={stop}
-      >
-        <span>{title}</span>
-        {displaySrc ? (
-          <>
-            <canvas ref={canvas} className={imageReady ? "ready" : ""} />
-            <img
-              className="zoom-source"
-              ref={image}
-              onLoad={() => {
-                setImageReady(true);
-                setView((v) => clamp(v));
-              }}
-              draggable="false"
-              src={displaySrc}
-            />
-          </>
-        ) : (
-          <p>PNG Ð½Ðµ Ð²Ñ‹Ð±Ñ€Ð°Ð½</p>
-        )}
-      </div>
-    </Hint>
-  );
-});
-function ZoomControl({ view, setView }) {
-  const set = (s) => {
-    const value = Math.max(1, Math.min(MAX_ZOOM, s));
-    setView((v) => ({
-      ...v,
-      s: value,
-      x: value === 1 ? 0 : v.x,
-      y: value === 1 ? 0 : v.y,
-    }));
-  };
-  return (
-    <div className="zoom-control">
-      <Button tip="Ð£Ð¼ÐµÐ½ÑŒÑˆÐ¸Ñ‚ÑŒ Ð¼Ð°ÑÑˆÑ‚Ð°Ð±" quiet onClick={() => set(view.s - 0.25)}>
-        <Minus />
-      </Button>
-      <div className="zoom-orbit" style={{ "--zoom": (view.s - 1) / (MAX_ZOOM - 1) }}>
-        <span>{Math.round(view.s * 100)}%</span>
-        <i />
-      </div>
-      <Hint text="ÐŸÐ»Ð°Ð²Ð½Ñ‹Ð¹ Ð¼Ð°ÑÑˆÑ‚Ð°Ð± Ð¾Ñ‚ Â«Ð’Ð¿Ð¸ÑÐ°Ñ‚ÑŒÂ» Ð´Ð¾ 1600%">
-        <input
-          aria-label="ÐœÐ°ÑÑˆÑ‚Ð°Ð±"
-          type="range"
-          min="1"
-          max={MAX_ZOOM}
-          step=".01"
-          value={view.s}
-          onChange={(e) => set(Number(e.target.value))}
-        />
-      </Hint>
-      <Button tip="Ð£Ð²ÐµÐ»Ð¸Ñ‡Ð¸Ñ‚ÑŒ Ð¼Ð°ÑÑˆÑ‚Ð°Ð±" quiet onClick={() => set(view.s + 0.25)}>
-        <Plus />
-      </Button>
-    </div>
-  );
-}
-
-function WipeCompare({ before, after }) {
-  const [split, setSplit] = useState(50);
-  return (
-    <div className="wipe-compare">
-      <img src={before} draggable="false" alt="Ð”Ð¾ Ð¾Ð¿Ñ‚Ð¸Ð¼Ð¸Ð·Ð°Ñ†Ð¸Ð¸" />
-      <img className="wipe-after-image" style={{ clipPath: `inset(0 ${100 - split}% 0 0)` }} src={after} draggable="false" alt="ÐŸÐ¾ÑÐ»Ðµ Ð¾Ð¿Ñ‚Ð¸Ð¼Ð¸Ð·Ð°Ñ†Ð¸Ð¸" />
-      <div className="wipe-divider" style={{ left: `${split}%` }}><i /></div>
-      <span className="wipe-label before">Ð”Ðž</span>
-      <span className="wipe-label after">ÐŸÐžÐ¡Ð›Ð•</span>
-      <input
-        aria-label="Ð“Ñ€Ð°Ð½Ð¸Ñ†Ð° ÑÑ€Ð°Ð²Ð½ÐµÐ½Ð¸Ñ Ð´Ð¾ Ð¸ Ð¿Ð¾ÑÐ»Ðµ"
-        type="range"
-        min="0"
-        max="100"
-        value={split}
-        onChange={(e) => setSplit(Number(e.target.value))}
-      />
-    </div>
-  );
-}
-
-const SmoothCompareViewport = React.memo(function SmoothCompareViewport({
-  before,
-  after,
-  previewBefore,
-  previewAfter,
-  beforeWidth=0,
-  beforeHeight=0,
-  afterWidth=0,
-  afterHeight=0,
-  backend,
-  mode,
-  onZoom,
-  contentReady=true,
-  externalLoading=false,
-}) {
-  const host = useRef(null), canvas = useRef(null), frame = useRef(0), drag = useRef(null);
-  const [previewLoading,setPreviewLoading]=useState(false);
-  const [detailState,setDetailState]=useState("preview");
-  const images = useRef({ before: null, after: null, fullBefore:null, fullAfter:null });
-  const interactionTimer=useRef(0),detailTimer=useRef(0),interaction=useRef(false),detailRequest=useRef(()=>{}),wakeRef=useRef(()=>{}),detailBlobs=useRef({});
-  const detailWaiters=useRef(new Map()),detailSerial=useRef(0);
-  const target = useRef({ s: 1, x: 0, y: 0, split: 0.5 });
-  const current = useRef({ s: 1, x: 0, y: 0, split: 0.5 });
-  const alive = useRef(true), loaded = useRef(false), modeRef = useRef(mode);
-  useEffect(()=>{
-    const signal=backend?.detailTileReady;
-    if(!signal?.connect)return undefined;
-    const complete=(requestId,tile)=>{
-      const waiter=detailWaiters.current.get(requestId);if(!waiter)return;
-      detailWaiters.current.delete(requestId);clearTimeout(waiter.timeout);
-      if(tile?.error)waiter.reject(new Error(tile.error));else waiter.resolve(tile);
-    };
-    signal.connect(complete);
-    return()=>{
-      signal.disconnect?.(complete);
-      for(const waiter of detailWaiters.current.values()){clearTimeout(waiter.timeout);waiter.reject(new Error("detail request cancelled"));}
-      detailWaiters.current.clear();
-    };
-  },[backend]);
-  const requestNativeDetail=useCallback((src,crop)=>new Promise((resolve,reject)=>{
-    if(!backend?.requestDetailTile){reject(new Error("native detail unavailable"));return;}
-    const requestId=`detail-${Date.now()}-${++detailSerial.current}`;
-    const timeout=setTimeout(()=>{detailWaiters.current.delete(requestId);reject(new Error("detail timeout"));},45000);
-    detailWaiters.current.set(requestId,{resolve,reject,timeout});
-    backend.requestDetailTile(src,crop.x,crop.y,crop.width,crop.height,requestId);
-  }),[backend]);
-  const setInteraction=useCallback((active,delay=0)=>{
-    clearTimeout(interactionTimer.current);
-    if(active){interaction.current=true;window.__AGR_INTERACTION_PAUSE_COUNT__=(window.__AGR_INTERACTION_PAUSE_COUNT__||0)+1;dispatchEvent(new CustomEvent("agr-drag",{detail:true}));}
-    else if(delay)interactionTimer.current=setTimeout(()=>{interaction.current=false;dispatchEvent(new CustomEvent("agr-drag",{detail:false}));wakeRef.current();detailRequest.current();},delay);
-    else{interaction.current=false;dispatchEvent(new CustomEvent("agr-drag",{detail:false}));wakeRef.current();detailRequest.current();}
-  },[]);
-  const clampView=useCallback((view)=>{
-    const node=host.current,rect=node?.getBoundingClientRect();
-    if(!rect?.width||!rect?.height)return {...view,x:0,y:0};
-    const paneWidth=modeRef.current==="pan"&&images.current.before&&images.current.after?rect.width/2:rect.width;
-    let maxX=Infinity,maxY=Infinity,found=false;
-    for(const img of [images.current.before,images.current.after]){
-      const iw=img?.naturalWidth||img?.width,ih=img?.naturalHeight||img?.height;
-      if(!iw||!ih)continue;found=true;
-      const fit=Math.min(paneWidth/iw,rect.height/ih);
-      maxX=Math.min(maxX,Math.max(0,(iw*fit*view.s-paneWidth)/2));
-      maxY=Math.min(maxY,Math.max(0,(ih*fit*view.s-rect.height)/2));
-    }
-    if(!found){maxX=0;maxY=0;}
-    const x=Math.max(-maxX,Math.min(maxX,view.x)),y=Math.max(-maxY,Math.min(maxY,view.y));
-    if(Math.abs(x-view.x)>.01||Math.abs(y-view.y)>.01)window.__AGR_PAN_CLAMPED__=true;
-    return {...view,x,y};
-  },[]);
-
-  const render = useCallback(() => {
-    frame.current = 0;
-    const node = host.current, out = canvas.current;
-    if (!node || !out || !loaded.current) return;
-    const rect = node.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 1.5);
-    const w = Math.max(1, Math.round(rect.width * dpr)), h = Math.max(1, Math.round(rect.height * dpr));
-    if (out.width !== w || out.height !== h) { out.width = w; out.height = h; }
-    const ctx = out.getContext("2d", { alpha: true, desynchronized: true });
-    if (!ctx) return;
-    const c = current.current, t = clampView(target.current);target.current=t;
-    c.s += (t.s - c.s) * .19; c.x += (t.x - c.x) * .19; c.y += (t.y - c.y) * .19; c.split += (t.split - c.split) * .22;
-    ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,out.width,out.height);ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const detailed=!interaction.current&&c.s>=DETAIL_ZOOM;
-    const beforeImage=detailed&&images.current.fullBefore?images.current.fullBefore:images.current.before;
-    const afterImage=detailed&&images.current.fullAfter?images.current.fullAfter:images.current.after;
-    if(detailed&&(images.current.fullBefore||images.current.fullAfter)){window.__AGR_FULL_DETAIL_VISIBLE_SCALE__=c.s;window.__AGR_FULL_DETAIL_VISIBLE_TARGET__=target.current.s;}
-    const draw = (img, x0, width) => {
-      const iw=img?.fullWidth||img?.naturalWidth||img?.width,ih=img?.fullHeight||img?.naturalHeight||img?.height;
-      if (!iw || !ih || width <= 0) return;
-      ctx.save(); ctx.beginPath(); ctx.rect(x0, 0, width, rect.height); ctx.clip();
-      const fitW = modeRef.current === "pan"&&images.current.before&&images.current.after ? rect.width / 2 : rect.width;
-      const fit = Math.min(fitW / iw, rect.height / ih);
-      const scale = fit * c.s, dw = iw * scale, dh = ih * scale;
-      const cx = modeRef.current === "pan" ? x0 + width / 2 : rect.width / 2;
-      ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = c.s > 8 ? "medium" : "high";
-      const dx=cx-dw/2+c.x,dy=rect.height/2-dh/2+c.y;
-      if(img.bitmap)ctx.drawImage(img.bitmap,dx+img.tileX*scale,dy+img.tileY*scale,img.tileWidth*scale,img.tileHeight*scale);
-      else ctx.drawImage(img,dx,dy,dw,dh);ctx.restore();
-    };
-    if (modeRef.current === "wipe") {
-      const cut = rect.width * c.split; draw(beforeImage, 0, rect.width); draw(afterImage, 0, cut);
-      ctx.fillStyle = "rgba(255,255,255,.9)"; ctx.fillRect(cut - .5, 0, 1, rect.height);
-    } else if(images.current.before&&images.current.after){
-      draw(beforeImage, 0, rect.width / 2); draw(afterImage, rect.width / 2, rect.width / 2);
-    }else{
-      draw(beforeImage||afterImage,0,rect.width);
-    }
-    const moving = Math.abs(t.s-c.s) > .001 || Math.abs(t.x-c.x) > .08 || Math.abs(t.y-c.y) > .08 || Math.abs(t.split-c.split) > .001;
-    if (moving && alive.current) frame.current = requestAnimationFrame(render);
-  }, [clampView]);
-  const wake = useCallback(() => { if (!frame.current) frame.current = requestAnimationFrame(render); }, [render]);
-  wakeRef.current=wake;
-  const reset = useCallback((scale = 1) => {
-    const safeScale=Math.max(1,Math.min(MAX_ZOOM,Number(scale)||1));
-    target.current = clampView({ ...target.current, s: safeScale, x: 0, y: 0 });
-    clearTimeout(detailTimer.current);
-    if(safeScale>=DETAIL_ZOOM){setDetailState("loading");detailTimer.current=setTimeout(()=>detailRequest.current(),260);}
-    else{setDetailState("preview");for(const key of ["fullBefore","fullAfter"]){images.current[key]?.bitmap?.close?.();images.current[key]?.close?.();images.current[key]=null;}}
-    onZoom?.(safeScale);window.__AGR_ZOOM_TARGET__=safeScale;window.__AGR_ZOOM_BUTTON_SCALE__=safeScale;wake();
-  }, [onZoom, wake,clampView]);
-  useEffect(() => { modeRef.current = mode; target.current=clampView({...target.current,x:0,y:0});clearTimeout(detailTimer.current);if(target.current.s>=DETAIL_ZOOM){setDetailState("loading");detailTimer.current=setTimeout(()=>detailRequest.current(),260);}wake(); }, [mode, wake,clampView]);
-  useEffect(() => {
-    alive.current = true; loaded.current = false;
-    let cancelled = false;const controller=new AbortController();
-    const release=()=>{const unique=new Set(Object.values(images.current));for(const image of unique){image?.bitmap?.close?.();image?.close?.();}for(const detail of Object.values(detailBlobs.current)){if(detail?.image)detail.image.src="";}images.current={before:null,after:null,fullBefore:null,fullAfter:null};detailBlobs.current={};loaded.current=false;setDetailState("preview");if(canvas.current){canvas.current.width=1;canvas.current.height=1;}};
-    release();
-    if(!contentReady||externalLoading){setPreviewLoading(true);return()=>{alive.current=false;};}
-    setPreviewLoading(Boolean(before||after));
-    const load = async(src)=>{
-      if(!src)return null;
-      // Chromium's Fetch API rejects qrc:/ resources and logs that rejection as
-      // a fatal console error. The native Image decoder supports qrc directly.
-      if(src.startsWith("qrc:"))return await new Promise((resolve)=>{const img=new Image();img.decoding="async";img.onload=()=>resolve(img.naturalWidth?img:null);img.onerror=()=>resolve(null);img.src=src;});
-      try{const response=await fetch(src,{signal:controller.signal});const blob=await response.blob();if(!blob.size)throw new Error("empty image");return await createImageBitmap(blob,{colorSpaceConversion:"default",premultiplyAlpha:"default"});}
-      catch{if(cancelled)return null;return await new Promise((resolve)=>{const img=new Image();img.decoding="async";img.onload=()=>resolve(img.naturalWidth?img:null);img.onerror=()=>resolve(null);img.src=src;});}
-    };
-    const lowBefore=previewBefore||before||(HEADLESS_TEST?TEST_TEXTURE:"");
-    const lowAfter=previewAfter||after||(HEADLESS_TEST?TEST_TEXTURE:"");
-    Promise.all([load(lowBefore), load(lowAfter)]).then(([a,b]) => {
-      if (cancelled){a?.close?.();b?.close?.();return;} images.current = { before: a, after: b }; loaded.current = Boolean(a || b);setPreviewLoading(false);reset();
-    });
-    const detailSource=async(key,src)=>{
-      const cached=detailBlobs.current[key];if(cached?.src===src)return cached;
-      try{
-        // HTTP/blob sources can be cropped from their bytes without keeping a
-        // second full bitmap alive.
-        if(src.startsWith("http:")||src.startsWith("https:")||src.startsWith("blob:")){
-          const response=await fetch(src,{signal:controller.signal});const blob=await response.blob();if(blob.size<24)throw new Error("invalid PNG");
-          const header=await blob.slice(16,24).arrayBuffer(),view=new DataView(header),meta={src,blob,width:view.getUint32(0),height:view.getUint32(4)};detailBlobs.current[key]=meta;return meta;
-        }
-      }catch(error){if(cancelled||error?.name==="AbortError")throw error;}
-      // Qt WebEngine displays texture:// and qrc:/ URLs in <img>, but Fetch
-      // can reject those custom schemes. Decode through the native image path
-      // and then create only the visible 800% crop.
-      const image=await new Promise((resolve,reject)=>{const value=new Image();value.decoding="async";value.onload=()=>value.naturalWidth?resolve(value):reject(new Error("empty image"));value.onerror=()=>reject(new Error("full image decode failed"));value.src=src;});
-      const meta={src,image,width:image.naturalWidth,height:image.naturalHeight};detailBlobs.current[key]=meta;return meta;
-    };
-    const cropFor=(meta,key)=>{
-      const rect=host.current?.getBoundingClientRect();if(!rect?.width||!rect?.height)return null;
-      const pan=modeRef.current==="pan"&&images.current.before&&images.current.after,paneWidth=pan?rect.width/2:rect.width,x0=pan&&key==="fullAfter"?rect.width/2:0;
-      const fit=Math.min(paneWidth/meta.width,rect.height/meta.height),scale=fit*target.current.s,cx=pan?x0+paneWidth/2:rect.width/2,dx=cx-meta.width*scale/2+target.current.x,dy=rect.height/2-meta.height*scale/2+target.current.y;
-      const margin=Math.max(96,Math.round(Math.max(paneWidth,rect.height)/Math.max(scale,.0001)*.12));
-      const sx=Math.max(0,Math.floor((x0-dx)/scale)-margin),sy=Math.max(0,Math.floor(-dy/scale)-margin),ex=Math.min(meta.width,Math.ceil((x0+paneWidth-dx)/scale)+margin),ey=Math.min(meta.height,Math.ceil((rect.height-dy)/scale)+margin);
-      return {x:sx,y:sy,width:Math.max(1,ex-sx),height:Math.max(1,ey-sy),key:`${sx}:${sy}:${ex}:${ey}:${target.current.s.toFixed(3)}`};
-    };
-    let detailBusy=false,detailPending=false;
-    detailRequest.current=async()=>{
-      if(detailBusy){detailPending=true;return;}
-      if(cancelled||interaction.current||target.current.s<DETAIL_ZOOM)return;
-      if(HEADLESS_TEST){
-        images.current.fullBefore=images.current.before;
-        images.current.fullAfter=images.current.after;
-        setDetailState("ready");
-        window.__AGR_FULL_DETAIL_READY__=(window.__AGR_FULL_DETAIL_READY__||0)+1;
-        window.__AGR_FULL_DETAIL_SCALE__=target.current.s;
-        wake();
-        return;
-      }
-      setDetailState("loading");
-      detailBusy=true;
-      const fullBeforeSource=before||(HEADLESS_TEST?TEST_FULL_TEXTURE:"");
-      const fullAfterSource=after||(HEADLESS_TEST?TEST_FULL_TEXTURE:"");
-      const pairs=[
-        ["fullBefore",fullBeforeSource,lowBefore,beforeWidth,beforeHeight],
-        ["fullAfter",fullAfterSource,lowAfter,afterWidth,afterHeight],
-      ];
-      let loadedDetail=0,failedDetail=0,expectedDetail=0;
-      for(const [key,src,low,nativeWidth,nativeHeight] of pairs){
-        if(cancelled)break;
-        if(!src)continue;
-        expectedDetail++;
-        if(src===low){loadedDetail++;continue;}
-        try{
-          const nativeAvailable=Boolean(backend?.requestDetailTile)&&src.startsWith("texture://")&&nativeWidth>0&&nativeHeight>0;
-          const meta=nativeAvailable?{src,width:nativeWidth,height:nativeHeight}:await detailSource(key,src),crop=cropFor(meta,key);if(!crop)continue;
-          if(images.current[key]?.key===crop.key){loadedDetail++;continue;}
-          let bitmap,tileX=crop.x,tileY=crop.y,tileWidth=crop.width,tileHeight=crop.height,fullWidth=meta.width,fullHeight=meta.height;
-          if(nativeAvailable){
-            const nativeTile=await requestNativeDetail(src,crop);
-            bitmap=await load(nativeTile.url);
-            if(!bitmap)throw new Error("native tile decode failed");
-            tileX=Number(nativeTile.x);tileY=Number(nativeTile.y);tileWidth=Number(nativeTile.width);tileHeight=Number(nativeTile.height);
-            fullWidth=Number(nativeTile.fullWidth);fullHeight=Number(nativeTile.fullHeight);
-          }else{
-            bitmap=await createImageBitmap(meta.blob||meta.image,crop.x,crop.y,crop.width,crop.height,{colorSpaceConversion:"default",premultiplyAlpha:"default"});
-          }
-          if(cancelled||interaction.current){bitmap.close?.();continue;}
-          images.current[key]?.bitmap?.close?.();images.current[key]={bitmap,fullWidth,fullHeight,tileX,tileY,tileWidth,tileHeight,key:crop.key};wake();
-          loadedDetail++;
-          // Only a visible source tile reaches the GPU. Two full 8K bitmaps
-          // are never resident at the same time.
-          await new Promise(resolve=>setTimeout(resolve,48));
-        }catch{failedDetail++;if(cancelled)break;}
-      }
-      detailBusy=false;
-      if(!cancelled){const ready=expectedDetail>0&&loadedDetail===expectedDetail;setDetailState(ready?"ready":failedDetail?"fallback":"preview");if(ready){window.__AGR_FULL_DETAIL_READY__=(window.__AGR_FULL_DETAIL_READY__||0)+1;window.__AGR_FULL_DETAIL_SCALE__=target.current.s;}}
-      if(detailPending&&!cancelled){detailPending=false;setTimeout(()=>detailRequest.current(),0);}
-    };
-    return () => { cancelled = true;controller.abort();alive.current = false; cancelAnimationFrame(frame.current); frame.current = 0;clearTimeout(interactionTimer.current);clearTimeout(detailTimer.current);interaction.current=false;dispatchEvent(new CustomEvent("agr-drag",{detail:false}));detailRequest.current=()=>{};release(); };
-  }, [before, after, previewBefore, previewAfter, beforeWidth, beforeHeight, afterWidth, afterHeight, backend, contentReady, externalLoading, requestNativeDetail, reset, wake]);
-  useEffect(() => {
-    const observer = new ResizeObserver(()=>{target.current=clampView(target.current);wake();}); if (host.current) observer.observe(host.current);
-    return () => observer.disconnect();
-  }, [wake,clampView]);
-  const zoom = useCallback((factor, ox = 0, oy = 0) => {
-    const t = target.current, s = Math.max(1, Math.min(MAX_ZOOM, t.s * factor)), ratio = s / t.s;
-    const raw={...t,s,x:ox-(ox-t.x)*ratio,y:oy-(oy-t.y)*ratio},next=clampView(raw);
-    if(Math.abs(next.x-raw.x)<.001&&Math.abs(next.y-raw.y)<.001)window.__AGR_ZOOM_ANCHOR_ERROR__=Math.hypot((ox-next.x)/s-(ox-t.x)/t.s,(oy-next.y)/s-(oy-t.y)/t.s);
-    target.current=next;clearTimeout(detailTimer.current);
-    if(s>=DETAIL_ZOOM){setDetailState("loading");detailTimer.current=setTimeout(()=>detailRequest.current(),260);}
-    else{setDetailState("preview");if(s<1.35){for(const key of ["fullBefore","fullAfter"]){images.current[key]?.bitmap?.close?.();images.current[key]?.close?.();images.current[key]=null;}detailBlobs.current={};}}
-    onZoom?.(s); window.__AGR_ZOOM_TARGET__ = s; wake();
-  }, [onZoom, wake,clampView]);
-  useEffect(() => {
-    const node = host.current; if (!node) return;
-    const wheel = (e) => { e.preventDefault();setInteraction(true);setInteraction(false,140); window.__AGR_WHEEL_COUNT__ = (window.__AGR_WHEEL_COUNT__ || 0) + 1; const r=node.getBoundingClientRect(),localX=e.clientX-r.left,paneCenter=modeRef.current==="pan"?(localX<r.width/2?r.width*.25:r.width*.75):r.width*.5; zoom(Math.exp(Math.max(-.14, Math.min(.14, -e.deltaY*.0012))), localX-paneCenter, e.clientY-r.top-r.height/2); };
-    node.addEventListener("wheel", wheel, { passive: false }); return () => node.removeEventListener("wheel", wheel);
-  }, [setInteraction,zoom]);
-  useEffect(() => {
-    if (!HEADLESS_TEST) return;
-    const z = e => { window.__AGR_WHEEL_COUNT__ = (window.__AGR_WHEEL_COUNT__ || 0) + 1; zoom(Number(e.detail?.factor || 1.1)); };
-    const d = e => { target.current=clampView({...target.current,x:target.current.x+Number(e.detail?.x||0),y:target.current.y+Number(e.detail?.y||0)}); window.__AGR_TEST_VERTICAL_Y__=target.current.y; wake(); };
-    addEventListener("agr-test-zoom", z); addEventListener("agr-test-drag", d); return () => { removeEventListener("agr-test-zoom", z); removeEventListener("agr-test-drag", d); };
-  }, [wake, zoom,clampView]);
-  return <div ref={host} className="smooth-compare" onPointerDown={(e) => {
-    if(e.target.closest?.("button"))return;
-    const r=host.current.getBoundingClientRect(), near=mode==="wipe" && Math.abs(e.clientX-r.left-r.width*target.current.split)<34;
-    drag.current={ px:e.clientX, py:e.clientY, x:target.current.x, y:target.current.y, wipe:near }; e.currentTarget.setPointerCapture(e.pointerId);setInteraction(true);
-  }} onPointerMove={(e) => {
-    if (!drag.current) return; const r=host.current.getBoundingClientRect();
-    if (drag.current.wipe) target.current.split=Math.max(.02,Math.min(.98,(e.clientX-r.left)/r.width));
-    else { target.current=clampView({...target.current,x:drag.current.x+e.clientX-drag.current.px,y:drag.current.y+e.clientY-drag.current.py}); }
-    wake();
-  }} onPointerUp={() => { drag.current=null;setInteraction(false); }} onPointerCancel={() => { drag.current=null;setInteraction(false); }}>
-    <canvas ref={canvas} />
-    {previewLoading&&<div className="compare-loader"><i/><strong>{contentReady?"Ð—ÐÐ“Ð Ð£Ð–ÐÐ•Ðœ Ð˜Ð—ÐžÐ‘Ð ÐÐ–Ð•ÐÐ˜Ð•":"ÐŸÐ•Ð Ð•Ð¥ÐžÐ”"}</strong></div>}
-    {!previewLoading&&detailState==="loading"&&<div className="detail-loader"><i/><span>FULL 1:1</span></div>}
-    {before&&<span className="compare-label before">ÐžÐ Ð˜Ð“Ð˜ÐÐÐ› {detailState==="ready"&&target.current.s>=DETAIL_ZOOM?"Â· FULL":""}</span>}{after&&<span className="compare-label after">Ð Ð•Ð—Ð£Ð›Ð¬Ð¢ÐÐ¢ {detailState==="ready"&&target.current.s>=DETAIL_ZOOM?"Â· FULL":""}</span>}
-    <div className="viewport-actions" onPointerDown={(e)=>e.stopPropagation()}><button type="button" data-pulse="sweep" onClick={(e)=>{e.stopPropagation();reset(1)}}>Ð’ÐŸÐ˜Ð¡ÐÐ¢Ð¬</button><button type="button" data-pulse="corners" onClick={(e)=>{e.stopPropagation();reset(4)}}>400%</button><button type="button" data-pulse="orbit" onClick={(e)=>{e.stopPropagation();reset(8)}}>800%</button><button type="button" data-pulse="split" onClick={(e)=>{e.stopPropagation();reset(16)}}>1600%</button></div>
-  </div>;
-});
-
-const ComparisonSurface = React.memo(function ComparisonSurface({
-  before,
-  after,
-  previewBefore,
-  previewAfter,
-  beforeWidth = 0,
-  beforeHeight = 0,
-  afterWidth = 0,
-  afterHeight = 0,
-  backend,
-  focus,
-  onFocus,
-  allowWipe = false,
-  onOpenFolder,
-  contentReady = true,
-  loading = false,
-}) {
-  const [mode, setMode] = useState("pan");
-  const [zoomLabel, setZoomLabel] = useState(100);
-  const updateZoomLabel = useCallback((s) => setZoomLabel(Math.round(s * 100)), []);
-  return (
-    <section className="compare-card transparent">
-      {allowWipe && after && (
-        <div className="comparison-modes">
-          <button className={mode === "pan" ? "active" : ""} onClick={() => setMode("pan")}>
-            Ð¡Ð˜ÐÐ¥Ð ÐžÐÐÐ«Ð™ ZOOM
-          </button>
-          <button className={mode === "wipe" ? "active" : ""} onClick={() => setMode("wipe")}>
-            Ð¨Ð¢ÐžÐ ÐšÐ Ð”Ðž / ÐŸÐžÐ¡Ð›Ð•
-          </button>
-        </div>
-      )}
-      <SmoothCompareViewport
-        before={before}
-        after={after}
-        previewBefore={previewBefore}
-        previewAfter={previewAfter}
-        beforeWidth={beforeWidth}
-        beforeHeight={beforeHeight}
-        afterWidth={afterWidth}
-        afterHeight={afterHeight}
-        backend={backend}
-        mode={mode}
-        onZoom={updateZoomLabel}
-        contentReady={contentReady}
-        externalLoading={loading}
-      />
-      <div className="comparison-truth">
-        <span>ÐžÐ Ð˜Ð“Ð˜ÐÐÐ› Â· ÐŸÐ Ð•Ð’Ð¬Ð® Ð”Ðž 799% Â· FULL 1:1 ÐžÐ¢ 800%</span>
-        <span>Ð Ð•Ð—Ð£Ð›Ð¬Ð¢ÐÐ¢ Â· ÐŸÐ Ð•Ð’Ð¬Ð® Ð”Ðž 799% Â· FULL 1:1 ÐžÐ¢ 800%</span>
-      </div>
-      <div className="compare-tools">
-        <span className="live-zoom">ZOOM {zoomLabel}% Â· MAX {MAX_ZOOM * 100}%</span>
-        <Button quiet tip="Focus Comparison Â· ÐºÐ»Ð°Ð²Ð¸ÑˆÐ° F" onClick={onFocus}>
-          <Focus /> {focus ? "Ð’Ð«Ð™Ð¢Ð˜ Ð˜Ð— FOCUS" : "FOCUS"}
-        </Button>
-        {onOpenFolder && <Button quiet onClick={onOpenFolder}>ÐžÐ¢ÐšÐ Ð«Ð¢Ð¬ ÐŸÐÐŸÐšÐ£</Button>}
-      </div>
-    </section>
-  );
-});
-
-function ImportWindow({ active, progress = 0, status, batch = false, onGame }) {
-  const value=Math.max(0,Math.min(1,Number(progress||0)));
-  return <AnimatePresence>
-    {active&&<motion.section className="image-load-window" initial={{opacity:0,scale:.97}} animate={{opacity:1,scale:1}} exit={{opacity:0,scale:.985}} transition={{duration:.32,ease:[.18,.72,.2,1]}}>
-      <div className="image-load-visual"><i/><i/><i/><b>{Math.round(value*100).toString().padStart(2,"0")}</b></div>
-      <div className="image-load-copy"><small>{batch?"BATCH IMAGE PIPELINE":"NPM IMAGE PIPELINE"}</small><h2>Ð—ÐÐ“Ð Ð£Ð–ÐÐ•Ðœ Ð˜Ð—ÐžÐ‘Ð ÐÐ–Ð•ÐÐ˜Ð•</h2><p>{status||"ÐŸÐ¾Ð´Ð³Ð¾Ñ‚Ð¾Ð²ÐºÐ° PNG"}</p><FluidProgress value={value}/></div>
-      <Button quiet onClick={onGame}><Gamepad2/> ÐžÐ¢ÐšÐ Ð«Ð¢Ð¬ BLADE GRID</Button>
-    </motion.section>}
-  </AnimatePresence>;
-}
-
-const EDGE_PULSE_VARIANTS=["orbit","sweep","corners","split","echo"];
-function EdgePulseLayer(){
-  const [pulses,setPulses]=useState([]),serial=useRef(0);
-  useEffect(()=>{
-    const fire=(event)=>{
-      const detail=event.detail||{},id=++serial.current,pulse={id,x:Number(detail.x||innerWidth/2),y:Number(detail.y||innerHeight/2),variant:detail.variant||"orbit",hue:Number(detail.hue||0),angle:Number(detail.angle||0)};
-      setPulses((values)=>[...values.slice(-2),pulse]);
-      setTimeout(()=>setPulses((values)=>values.filter((value)=>value.id!==id)),980);
-    };
-    addEventListener("agr-edge-pulse",fire);return()=>removeEventListener("agr-edge-pulse",fire);
-  },[]);
-  return <div className="edge-pulses" aria-hidden="true">{pulses.map((pulse)=><i key={pulse.id} className={`pulse-${pulse.variant}`} style={{"--pulse-x":`${pulse.x}px`,"--pulse-y":`${pulse.y}px`,"--pulse-hue":pulse.hue,"--pulse-angle":`${pulse.angle}deg`}}><b/><b/><b/><b/><b/><b/></i>)}</div>;
-}
-
-function fileUrlsFromDrop(event) {
-  const transfer=event.dataTransfer;if(!transfer)return [];
-  const uriList=String(transfer.getData?.("text/uri-list")||"").split(/\r?\n/).map((value)=>value.trim()).filter((value)=>value&&value[0]!=="#"&&value.startsWith("file:"));
-  if(uriList.length)return uriList;
-  return Array.from(transfer.files||[]).map((file)=>file.path||"").filter(Boolean).map((path)=>path.startsWith("file:")?path:`file:///${path.replaceAll("\\","/").replace(/^\/+/,"")}`);
-}
-
-function EmptyDropZone({ batch = false, onPick, onFiles, compact = false }) {
-  return <button
-    type="button"
-    className={`empty-drop-zone ${compact ? "compact" : ""}`}
-    data-pulse="echo"
-    aria-label={batch ? "Ð”Ð¾Ð±Ð°Ð²Ð¸Ñ‚ÑŒ PNG-Ñ„Ð°Ð¹Ð»Ñ‹" : "Ð˜Ð¼Ð¿Ð¾Ñ€Ñ‚Ð¸Ñ€Ð¾Ð²Ð°Ñ‚ÑŒ PNG"}
-    onClick={onPick}
-    onDragEnter={(event)=>{event.preventDefault();event.stopPropagation();event.currentTarget.classList.add("drag-active");}}
-    onDragOver={(event)=>{event.preventDefault();event.stopPropagation();event.dataTransfer.dropEffect="copy";event.currentTarget.classList.add("drag-active");}}
-    onDragLeave={(event)=>{if(!event.currentTarget.contains(event.relatedTarget))event.currentTarget.classList.remove("drag-active");}}
-    onDrop={(event)=>{event.preventDefault();event.stopPropagation();event.currentTarget.classList.remove("drag-active");const urls=fileUrlsFromDrop(event);if(urls.length)onFiles?.(urls);else onPick?.();}}
-  ><Plus aria-hidden="true" /></button>;
-}
-
-const BATCH_ROW_HEIGHT=194;
-const VirtualBatchList=React.memo(function VirtualBatchList({items,state,backend,setScreen,onPick}){
-  const node=useRef(null),scrollFrame=useRef(0),removeTimer=useRef(0),itemsRef=useRef(items),[viewport,setViewport]=useState({top:0,height:720}),[removingKey,setRemovingKey]=useState("");
-  useEffect(()=>{itemsRef.current=items;if(removingKey&&!items.some((item)=>(item.sourceUrl||item.name)===removingKey))setRemovingKey("");},[items,removingKey]);
-  useEffect(()=>()=>clearTimeout(removeTimer.current),[]);
-  const measure=useCallback(()=>{scrollFrame.current=0;const target=node.current;if(target)setViewport({top:target.scrollTop,height:target.clientHeight||720});},[]);
-  useEffect(()=>{const observer=new ResizeObserver(measure);if(node.current)observer.observe(node.current);measure();return()=>{observer.disconnect();cancelAnimationFrame(scrollFrame.current);};},[measure]);
-  const onScroll=()=>{if(!scrollFrame.current)scrollFrame.current=requestAnimationFrame(measure);};
-  const start=Math.max(0,Math.floor(viewport.top/BATCH_ROW_HEIGHT)-2),end=Math.min(items.length,Math.ceil((viewport.top+viewport.height)/BATCH_ROW_HEIGHT)+3);
-  return <section ref={node} className="batch-list virtual-batch-list" onScroll={onScroll}>
-    {!items.length&&<EmptyDropZone batch compact onPick={onPick} onFiles={(urls)=>backend?.addBatchFiles?.(urls)}/>}
-    {!!items.length&&<div className="batch-virtual-spacer" style={{height:items.length*BATCH_ROW_HEIGHT}}>
-      {items.slice(start,end).map((item,offset)=>{const i=start+offset,key=item.sourceUrl||item.name||String(i),isRemoving=removingKey===key;return <article className={`batch-row virtualized ${item.importing?"is-importing":""} ${item.failed?"has-error":""} ${isRemoving?"is-removing":""}`} style={{top:i*BATCH_ROW_HEIGHT}} key={key}>
-        <Button className="remove-file" quiet danger disabled={state.batchBusy||state.batchImportBusy||Boolean(removingKey)} tip={`Ð£Ð´Ð°Ð»Ð¸Ñ‚ÑŒ ${item.name} Ð¸Ð· Ð¾Ñ‡ÐµÑ€ÐµÐ´Ð¸`} aria-label={`Ð£Ð´Ð°Ð»Ð¸Ñ‚ÑŒ ${item.name}`} onClick={(event)=>{
-          if(removingKey)return;const box=event.currentTarget.getBoundingClientRect();setRemovingKey(key);
-           dispatchEvent(new CustomEvent("agr-edge-pulse",{detail:{x:box.left+box.width/2,y:box.top+box.height/2,variant:"danger",hue:0,angle:0}}));
-          removeTimer.current=setTimeout(()=>{const currentIndex=itemsRef.current.findIndex((value)=>(value.sourceUrl||value.name)===key);if(currentIndex>=0)backend?.removeBatchItem(currentIndex);},420);
-        }}><X/></Button>
-        <div className="thumb">{item.importing?<div className="preview-loader"><i/><span>ÐŸÐžÐ”Ð“ÐžÐ¢ÐžÐ’ÐšÐ</span></div>:<img loading="lazy" decoding="async" draggable="false" src={item.thumbnailSourceUrl||item.comparisonSourceUrl||item.sourceUrl}/>}<span>BEFORE</span></div>
-        <div className="thumb">{item.resultUrl?<img loading="lazy" decoding="async" draggable="false" src={item.thumbnailResultUrl||item.comparisonResultUrl||item.resultUrl}/>:<p>AFTER</p>}<span>AFTER</span></div>
-        <div className="file-data"><h3>{item.name}</h3><p>{item.width?`${item.width} Ã— ${item.height} Â· `:""}{mb(item.sourceMb)} {item.done&&`â†’ ${mb(item.outputMb)}`}</p><FluidProgress value={item.progress||0}/><ProcessSignal compact progress={item.progress||(item.done?1:0)} status={item.status||item.report}/><div><Button disabled={!item.done} onClick={()=>setScreen(`compare:${i}`)}>Ð¡Ð ÐÐ’ÐÐ˜Ð¢Ð•Ð›Ð¬ÐÐ«Ð™ ÐÐÐÐ›Ð˜Ð—</Button><Button quiet disabled={!item.done} onClick={()=>backend?.openBatchOutput(i)}>ÐŸÐÐŸÐšÐ</Button></div></div>
-      </article>;})}
-    </div>}
-  </section>;
-});
-
-function Workspace({ kind, state, backend, setScreen, contentReady = true }) {
-  const batch = kind === "batch",
-    [focus, setFocus] = useState(false),
-    items = state.batchItems || [],
-    before = state.sourceUrl;
-  const toggleFocus = useCallback(() => setFocus((value) => !value), []);
-  useEffect(() => {
-    if (!batch) dispatchEvent(new CustomEvent("agr-focus", { detail: focus }));
-  }, [batch, focus]);
-  useEffect(() => {
-    if (batch) return;
-    const key = (e) => {
-      if (e.key.toLowerCase() === "f") setFocus((v) => !v);
-      if (e.key === "Escape") setFocus(false);
-    };
-    addEventListener("keydown", key);
-    return () => {
-      removeEventListener("keydown", key);
-      dispatchEvent(new CustomEvent("agr-focus", { detail: false }));
-    };
-  }, [batch]);
-  return (
-    <main className={`workspace ${!batch && focus ? "focus-comparison" : ""}`}>
-      <div className="workspace-head">
-        <Button
-          quiet
-          tip="Ð’ÐµÑ€Ð½ÑƒÑ‚ÑŒÑÑ Ð½Ð° Ð³Ð»Ð°Ð²Ð½Ñ‹Ð¹ ÑÐºÑ€Ð°Ð½"
-          onClick={() => setScreen("home")}
-        >
-          â† Ð’Ð«Ð‘ÐžÐ  Ð Ð•Ð–Ð˜ÐœÐ
-        </Button>
-        <div>
-          <small>
-            {batch ? "BATCH / ADAPTIVE NATIVE" : "ÐÐŸÐœ / TARGET â‰¤ 3 MB"}
-          </small>
-          <h1>ÐžÐ¿Ñ‚Ð¸Ð¼Ð¸Ð·Ð°Ñ‚Ð¾Ñ€ Ñ‚ÐµÐºÑÑ‚ÑƒÑ€</h1>
-        </div>
-        <div className="head-actions">
-          {batch && (
-            <Button
-              quiet
-              disabled={state.batchBusy || state.batchImportBusy}
-              tip="ÐžÑ‡Ð¸ÑÑ‚Ð¸Ñ‚ÑŒ Ð¾Ñ‡ÐµÑ€ÐµÐ´ÑŒ"
-              onClick={() => backend?.clearBatch()}
-            >
-              ÐžÐ§Ð˜Ð¡Ð¢Ð˜Ð¢Ð¬
-            </Button>
-          )}
-          <Button
-            layoutId={batch ? "route-primary-batch" : "route-primary-npm"}
-            disabled={batch ? state.batchBusy || state.batchImportBusy : state.busy || state.previewBusy}
-            tip={batch ? "Ð’Ñ‹Ð±Ñ€Ð°Ñ‚ÑŒ Ð½ÐµÑÐºÐ¾Ð»ÑŒÐºÐ¾ PNG" : "Ð’Ñ‹Ð±Ñ€Ð°Ñ‚ÑŒ PNG"}
-            onClick={() =>
-              batch ? backend?.chooseBatchFiles() : backend?.chooseNpmFile()
-            }
-          >
-            {batch ? "Ð”ÐžÐ‘ÐÐ’Ð˜Ð¢Ð¬ PNG" : "Ð˜ÐœÐŸÐžÐ Ð¢ PNG"}
-          </Button>
-        </div>
-      </div>
-      {!batch&&<section className="npm-command-top">
-        <ProcessSignal progress={state.progress} status={state.status || state.report} />
-        <Button danger={state.busy} disabled={state.previewBusy||(!state.sourceUrl&&!state.busy)} onClick={()=>state.busy?backend?.stopCurrent():backend?.optimize(2.99)}>{state.busy?"ÐžÐ¡Ð¢ÐÐÐžÐ’Ð˜Ð¢Ð¬":"ÐžÐŸÐ¢Ð˜ÐœÐ˜Ð—Ð˜Ð ÐžÐ’ÐÐ¢Ð¬ Ð”Ðž 3 MB"}</Button>
-        <Button quiet disabled={!state.outputPath} onClick={()=>backend?.openOutputFolder()}><FolderOpen/> ÐŸÐÐŸÐšÐ</Button>
-      </section>}
-      {batch ? (
-        <>
-          <section className="telemetry">
-            <RingMetric
-              label="FILES"
-              value={items.length}
-              progress={items.length ? 1 : 0}
-              tip="Ð¤Ð°Ð¹Ð»Ð¾Ð² Ð² Ð¾Ñ‡ÐµÑ€ÐµÐ´Ð¸"
-            />
-            <RingMetric
-              label="PROGRESS"
-              value={`${Math.round((state.batchProgress || 0) * 100)}%`}
-              progress={state.batchProgress || 0}
-              tip="ÐžÐ±Ñ‰Ð¸Ð¹ Ð¿Ñ€Ð¾Ð³Ñ€ÐµÑÑ"
-            />
-            <Sparkline label="QUEUE FLOW" values={state.batchProgressHistory} />
-            <Sparkline
-              label="RGB24 ACTIVITY"
-              values={state.batchActivityHistory}
-              color="var(--accent2)"
-            />
-            <Button
-              danger={state.batchBusy}
-              disabled={state.batchImportBusy || (!items.some((item) => !item.done && !item.failed && !item.importing) && !state.batchBusy)}
-              tip={
-                state.batchBusy
-                  ? "ÐžÑÑ‚Ð°Ð½Ð¾Ð²Ð¸Ñ‚ÑŒ Ð¿Ð¾ÑÐ»Ðµ Ð±ÐµÐ·Ð¾Ð¿Ð°ÑÐ½Ð¾Ð³Ð¾ ÑˆÐ°Ð³Ð°"
-                  : "ÐžÐ±Ñ€Ð°Ð±Ð¾Ñ‚Ð°Ñ‚ÑŒ Ñ‚Ð¾Ð»ÑŒÐºÐ¾ Ð½Ð¾Ð²Ñ‹Ðµ PNG"
-              }
-              onClick={() =>
-                state.batchBusy
-                  ? backend?.stopBatch()
-                  : backend?.optimizeBatch()
-              }
-            >
-              {state.batchBusy ? "ÐžÐ¡Ð¢ÐÐÐžÐ’Ð˜Ð¢Ð¬" : "ÐžÐŸÐ¢Ð˜ÐœÐ˜Ð—Ð˜Ð ÐžÐ’ÐÐ¢Ð¬ ÐÐžÐ’Ð«Ð•"}
-            </Button>
-          </section>
-          <section className={`batch-import-panel ${state.batchImportBusy ? "active" : ""}`}>
-            <div className="import-copy">
-              <Cpu />
-              <div>
-                <small>{state.batchImportBusy ? "Ð¤ÐžÐÐžÐ’ÐÐ¯ Ð—ÐÐ“Ð Ð£Ð—ÐšÐ PNG" : `ÐÐŸÐŸÐÐ ÐÐ¢ÐÐÐ¯ ÐžÐ§Ð•Ð Ð•Ð”Ð¬ Â· ${state.batchWorkers || 1} ${state.batchWorkers === 1 ? "ÐŸÐžÐ¢ÐžÐš" : "ÐŸÐžÐ¢ÐžÐšÐ"}`}</small>
-                <strong>{state.batchImportBusy ? state.batchImportStatus : state.batchStatus}</strong>
-              </div>
-            </div>
-            <FluidProgress value={state.batchImportBusy ? state.batchImportProgress : state.batchProgress} />
-            <div className="import-names">
-              {items.slice(-6).map((item) => (
-                <span key={item.sourceUrl} className={item.importing ? "loading" : item.failed ? "failed" : "ready"}>
-                  {item.name}
-                </span>
-              ))}
-            </div>
-          </section>
-          <VirtualBatchList items={items} state={state} backend={backend} setScreen={setScreen} onPick={()=>backend?.chooseBatchFiles()}/>
-        </>
-      ) : (
-        <>
-          <section className="telemetry">
-            <Metric
-              label="SOURCE"
-              value={mb(state.sourceFileMb)}
-              tip="Ð˜ÑÑ…Ð¾Ð´Ð½Ñ‹Ð¹ PNG"
-            />
-            <RingMetric
-              label="PIPELINE"
-              value={`${Math.round((state.progress || 0) * 100)}%`}
-              progress={state.progress || 0}
-              tip="ÐŸÑ€Ð¾Ð³Ñ€ÐµÑÑ RGB24"
-            />
-            <Metric
-              label="OUTPUT"
-              value={mb(state.outputFileMb)}
-              tip="Ð“Ð¾Ñ‚Ð¾Ð²Ñ‹Ð¹ PNG"
-            />
-            <Sparkline label="RGB24 PIPELINE" values={state.progressHistory} />
-            <Sparkline
-              label="ANALYSIS LOAD"
-              values={state.activityHistory}
-              color="var(--accent2)"
-            />
-          </section>
-          {before || HEADLESS_TEST ? <ComparisonSurface
-            before={before}
-            after={state.resultUrl}
-            previewBefore={state.workingPreviewUrl}
-            previewAfter={state.resultUrl}
-            beforeWidth={state.sourceWidth}
-            beforeHeight={state.sourceHeight}
-            afterWidth={state.workingWidth||state.sourceWidth}
-            afterHeight={state.workingHeight||state.sourceHeight}
-            backend={backend}
-            focus={focus}
-            onFocus={toggleFocus}
-            contentReady={contentReady}
-            loading={state.previewBusy}
-            allowWipe
-          /> : <section className="compare-card transparent"><EmptyDropZone onPick={()=>backend?.chooseNpmFile()} onFiles={(urls)=>backend?.load?.(urls[0])}/></section>}
-        </>
-      )}
-      <ImportWindow
-        active={batch?state.batchImportBusy:state.previewBusy}
-        progress={batch?state.batchImportProgress:state.previewProgress}
-        status={batch?state.batchImportStatus:state.status}
-        batch={batch}
-        onGame={()=>setScreen("game")}
-      />
-    </main>
-  );
-}
-function Compare({ index, state, backend, setScreen, contentReady = true }) {
-  const item = (state.batchItems || [])[index],
-    [focus, setFocus] = useState(false);
-  const toggleFocus = useCallback(() => setFocus((value) => !value), []);
-  const openFolder = useCallback(() => backend?.openBatchOutput(index), [backend, index]);
-  useEffect(() => {
-    dispatchEvent(new CustomEvent("agr-focus", { detail: focus }));
-  }, [focus]);
-  useEffect(() => {
-    const key = (e) => {
-      if (e.key.toLowerCase() === "f") setFocus((v) => !v);
-      if (e.key === "Escape") setFocus(false);
-    };
-    addEventListener("keydown", key);
-    return () => {
-      removeEventListener("keydown", key);
-      dispatchEvent(new CustomEvent("agr-focus", { detail: false }));
-    };
-  }, []);
-  if (!item)
-    return (
-      <main className="workspace">
-        <Button onClick={() => setScreen("batch")}>Ð’Ð•Ð ÐÐ£Ð¢Ð¬Ð¡Ð¯ Ðš Ð¡ÐŸÐ˜Ð¡ÐšÐ£</Button>
-      </main>
-    );
-  return (
-    <main className={`workspace compare-scene ${focus ? "focus-comparison" : ""}`}>
-      <div className="workspace-head">
-        <Button quiet onClick={() => setScreen("batch")}>
-          â† Ðš Ð¡ÐŸÐ˜Ð¡ÐšÐ£
-        </Button>
-        <div>
-          <small>DEEP ANALYSIS Â· RGB24</small>
-          <h1>{item.name}</h1>
-        </div>
-      </div>
-      <section className="analysis-summary">
-        <div><small>Ð˜Ð¡Ð¥ÐžÐ”ÐÐ˜Ðš</small><strong>{mb(item.sourceMb)}</strong></div>
-        <div><small>Ð Ð•Ð—Ð£Ð›Ð¬Ð¢ÐÐ¢</small><strong>{mb(item.outputMb)}</strong></div>
-        <div><small>Ð­ÐšÐžÐÐžÐœÐ˜Ð¯</small><strong>{item.sourceMb ? `${Math.max(0, Math.round((1 - item.outputMb / item.sourceMb) * 100))}%` : "â€”"}</strong></div>
-        <ProcessSignal compact progress={1} status={item.status || "ÐÐ½Ð°Ð»Ð¸Ð· Ð·Ð°Ð²ÐµÑ€ÑˆÑ‘Ð½"} />
-      </section>
-      <ComparisonSurface
-        before={item.sourceUrl}
-        after={item.resultUrl}
-        previewBefore={item.comparisonSourceUrl}
-        previewAfter={item.comparisonResultUrl}
-        beforeWidth={item.width}
-        beforeHeight={item.height}
-        afterWidth={item.width}
-        afterHeight={item.height}
-        backend={backend}
-        focus={focus}
-        onFocus={toggleFocus}
-        allowWipe
-        onOpenFolder={openFolder}
-        contentReady={contentReady}
-      />
-    </main>
-  );
-}
-
-function JourneyTransition({ journey }) {
-  const paths={
-    npm:"M 720 560 C 940 520 1110 390 1320 285 C 1510 190 1690 235 1840 180",
-    batch:"M 720 560 C 930 600 1090 735 1305 805 C 1510 870 1690 810 1840 900",
-    cross:"M 1840 180 C 1500 260 1220 440 720 560 C 1210 690 1510 820 1840 900",
-  };
-  const selected=paths[journey.path]||paths.npm;
-  return <AnimatePresence>
-    {journey.active&&<motion.div className={`journey path-${journey.path}`} initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} transition={{duration:.25}} aria-hidden="true">
-      <svg viewBox="0 0 1920 1080" preserveAspectRatio="none">
-        <path className="journey-branch muted" d={paths.npm}/><path className="journey-branch muted" d={paths.batch}/>
-        <motion.path className="journey-branch selected" d={selected} initial={{pathLength:0,opacity:.2}} animate={{pathLength:1,opacity:1}} transition={{duration:1.3,ease:[.2,.72,.18,1]}} />
-        <circle r="7" className="journey-node"><animateMotion dur="1.3s" fill="freeze" path={selected} keyPoints={journey.reverse?"1;0":"0;1"} keyTimes="0;1" calcMode="linear" /></circle>
-      </svg>
-      <div><small>ACTIVE ROUTE</small><strong>{journey.label}</strong></div>
-    </motion.div>}
-  </AnimatePresence>;
-}
-function SecretScene({ active, onDone }) {
-  const [title,setTitle]=useState("ISSMAKER");
-  useEffect(() => {
-    if (!active) return;
-    const t = setTimeout(onDone, 6800);
-    return () => clearTimeout(t);
-  }, [active, onDone]);
-  useEffect(()=>{if(!active){setTitle("ISSMAKER");return;}const source="ISSMAKER",alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",start=performance.now();const timer=setInterval(()=>{const elapsed=performance.now()-start,resolved=Math.floor(Math.max(0,elapsed-420)/105);setTitle(Array.from(source).map((char,index)=>index<resolved?char:alphabet[Math.floor(Math.random()*alphabet.length)]).join(""));if(resolved>=source.length){clearInterval(timer);setTitle(source);}},42);return()=>clearInterval(timer);},[active]);
-  return (
-    <AnimatePresence>
-      {active && (
-        <motion.div
-          className="secret-scene"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-        >
-          <div className="secret-veil"/>
-          <div className="secret-waves">{Array.from({length:14},(_,i)=><i key={i} style={{"--size":`${130+i*52}px`,"--rotation":`${19+i*4}deg`,"--delay":`${i*-.16}s`}}/>)}</div>
-          <div className="secret-title"><small>AUTHOR SEQUENCE</small><b>{title}</b><span>RGB24 Â· SIGNATURE VERIFIED</span></div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-}
-
-function IntroSequence({active,onSkip}){
-  return <AnimatePresence>
-    {active&&<motion.div className="intro-sequence" initial={{opacity:1}} exit={{opacity:0}} transition={{duration:.72,ease:[.18,.72,.2,1]}}>
-      <div className="intro-grid"/>
-      <div className="intro-blades">{Array.from({length:34},(_,i)=><i key={i} style={{"--i":i}}/>)}</div>
-      <div className="intro-iris"><i/><i/><i/></div>
-      <motion.div className="intro-copy" initial={{opacity:0,y:18}} animate={{opacity:1,y:0}} transition={{delay:.55,duration:.8}}><small>RGB24</small><strong>ÐžÐŸÐ¢Ð˜ÐœÐ˜Ð—ÐÐ¢ÐžÐ  Ð¢Ð•ÐšÐ¡Ð¢Ð£Ð </strong><span>v2</span></motion.div>
-      <div className="intro-progress"><i/><span>Ð—ÐÐŸÐ£Ð¡Ðš v2</span></div>
-      <button onClick={onSkip}>ÐŸÐ ÐžÐŸÐ£Ð¡Ð¢Ð˜Ð¢Ð¬</button>
-    </motion.div>}
-  </AnimatePresence>;
-}
-
-function App() {
-  const { backend, state } = useBackend(),
-    appRoot = useRef(null),
-    [route, setRoute] = useState("home"),
-    [shapeState,setShapeState]=useState("home"),
-    [transitionKind,setTransitionKind]=useState("home>home"),
-    [hold,setHold]=useState(0),
-    [holdPoint,setHoldPoint]=useState({x:innerWidth/2,y:innerHeight/2}),
-    [diving, setDiving] = useState(false),
-    [revealing,setRevealing]=useState(false),
-    [intro,setIntro]=useState(()=>!HEADLESS_TEST),
-    [contentReady, setContentReady] = useState(true),
-    [settings, setSettings] = useState(false),
-    [theme, setTheme] = useState(() =>
-      readPreference("agr-theme", Object.keys(THEME_COLORS), "emerald"),
-    ),
-    [quality, setQuality] = useState(() =>
-      readPreference("agr-quality", QUALITY_LEVELS, "balanced"),
-    ),
-    [brightness,setBrightness]=useState(()=>readNumberPreference("agr-brightness",1.32,.55,1.4)),
-    [effects,setEffects]=useState(()=>readNumberPreference("agr-effects",1.25,0,1.35)),
-    [performanceMode,setPerformanceMode]=useState(()=>readPreference("agr-performance",QUALITY_LEVELS,"balanced")),
-    [secret, setSecret] = useState(false),
-    holdRef=useRef({value:0}),
-    routeTimers = useRef([]),
-    screen = route.startsWith("compare") ? "compare" : route,
-    setScreen = useCallback(
-      (next) => {
-        if (next === route || (next === "compare" && screen === "compare"))
-          return;
-        routeTimers.current.forEach(clearTimeout);
-        if (HEADLESS_TEST) {
-          setSettings(false);
-          setRoute(next);
-          setShapeState(next.startsWith("compare")?"compare":next);
-          setContentReady(true);
-          return;
-        }
-        const nextScreen=next.startsWith("compare")?"compare":next;
-        setRevealing(false);
-        setDiving(true);
-        setContentReady(false);
-        setSettings(false);
-        dispatchEvent(new CustomEvent("agr-hint", { detail: { open: false } }));
-        setTransitionKind(`${shapeState}>${nextScreen}`);
-        setShapeState(nextScreen);
-        routeTimers.current = [
-          setTimeout(() => {
-            setRoute(next);
-          }, 260),
-          setTimeout(() => {
-            setDiving(false);setRevealing(true);
-            setContentReady(true);
-          }, 620),
-          setTimeout(()=>setRevealing(false),1280),
-        ];
-      },
-      [route, screen,shapeState],
-    );
-  useEffect(() => {
-    const update = (e) => appRoot.current?.classList.toggle("is-dragging", Boolean(e.detail));
-    addEventListener("agr-drag", update);
-    return () => removeEventListener("agr-drag", update);
-  }, []);
-  useEffect(() => {
-    const update = (e) => appRoot.current?.classList.toggle("focus-comparison-active", Boolean(e.detail));
-    addEventListener("agr-focus", update);
-    return () => removeEventListener("agr-focus", update);
-  }, []);
-  useEffect(()=>{
-    let depth=0;
-    const isFileDrag=(event)=>Array.from(event.dataTransfer?.types||[]).includes("Files");
-    const enter=(event)=>{if(!isFileDrag(event))return;event.preventDefault();depth++;appRoot.current?.classList.add("is-file-dragging");};
-    const over=(event)=>{if(!isFileDrag(event))return;event.preventDefault();event.dataTransfer.dropEffect="copy";};
-    const leave=(event)=>{if(!isFileDrag(event))return;depth=Math.max(0,depth-1);if(!depth)appRoot.current?.classList.remove("is-file-dragging");};
-    const drop=(event)=>{if(!isFileDrag(event))return;event.preventDefault();depth=0;appRoot.current?.classList.remove("is-file-dragging");const urls=fileUrlsFromDrop(event);if(screen==="npm"){if(urls.length)backend?.load?.(urls[0]);else backend?.chooseNpmFile?.();}else if(screen==="batch"){if(urls.length)backend?.addBatchFiles?.(urls);else backend?.chooseBatchFiles?.();}};
-    addEventListener("dragenter",enter);addEventListener("dragover",over);addEventListener("dragleave",leave);addEventListener("drop",drop);
-    return()=>{removeEventListener("dragenter",enter);removeEventListener("dragover",over);removeEventListener("dragleave",leave);removeEventListener("drop",drop);};
-  },[backend,screen]);
-  useEffect(()=>{
-    const pulse=(event)=>{
-      const button=event.target?.closest?.("button");
-      if(!button||button.disabled||button.classList.contains("remove-file"))return;
-      const rect=button.getBoundingClientRect(),key=button.dataset.route||button.getAttribute("aria-label")||button.textContent||button.className||"button";
-      let hash=2166136261;for(const char of key){hash^=char.charCodeAt(0);hash=Math.imul(hash,16777619);}hash>>>=0;
-      dispatchEvent(new CustomEvent("agr-edge-pulse",{detail:{x:rect.left+rect.width/2,y:rect.top+rect.height/2,variant:button.dataset.pulse||EDGE_PULSE_VARIANTS[hash%EDGE_PULSE_VARIANTS.length],hue:(hash*37)%360,angle:(hash*29)%360}}));
-    };
-    addEventListener("click",pulse);return()=>removeEventListener("click",pulse);
-  },[]);
-  useEffect(() => () => routeTimers.current.forEach(clearTimeout), []);
-  useEffect(()=>{
-    if(!intro)return undefined;
-    const finish=()=>{setIntro(false);setRevealing(true);setTimeout(()=>setRevealing(false),820);};
-    const timer=setTimeout(finish,3600);return()=>clearTimeout(timer);
-  },[intro]);
-  useEffect(() => writePreference("agr-theme", theme), [theme]);
-  useEffect(() => writePreference("agr-quality", quality), [quality]);
-  useEffect(() => writePreference("agr-brightness", brightness), [brightness]);
-  useEffect(() => writePreference("agr-effects", effects), [effects]);
-  useEffect(() => writePreference("agr-performance", performanceMode), [performanceMode]);
-  useEffect(()=>{if(localStorage.getItem("agr-v56-visual-defaults"))return;setTheme("emerald");setBrightness(1.32);setEffects(1.25);localStorage.setItem("agr-v56-visual-defaults","1");},[]);
-  useEffect(() => {backend?.setPerformanceMode?.(performanceMode);}, [backend,performanceMode]);
-  useEffect(()=>{
-    const down=(event)=>{
-      if(screen!=="home"||event.button!==0||event.target.closest("button,input,[data-no-hold]"))return;
-      setHoldPoint({x:event.clientX,y:event.clientY});
-      gsap.killTweensOf(holdRef.current);gsap.to(holdRef.current,{value:1,duration:1.65,ease:"power2.inOut",onUpdate:()=>setHold(holdRef.current.value)});
-    };
-    const move=(event)=>{if(holdRef.current.value>.01)setHoldPoint({x:event.clientX,y:event.clientY});};
-    const up=()=>{gsap.killTweensOf(holdRef.current);gsap.to(holdRef.current,{value:0,duration:.78,ease:"power3.out",onUpdate:()=>setHold(holdRef.current.value)});};
-    addEventListener("pointerdown",down);addEventListener("pointermove",move,{passive:true});addEventListener("pointerup",up);addEventListener("pointercancel",up);
-    return()=>{removeEventListener("pointerdown",down);removeEventListener("pointermove",move);removeEventListener("pointerup",up);removeEventListener("pointercancel",up);};
-  },[screen]);
-  const setSettingsOpen=useCallback((open)=>{setSettings(open);},[]);
-  const openSecret=useCallback(()=>{
-    routeTimers.current.forEach(clearTimeout);setSettings(false);setRevealing(false);setDiving(true);
-    routeTimers.current=[
-      setTimeout(()=>{setSecret(true);setTransitionKind(`${shapeState}>secret`);setShapeState("secret");},320),
-      setTimeout(()=>{setDiving(false);setRevealing(true);},1450),
-      setTimeout(()=>setRevealing(false),2150),
-    ];
-  },[shapeState]);
-  const closeSecret=useCallback(()=>{
-    routeTimers.current.forEach(clearTimeout);setRevealing(false);setDiving(true);
-    routeTimers.current=[
-      setTimeout(()=>{setSecret(false);setTransitionKind(`secret>${screen}`);setShapeState(screen);},320),
-      setTimeout(()=>{setDiving(false);setRevealing(true);},1450),
-      setTimeout(()=>setRevealing(false),2150),
-    ];
-  },[screen]);
-  const page =
-    screen === "home" ? (
-      <Home setScreen={setScreen} />
-    ) : screen === "npm" ? (
-      <Workspace
-        kind="npm"
-        state={state}
-        backend={backend}
-        setScreen={setScreen}
-        contentReady={contentReady}
-      />
-    ) : screen === "batch" ? (
-      <Workspace
-        kind="batch"
-        state={state}
-        backend={backend}
-        setScreen={setScreen}
-        contentReady={contentReady}
-      />
-    ) : screen === "game" ? (
-      <BladeGrid
-        backgroundBusy={state.previewBusy||state.batchImportBusy||state.busy||state.batchBusy}
-        backgroundProgress={state.batchImportBusy?state.batchImportProgress:state.previewBusy?state.previewProgress:state.batchBusy?state.batchProgress:state.progress}
-        backgroundStatus={state.batchImportBusy?state.batchImportStatus:state.batchBusy?state.batchStatus:state.status}
-        onBack={()=>setScreen("home")}
-      />
-    ) : (
-      <Compare
-        index={Number(route.split(":")[1] || 0)}
-        state={state}
-        backend={backend}
-        setScreen={setScreen}
-        contentReady={contentReady}
-      />
-    );
-  return (
-    <div
-      ref={appRoot}
-      className={`app theme-${theme} quality-${quality} scene-${screen} ${HEADLESS_TEST?"is-headless-test":""} ${diving ? "is-diving" : ""} ${revealing?"is-revealing":""} ${intro?"is-intro":""} ${hold>.01?"is-holding":""} ${secret?"has-secret":""} ${state.busy||state.batchBusy||state.batchImportBusy||state.previewBusy?"is-processing":""}`}
-      style={{"--ui-brightness":brightness,"--effect-level":effects,"--hold":hold}}
-    >
-      <BackgroundFlowLines/>
-      <CursorParticleField theme={theme} effects={effects}/>
-      <div className="webgl">
-        {HEADLESS_TEST ? (
-          <div className="headless-scene" />
-        ) : (
-          <SceneBoundary>
-            <Scene
-              theme={theme}
-              quality={quality}
-              screen={shapeState}
-              transitionKind={transitionKind}
-              brightness={brightness}
-              effects={effects}
-              hold={hold}
-              holdPoint={holdPoint}
-              processing={state.busy||state.batchBusy||state.batchImportBusy||state.previewBusy}
-            />
-          </SceneBoundary>
-        )}
-      </div>
-      <HoldSpace progress={hold} point={holdPoint}/>
-      <CursorEffects effects={effects}/>
-      <EdgePulseLayer/>
-      <div className="file-drop-edge" aria-hidden="true"><i/><i/><i/><i/></div>
-      <TooltipLayer />
-      <Header
-        screen={screen}
-        backend={backend}
-        onSettings={() => setSettingsOpen(!settings)}
-      />
-      <RightDock
-        screen={screen}
-        setScreen={setScreen}
-        state={state}
-      />
-      <AnimatePresence initial={false} mode="sync">
-        <motion.div
-          className="route-stage"
-          key={route}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: HEADLESS_TEST ? 0 : .56, ease: [0.22, 0.72, 0.2, 1] }}
-        >
-          {page}
-        </motion.div>
-      </AnimatePresence>
-      <SettingsPanel
-        open={settings}
-        setOpen={setSettingsOpen}
-        theme={theme}
-        setTheme={setTheme}
-        quality={quality}
-        setQuality={setQuality}
-        brightness={brightness}
-        setBrightness={setBrightness}
-        effects={effects}
-        setEffects={setEffects}
-        performanceMode={performanceMode}
-        setPerformanceMode={setPerformanceMode}
-        hardwareThreads={state.hardwareThreads}
-        backend={backend}
-      />
-      <button
-        className="signature"
-        data-no-hold
-        onClick={openSecret}
-      >
-        by issmaker
-      </button>
-      <SecretScene
-        active={secret}
-        onDone={closeSecret}
-      />
-      <IntroSequence active={intro} onSkip={()=>{setIntro(false);setRevealing(true);setTimeout(()=>setRevealing(false),820);}}/>
-    </div>
-  );
-}
-createRoot(document.getElementById("root")).render(<App />);
+‚#¶ÆWBg&ÖSÓ°¢FV6öFUF–ÖW"æ7W'&VçC×6WD–çFW'fÂ‚‚“Óç¶g&ÖR²³¶6öç7B&W6öÇfVCÔÖF‚æ6V–Â†6†'2æÆVæwF‚¤ÖF‚æÖ–âƒÆg&ÖRó’“·6WDFV6öFVB†6†'2æÖ‚†6†"Æ–æFW‚“Óç¶–b†6†#ÓÓÒ""—&WGW&â6†#¶6öç7B&æ³Ög&öÔÆVgCö–æFWƒ¦6†'2æÆVæwF‚ÓÖ–æFWƒ·&WGW&â&æ³Ç&W6öÇfVCö6†#¦Ç†&WE´ÖF‚æfÆö÷"„ÖF‚ç&æFöÒ‚’¦Ç†&WBæÆVæwF‚•Ó·Ò’æ¦ö–â‚""’“¶–b†g&ÖSãÓ—¶6ÆV$–çFW'fÂ†FV6öFUF–ÖW"æ7W'&VçB“·6WDFV6öFVB‡6÷W&6R“·×ÒÃ3“°¢Ó°¢6öç7BÖ÷fRÒ†R’Óâ°¢6öç7B"ÒRæ7W'&VçEF&vWBævWD&÷VæF–æt6Æ–VçE&V7B‚“°¢Ræ7W'&VçEF&vWBç7G–ÆRç6WE&÷W'G’‚"ÒÖ'‚"ÂG¶Ræ6Æ–VçE‚Ò"æÆVgG×†“°¢Ræ7W'&VçEF&vWBç7G–ÆRç6WE&÷W'G’‚"ÒÖ'’"ÂG¶Ræ6Æ–VçE’Ò"çF÷×†“°¢Ó°¢6öç7BæöFRÒ€¢ÆÖ÷F–öâæ'WGFöà¢Æ–÷WC×´&ööÆVâ†Æ–÷WD–B—Ð¢Æ–÷WD–C×¶Æ–÷WD–GÐ¢G&ç6—F–öã×¶Æ–÷WD–Bò²Æ–÷WC¢²GW&F–öã¢„TDÄU55õDU5Bò¢ãS‚ÂV6S¢²ã"Âãs"Âã‚ÂÒÒÒ¢VæFVf–æVGÐ¢6Æ74æÖS×¶'WGFöâG·V–WBò'V–WB"¢"'ÒG¶FævW"ò&FævW""¢"'ÒG¶6Æ74æÖWÖçG&–Ò‚—Ð¢FFÖæòÖ†öÆ@¢öåö–çFW$Ö÷fS×¶Ö÷fWÐ¢öåö–çFW$VçFW#×¶FV6öFWÐ¢²ââç&÷7Ð¢à¢Æ’óà¢Ç7ãç·6÷W&6SöFV6öFVC¦6†–ÆG&VçÓÂ÷7ãà¢ÂöÖ÷F–öâæ'WGFöãà¢“°¢&WGW&âÄ†–çBFW‡C×·F—Óç¶æöFWÓÂô†–çCã°§Ð¦6öç7BÖ"Ò†â’Óâ†âòG´çVÖ&W"†â’çFôf—†VBƒ"—ÒÔ&¢.(	B"“°¦gVæ7F–öâ&–ætÖWG&–2‡²Æ&VÂÂfÇVRÂ&öw&W72ÒÂF—Ò’°¢6öç7BâÒÖF‚æÖ‚ƒÂÖF‚æÖ–âƒÂ&öw&W72’“°¢&WGW&â€¢Ä†–çBFW‡C×·F—Óà¢ÆF—b6Æ74æÖSÒ'&–ærÖÖWG&–2#à¢Ç7frf–Wt&÷ƒÒ#S"S"#à¢ÆFVg3à¢ÆÆ–æV$w&F–VçB–C×¶&–ærÒG¶Æ&VÇÖÓà¢Ç7F÷7F÷6öÆ÷#Ò'f"‚ÒÖ66VçB’"óà¢Ç7F÷öfg6WCÒ#"7F÷6öÆ÷#Ò'f"‚ÒÖ66VçC"’"óà¢ÂöÆ–æV$w&F–VçCà¢ÂöFVg3à¢Æ6—&6ÆR6Æ74æÖSÒ'&–ær×G&6²"7ƒÒ##b"7“Ò##b"#Ò##"óà¢Æ6—&6ÆP¢6Æ74æÖSÒ'&–ær×fÇVR ¢7ƒÒ##b ¢7“Ò##b ¢#Ò## ¢F„ÆVæwFƒÒ# ¢7G–ÆS×·²7G&ö¶TF6†'&“¢G¶çÒ×Ð¢óà¢Â÷7fsà¢ÆF—cà¢Ç6ÖÆÃç¶Æ&VÇÓÂ÷6ÖÆÃà¢Ç7G&öæsç·fÇVWÓÂ÷7G&öæsà¢ÂöF—cà¢ÂöF—cà¢Âô†–çCà¢“°§Ð¦gVæ7F–öâÖWG&–2‡²Æ&VÂÂfÇVRÂF—Ò’°¢&WGW&â€¢Ä†–çBFW‡C×·F—ÇÂG¶Æ&VÇÓ¢G·fÇVWÖÓà¢ÆF—b6Æ74æÖSÒ&ÖWG&–2#à¢Ç6ÖÆÃç¶Æ&VÇÓÂ÷6ÖÆÃà¢Ç7G&öæsç·fÇVWÓÂ÷7G&öæsà¢Æ’óà¢ÂöF—cà¢Âô†–çCà¢“°§Ð¦gVæ7F–öâ7&¶Æ–æR‡²fÇVW2ÒµÒÂÆ&VÂÂ6öÆ÷"Ò'f"‚ÒÖ66VçB’"Ò’°¢6öç7B–BÒW6T–B‚’ç&WÆ6TÆÂ‚#¢"Â""’À¢FFÒfÇVW2æÆVæwF‚òfÇVW2¢³Âã"Âã5ÒÀ¢ö–çG2ÒFF¢æÖ€¢‡bÂ’’Óà¢G²†’òÖF‚æÖ‚ƒÂFFæÆVæwF‚Ò’’¢ÒÂG³CBÒçVÖ&W"‡b’¢3‡ÖÀ¢¢æ¦ö–â‚""’À¢Æ7BÒçVÖ&W"†FFæB‚Ó’ÇÂ“°¢&WGW&â€¢Ä†–çBFW‡C×¶G¶Æ&VÇÓ¢G´ÖF‚ç&÷VæB†Æ7B¢—ÒVÓà¢ÆF—b6Æ74æÖSÒ'7&²#à¢Ç6ÖÆÃç¶Æ&VÇÓÂ÷6ÖÆÃà¢Æ#ç´ÖF‚ç&÷VæB†Æ7B¢—ÒSÂö#à¢Ç7frf–Wt&÷ƒÒ#C‚"&W6W'fT7V7E&F–óÒ&æöæR#à¢ÆFVg3à¢ÆÆ–æV$w&F–VçB–C×¶–GÒƒÒ#"“Ò#"ƒ#Ò#"“#Ò##à¢Ç7F÷7F÷6öÆ÷#×¶6öÆ÷'Ò7F÷÷6—G“Ò"ãB"óà¢Ç7F÷öfg6WCÒ#"7F÷6öÆ÷#×¶6öÆ÷'Ò7F÷÷6—G“Ò#"óà¢ÂöÆ–æV$w&F–VçCà¢ÂöFVg3à¢ÇF‚6Æ74æÖSÒ&6†'BÖw&–B"CÒ$Ó$ƒÓ#DƒÓ3dƒ"óà¢ÇöÇ–vöâö–çG3×¶ÃC‚G·ö–çG7ÒÃC†Òf–ÆÃ×¶W&Â‚2G¶–GÒ–Òóà¢ÇöÇ–Æ–æP¢6Æ74æÖSÒ&6†'BÖÆ–æR ¢ö–çG3×·ö–çG7Ð¢f–ÆÃÒ&æöæR ¢7G&ö¶S×¶6öÆ÷'Ð¢7G&ö¶Uv–GFƒÒ#ãr ¢fV7F÷$VffV7CÒ&æöâ×66Æ–ær×7G&ö¶R ¢óà¢Æ6—&6ÆR7ƒÒ#"7“×³CBÒÆ7B¢3‡Ò#Ò#""f–ÆÃ×¶6öÆ÷'Òóà¢Â÷7fsà¢ÂöF—cà¢Âô†–çCà¢“°§Ð¦gVæ7F–öâ&ö6W756–væÂ‡²&öw&W72ÒÂ7FGW2Ò-	ímMÝR"Â6ö×7BÒfÇ6RÒ’°¢6öç7BÒÖF‚æÖ‚ƒÂÖF‚æÖ–âƒÂçVÖ&W"‡&öw&W72ÇÂ’’“°¢&WGW&âÆF—b6Æ74æÖS×¶&ö6W72×6–væÂG¶6ö×7Bò&6ö×7B"¢"'ÖÒF—FÆS×·7FGW7Óà¢ÆF—b6Æ74æÖSÒ'6–væÂÖ6÷’#ãÇ6ÖÆÃç·ãÒò%$t##BdU$”d”TB"¢âò$DD•dR•TÄ”äR"¢%$TE’4„ääTÂ'ÓÂ÷6ÖÆÃãÇ7G&öæsç´ÖF‚ç&÷VæB‡¢—ÒSÂ÷7G&öæsãÂöF—cà¢ÆF—b6Æ74æÖSÒ'6–væÂÖ&'2#ç´'&’æg&öÒ‡¶ÆVæwFƒ£‡ÒÂ…òÆ’“ÓãÆ’¶W“×¶—Ò7G–ÆS×·²"ÒÖ‚#¦G³#²‚†’¢3r²ÖF‚ç&÷VæB‡£’’RsR—ÒVÂ"ÒÖöâ#¦’ósÃ×ó¢ã'×Òóâ—ÓÂöF—cà¢Ç7ãçµ7G&–ær‡7FGW2’ç7Æ—B‚,+r"•³Òç6Æ–6RƒÃs"—ÓÂ÷7ãà¢ÂöF—cã°§Ð¦gVæ7F–öâfÇV–E&öw&W72‡²fÇVRÒÒ’°¢&WGW&â€¢ÆF—`¢6Æ74æÖSÒ&fÇV–B×&öw&W72 ¢7G–ÆS×·²"Ò×fÇVR#¢ÖF‚æÖ‚ƒÂÖF‚æÖ–âƒÂfÇVR’’×Ð¢à¢Æ’óà¢Æ"óà¢ÂöF—cà¢“°§Ð ¦gVæ7F–öâ¶–æWF–4&6†—FV7GW&R‡²7F—f—G’ÒÒ’°¢6öç7BÆWfVÂÒÖF‚æÖ‚ƒã‚ÂÖF‚æÖ–âƒÂçVÖ&W"†7F—f—G’ÇÂ’’“°¢&WGW&â€¢ÆF—b6Æ74æÖSÒ&¶–æWF–2Ö&6†—FV7GW&R"7G–ÆS×·²"ÒÖ7F—f—G’#¢ÆWfVÂ×Ò&–Ö†–FFVãÒ'G'VR#à¢ÆF—b6Æ74æÖSÒ&&6†—FV7GW&R×ÆæW2#à¢´'&’æg&öÒ‡²ÆVæwFƒ¢rÒÂ…òÂ’’ÓâÆ’¶W“×¶—Ò7G–ÆS×·²"ÒÖ’#¢’×Òóâ—Ð¢ÂöF—cà¢ÆF—b6Æ74æÖSÒ&¶–æWF–2ÖWVÆ—¦W"#à¢´'&’æg&öÒ‡²ÆVæwFƒ¢‚ÒÂ…òÂ’’ÓâÆ’¶W“×¶—Ò7G–ÆS×·²"ÒÖ’#¢’×Òóâ—Ð¢ÂöF—cà¢ÂöF—cà¢“°§Ð ¦gVæ7F–öâFF6F†VG&Â‡²—FV×2ÒµÒÂ7F—f—G’ÒÂVÆ—G’Ò&&Ææ6VB"Ò’°¢6öç7Bf—6–&ÆRÒ—FV×2æÆVæwF‚ò—FV×2ç6Æ–6RƒÂVÆ—G’ÓÓÒ&V6ò"ò‚¢VÆ—G’ÓÓÒ&Ö‚"òSB¢3"’¢'&’æg&öÒ‡²ÆVæwFƒ¢"ÒÂ…òÂ’’Óâ‡²æÖS¢4ÄõBGµ7G&–ær†’²’çE7F'Bƒ"Â#"—ÖÒ’“°¢&WGW&â€¢ÆF—b6Æ74æÖSÒ&FFÖ6F†VG&Â"7G–ÆS×·²"ÒÖ7F—f—G’#¢ÖF‚æÖ‚‚ã‚ÂçVÖ&W"†7F—f—G’ÇÂ’’×Ò&–Ö†–FFVãÒ'G'VR#à¢ÆF—b6Æ74æÖSÒ&6F†VG&Â×fVÇB#ãÆ’óãÆ’óãÆ’óãÆ’óãÂöF—cà¢ÆF—b6Æ74æÖSÒ&6F†VG&ÂÖfÆö÷""óà¢ÆF—b6Æ74æÖSÒ&6F†VG&ÂÖÖöGVÆW2#à¢·f—6–&ÆRæÖ‚†—FVÒÂ’’ÓâÆF—b¶W“×¶G¶—FVÒç6÷W&6UW&ÂÇÂ—FVÒææÖWÒÒG¶—ÖÒ6Æ74æÖS×¶6F†VG&ÂÖÖöGVÆRG¶—FVÒæFöæRò&FöæR"¢—FVÒæ–×÷'F–ærò&ÆöF–ær"¢'VWVVB'ÖÒ7G–ÆS×·²"ÒÖ’#¢’Â"ÒÖ6÷VçB#¢f—6–&ÆRæÆVæwF‚×ÓãÆ’óãÆ#çµ7G&–ær†’²’çE7F'Bƒ"Â#"—ÓÂö#ãÇ7ãç¶—FVÒææÖWÓÂ÷7ããÂöF—câ—Ð¢ÂöF—cà¢ÆF—b6Æ74æÖSÒ&6F†VG&ÂÖ6÷&R#ãÇ7ãç¶—FV×2æÆVæwF‡ÓÂ÷7ããÇ6ÖÆÃåDU…EU$RäôDU3Â÷6ÖÆÃãÂöF—cà¢ÂöF—cà¢“°§Ð ¦gVæ7F–öâ†VFW"‡²67&VVâÂ&6¶VæBÂöå6WGF–æw2Ò’°¢6öç7BÆ&VÂÒ$õUDU2æf–æB‚‡‚’Óâ…³ÒÓÓÒ67&VVâ“òå³ÒÇÂ-
+-Ý]ÝR#°¢&WGW&â€¢Æ†VFW"6Æ74æÖSÒ'F÷&""FFÖæòÖ†öÆCà¢ÆF—b6Æ74æÖSÒ&'&æB#à¢Ç7â6Æ74æÖSÒ&'&æBÖÖ&²#à¢Å66äÆ–æRóà¢Â÷7ãà¢ÆF—cà¢Æ#í	íý-Í}-í-]­-=Âö#à¢Ç6ÖÆÃäDD•dR$t##Bòc#Â÷6ÖÆÃà¢ÂöF—cà¢ÂöF—cà¢ÆF—b6Æ74æÖSÒ'&÷WFR×7FGW2#à¢Æ’óà¢Ç6ÖÆÃä5D•dR54SÂ÷6ÖÆÃà¢Ç7G&öæsç¶Æ&VÇÓÂ÷7G&öæsà¢ÂöF—cà¢ÆF—b6Æ74æÖSÒ'F÷Ö7F–öç2#à¢Ä'WGFöâFFÖ7F–öãÒ'6WGF–æw2"F—Ò-
+m-]"ÂÝMM]­-²‚Ý-]M]"V–WBöä6Æ–6³×¶öå6WGF–æw7Óà¢ÅÆWGFRóà¢Âô'WGFöãà¢Ä'WGFöà¢F—Ò-	ý]]­½í}-Âýí½Ý½’Ý­Ò‚í­Ýâ ¢V–W@¢öä6Æ–6³×²‚’Óâ&6¶VæCòçFövvÆTgVÆÇ67&VVâ‚—Ð¢à¢ÄÖ†–Ö—¦S"óà¢Âô'WGFöãà¢Ä'WGFöà¢F—Ò-	ý]]}ý=--ÂÝ-]M] ¢V–W@¢öä6Æ–6³×²‚’ÓâÆö6F–öâç&VÆöB‚—Ð¢à¢Ä7F—f—G’óà¢Âô'WGFöãà¢Ä'WGFöà¢F—Ò-	}­½-Âý½ím]ÝR ¢V–W@¢öä6Æ–6³×²‚’Óâ&6¶VæCòçV—D‚—Ð¢à¢Å‚óà¢Âô'WGFöãà¢ÂöF—cà¢Âö†VFW#à¢“°§Ð¦gVæ7F–öâ&–v‡DFö6²‡²67&VVâÂ6WE67&VVâÂ7FFRÒ’°¢6öç7Bf—'7DFöæRÒ7FFRæ&F6„—FV×3òæf–æD–æFW‚‚†—FVÒ’Óâ—FVÒæFöæR’óòÓ°¢&WGW&â€¢ÆÖ÷F–öâæ6–FP¢6Æ74æÖSÒ'&–v‡BÖFö6² ¢FFÖæòÖ†öÆ@¢–æ—F–Ã×·²ƒ¢Â÷6—G“¢×Ð¢æ–ÖFS×·²ƒ¢Â÷6—G“¢×Ð¢G&ç6—F–öã×·²G—S¢'7&–ær"Â7F–ffæW73¢“ÂF×–æs¢#ÂFVÆ“¢ã3R×Ð¢à¢ÆF—b6Æ74æÖSÒ&Fö6²ÖVFvR"óà¢µ$õUDU2æÖ‚…¶–BÂÆ&VÂÂ•Ò’Óâ°¢6öç7BF—6&ÆVBÒ–BÓÓÒ&6ö×&R"bbf—'7DFöæRÂ°¢&WGW&â€¢Ä†–ç@¢FW‡C×¶F—6&ÆVBò-
+Ý}½íý-Í}=-R-]­-=2"¢Æ&VÇÐ¢¶W“×¶–GÐ¢à¢Æ'WGFöà¢FF×&÷WFS×¶–GÐ¢F—6&ÆVC×¶F—6&ÆVGÐ¢6Æ74æÖS×·67&VVâÓÓÒ–Bò&7F—fR"¢"'Ð¢öä6Æ–6³×²‚’Óâ6WE67&VVâ†–BÓÓÒ&6ö×&R"ò6ö×&S¢G¶f—'7DFöæWÖ¢–B—Ð¢à¢Ä’óà¢Ç7ãç¶Æ&VÇÓÂ÷7ãà¢Âö'WGFöãà¢Âô†–çCà¢“°¢Ò—Ð¢ÂöÖ÷F–öâæ6–FSà¢“°§Ð¦gVæ7F–öâ7W'6÷$VffV7G2‡¶VffV7G7Ò—°¢6öç7B&Vc×W6U&Vb‚“°¢W6TVffV7B‚‚“Óç¶6öç7BÖ÷fSÒ†WfVçB“Óç¶–b‚&Vbæ7W'&VçB—&WGW&ã·&Vbæ7W'&VçBç7G–ÆRç6WE&÷W'G’‚"ÒÖ7W'6÷"×‚"ÆG¶WfVçBæ6Æ–VçE‡×†“·&Vbæ7W'&VçBç7G–ÆRç6WE&÷W'G’‚"ÒÖ7W'6÷"×’"ÆG¶WfVçBæ6Æ–VçE—×†“·&Vbæ7W'&VçBç7G–ÆRç6WE&÷W'G’‚"ÒÖ7W'6÷"×7VVB"Å7G&–ær„ÖF‚æÖ–âƒÄÖF‚æ‡—÷B†WfVçBæÖ÷fVÖVçE‚ÆWfVçBæÖ÷fVÖVçE’’óC"’’“·Ó¶FDWfVçDÆ—7FVæW"‚'ö–çFW&Ö÷fR"ÆÖ÷fRÇ·76—fS§G'VWÒ“·&WGW&â‚“Óç&VÖ÷fTWfVçDÆ—7FVæW"‚'ö–çFW&Ö÷fR"ÆÖ÷fR“·ÒÅµÒ“°¢&WGW&âÆF—b&Vc×·&VgÒ6Æ74æÖSÒ&7W'6÷"ÖVffV7G2"7G–ÆS×·²"ÒÖ7W'6÷"ÖVffV7G2#¦VffV7G7×Ò&–Ö†–FFVãÒ'G'VR#ãÆ’óãÆ’óãÆ’óãÂöF—cã°§Ð¦gVæ7F–öâ&6¶w&÷VæDfÆ÷tÆ–æW2‚—°¢6öç7B&Vc×W6U&Vb‚“°¢W6TVffV7B‚‚“Óç¶6öç7BÖ÷fSÒ†WfVçB“Óç¶–b‚&Vbæ7W'&VçB—&WGW&ã·&Vbæ7W'&VçBç7G–ÆRç6WE&÷W'G’‚"ÒÖfÆ÷r×‚"ÆG²†WfVçBæ6Æ–VçE‚ö–ææW%v–GF‚ÒãR’¢Óg×†“·&Vbæ7W'&VçBç7G–ÆRç6WE&÷W'G’‚"ÒÖfÆ÷r×’"ÆG²†WfVçBæ6Æ–VçE’ö–ææW$†V–v‡BÒãR’¢Ó'×†“·Ó¶FDWfVçDÆ—7FVæW"‚'ö–çFW&Ö÷fR"ÆÖ÷fRÇ·76—fS§G'VWÒ“·&WGW&â‚“Óç&VÖ÷fTWfVçDÆ—7FVæW"‚'ö–çFW&Ö÷fR"ÆÖ÷fR“·ÒÅµÒ“°¢&WGW&âÆF—b&Vc×·&VgÒ6Æ74æÖSÒ&&6¶w&÷VæBÖfÆ÷r"&–Ö†–FFVãÒ'G'VR#ãÇ7frf–Wt&÷ƒÒ#“#ƒ"&W6W'fT7V7E&F–óÒ&æöæR#à¢´'&’æg&öÒ‡¶ÆVæwFƒ£‡ÒÂ…òÆ’“ÓãÇF‚¶W“×¶G¶—ÖÒ7G–ÆS×·²"ÒÖ’#¦—×ÒC×¶ÒÓ#G³c¶’£#'Ò2#ƒG³#¶’£ÒÂSG³3“Ö’£wÒÂƒ#G³#CR¶’£‡Ò23cG³#¶’£‡ÒÂ#CG³#ƒ¶’£gÖÒóâ—Ð¢´'&’æg&öÒ‡¶ÆVæwFƒ£GÒÂ…òÆ’“ÓãÇF‚¶W“×¶"G¶—ÖÒ7G–ÆS×·²"ÒÖ’#¦—×ÒC×¶ÒG³##¶’£‡Òc2G³#c¶’£‡ÒscÂG³ƒ#Ö’£—Ò“#ÂG³“3¶’£ÒSc2G³CC¶’£wÒG³#C¶’£7ÒÂ#CG³s¶’£—ÖÒóâ—Ð¢Â÷7fsãÂöF—cã°§Ð¦gVæ7F–öâ7W'6÷%'F–6ÆTf–VÆB‡·F†VÖRÆVffV7G7Ò—°¢6öç7B6çf3×W6U&Vb†çVÆÂ’Æg&ÖS×W6U&Vbƒ’Çö–çFW#×W6U&Vb‡·ƒ¢Ó“““’Ç“¢Ó“““—Ò’Çö–çG3×W6U&Vb…µÒ“°¢6öç7B6öÆ÷'3ÕD„TÔUô4ôÄõ%5·F†VÖU×ÇÅD„TÔUô4ôÄõ%2æVÖW&ÆC°¢W6TVffV7B‚‚“Óç°¢6öç7BæöFSÖ6çf2æ7W'&VçC¶–b‚æöFR—&WGW&ã°¢6öç7B&V'V–ÆCÒ‚“Óç¶6öç7BsÖ–ææW%v–GF‚ÆƒÖ–ææW$†V–v‡BÆG#ÔÖF‚æÖ–â†FWf–6U—†VÅ&F–÷ÇÃÃã#R“¶æöFRçv–GFƒÔÖF‚ç&÷VæB‡r¦G"“¶æöFRæ†V–v‡CÔÖF‚ç&÷VæB†‚¦G"“¶æöFRç7G–ÆRçv–GFƒÖG·w×†¶æöFRç7G–ÆRæ†V–v‡CÖG¶‡×†¶6öç7B6÷VçCÔÖF‚æÖ‚ƒSBÄÖF‚æÖ–âƒÄÖF‚ç&÷VæB‡r¦‚ó#’’“¶ÆWB6VVCÓƒScVS¶6öç7B&æFöÓÒ‚“Óç·6VVCÒ‡6VVB£ccCS#R³3“C##2“ããã·&WGW&â6VVBóC#“C“cs#“c·Ó·ö–çG2æ7W'&VçCÔ'&’æg&öÒ‡¶ÆVæwFƒ¦6÷VçGÒÂ‚“Óâ‡·ƒ§&æFöÒ‚’§rÇ“§&æFöÒ‚’¦‚Ç#¢ãCR·&æFöÒ‚’¢ãƒRÇ†6S§&æFöÒ‚’£bã#‡Ò’“¶G&r‚“·Ó°¢6öç7BG&sÒ‚“Óç¶g&ÖRæ7W'&VçCÓ¶6öç7B7GƒÖæöFRævWD6öçFW‡B‚#&B"Ç¶Ç†§G'VRÆFW7–æ6‡&öæ—¦VC§G'VWÒ“¶–b‚7G‚—&WGW&ã¶6öç7BG#ÖæöFRçv–GF‚ôÖF‚æÖ‚ƒÆ–ææW%v–GF‚“¶7G‚ç6WEG&ç6f÷&Ò†G"ÃÃÆG"ÃÃ“¶7G‚æ6ÆV%&V7BƒÃÆ–ææW%v–GF‚Æ–ææW$†V–v‡B“¶6öç7B×ö–çFW"æ7W'&VçC¶f÷"†6öç7BF÷Böbö–çG2æ7W'&VçB—¶6öç7BGƒÖF÷Bç‚×ç‚ÆG“ÖF÷Bç’×ç’ÆCÔÖF‚æ‡—÷B†G‚ÆG’’Æ–æfÇVVæ6SÔÖF‚æÖ‚ƒÃÖBó“’ÇW6ƒÖ–æfÇVVæ6R¦–æfÇVVæ6R£3BÆ–çcÖCóöC£ÇƒÖF÷Bç‚¶G‚¦–çb§W6‚Ç“ÖF÷Bç’¶G’¦–çb§W6ƒ¶7G‚ævÆö&ÄÇ†Ò‚ã¶–æfÇVVæ6R¢ãS‚’¤ÖF‚æÖ–âƒÆVffV7G2“¶7G‚æf–ÆÅ7G–ÆSÖ–æfÇVVæ6Sâã3Sö6öÆ÷'5³Ó¦6öÆ÷'5³Ó¶7G‚ç6†F÷t6öÆ÷#Ö6öÆ÷'5³Ó¶7G‚ç6†F÷t&ÇW#Ö–æfÇVVæ6R£“¶7G‚æ&Vv–åF‚‚“¶7G‚æ&2‡‚Ç’ÆF÷Bç"¶–æfÇVVæ6R£ã#RÃÄÖF‚å’£"“¶7G‚æf–ÆÂ‚“·Ö7G‚ç6†F÷t&ÇW#Ó·Ó°¢6öç7BVWVSÒ‚“Óç¶–b‚g&ÖRæ7W'&VçB–g&ÖRæ7W'&VçC×&WVW7Dæ–ÖF–öäg&ÖR†G&r“·Ó°¢6öç7BÖ÷fSÒ†WfVçB“Óç·ö–çFW"æ7W'&VçC×·ƒ¦WfVçBæ6Æ–VçE‚Ç“¦WfVçBæ6Æ–VçE—Ó·VWVR‚“·Ó°¢&V'V–ÆB‚“¶FDWfVçDÆ—7FVæW"‚'&W6—¦R"Ç&V'V–ÆB“¶FDWfVçDÆ—7FVæW"‚'ö–çFW&Ö÷fR"ÆÖ÷fRÇ·76—fS§G'VWÒ“·&WGW&â‚“Óç¶6æ6VÄæ–ÖF–öäg&ÖR†g&ÖRæ7W'&VçB“·&VÖ÷fTWfVçDÆ—7FVæW"‚'&W6—¦R"Ç&V'V–ÆB“·&VÖ÷fTWfVçDÆ—7FVæW"‚'ö–çFW&Ö÷fR"ÆÖ÷fR“·Ó°¢ÒÅ¶6öÆ÷'2ÆVffV7G5Ò“°¢&WGW&âÆ6çf2&Vc×¶6çf7Ò6Æ74æÖSÒ&7W'6÷"×'F–6ÆRÖf–VÆB"&–Ö†–FFVãÒ'G'VR"óã°§Ð¦gVæ7F–öâ†öÆE76R‡·&öw&W72Çö–çGÒ—°¢&WGW&âÆF—b6Æ74æÖS×¶†öÆB×76RG·&öw&W73âãò&7F—fR#¢"'ÖÒ7G–ÆS×·²"ÒÖ†öÆB#§&öw&W72Â"ÒÖ†öÆB×‚#¦G·ö–çBç‡×†Â"ÒÖ†öÆB×’#¦G·ö–çBç—×†×Ò&–Ö†–FFVãÒ'G'VR#à¢ÆF—b6Æ74æÖSÒ&†öÆBÖ7W'6÷"#ãÆ’óãÆ’óãÆ’óãÆ#ç´ÖF‚ç&÷VæB‡&öw&W72£’çFõ7G&–ær‚’çE7F'Bƒ"Â#"—ÓÂö#ãÂöF—cà¢ÆF—b6Æ74æÖSÒ&†öÆB×76R×vfW2#ç´'&’æg&öÒ‡¶ÆVæwFƒ£WÒÂ…òÆ’“ÓãÆ’¶W“×¶—Ò7G–ÆS×·²"ÒÖ’#¦—×Òóâ—ÓÂöF—cà¢ÂöF—cã°§Ð¦gVæ7F–öâ6WGF–æw5æVÂ‡°¢÷VâÀ¢6WD÷VâÀ¢F†VÖRÀ¢6WEF†VÖRÀ¢VÆ—G’À¢6WEVÆ—G’À¢'&–v‡FæW72À¢6WD'&–v‡FæW72À¢VffV7G2À¢6WDVffV7G2À¢W&f÷&Öæ6TÖöFRÀ¢6WEW&f÷&Öæ6TÖöFRÀ¢†&Gv&UF‡&VG2À¢&6¶VæBÀ§Ò’°¢&WGW&â€¢Äæ–ÖFU&W6Væ6Sà¢¶÷Vâbb€¢ÆÖ÷F–öâæ6–FP¢6Æ74æÖSÒ'6WGF–æw2×æVÂ ¢FFÖæòÖ†öÆ@¢–æ—F–Ã×¶fÇ6WÐ¢æ–ÖFS×·²÷6—G“¢×Ð¢W†—C×·²÷6—G“¢×Ð¢G&ç6—F–öã×·²GW&F–öã¢ãB×Ð¢à¢ÆF—b6Æ74æÖSÒ'6WGF–æw2Ö†VB#à¢ÆF—cà¢Ç6ÖÆÃåd•5TÂ4ôåE$ôÃÂ÷6ÖÆÃà¢Æƒ#í	Ý-í­ƒÂöƒ#à¢ÂöF—cà¢Ä'WGFöâV–WBöä6Æ–6³×²‚’Óâ6WD÷Vâ†fÇ6R—Óà¢Å‚óà¢Âô'WGFöãà¢ÂöF—cà¢Çí
+m-]-í-í’=Ý³Â÷à¢ÆF—b6Æ74æÖSÒ'&W6WBÖw&–B#à¢µ$U4UE2æÖ‚…¶–BÂÆ&VÂÂ6öÆ÷%Ò’Óâ€¢Æ'WGFöà¢¶W“×¶–GÐ¢6Æ74æÖS×·F†VÖRÓÓÒ–Bò&7F—fR"¢"'Ð¢öä6Æ–6³×²‚’Óâ6WEF†VÖR†–B—Ð¢7G–ÆS×·²"Ò×7vF6‚#¢6öÆ÷"Â"Ò×7vF6ƒ"#¢D„TÔUô4ôÄõ%5¶–EÕ³Ò×Ð¢à¢Æ’óà¢Ç7ãç¶Æ&VÇÓÂ÷7ãà¢Âö'WGFöãà¢’—Ð¢ÂöF—cà¢Çí
+-]"‚íý-}]­íR-]­½ãÂ÷à¢ÆÆ&VÂ6Æ74æÖSÒ'6WGF–ær×&ævR#ãÇ7ãí
+ý
+	­	í
+
+-
+ÃÂ÷7ããÆ#ç´ÖF‚ç&÷VæB†'&–v‡FæW72£—ÒSÂö#ãÆ–çWBG—SÒ'&ævR"Ö–ãÒ"ãSR"ÖƒÒ#ãB"7FWÒ"ã"fÇVS×¶'&–v‡FæW77Òöä6†ævS×²†R“Óç6WD'&–v‡FæW72„çVÖ&W"†RçF&vWBçfÇVR’—ÒóãÂöÆ&VÃà¢ÆÆ&VÂ6Æ74æÖSÒ'6WGF–ær×&ævR#ãÇ7ãí
+Ý
+M
+M	]	­
+-
+³Â÷7ããÆ#ç´ÖF‚ç&÷VæB†VffV7G2£—ÒSÂö#ãÆ–çWBG—SÒ'&ævR"Ö–ãÒ#"ÖƒÒ#ã3R"7FWÒ"ã"fÇVS×¶VffV7G7Òöä6†ævS×²†R“Óç6WDVffV7G2„çVÖ&W"†RçF&vWBçfÇVR’—ÒóãÂöÆ&VÃà¢Çí	­}]--â4BÝm]Ý³Â÷à¢ÆF—b6Æ74æÖSÒ'VÆ—G’×7v—F6‚#à¢µ°¢²&V6ò.ö×Kh‘éì¶»§q«^t%µ…” ¤í¥µœ¹‘•½‘¥¹œô‰…Íå¹Œˆí¥µœ¹½¹±½…ô ¤ôùÉ•Í½±Ù”¡¥µœ¹¹…ÑÕÉ…±]¥‘Ñ ý¥µœé¹Õ±°¤í¥µœ¹½¹•ÉÉ½Èô ¤ôùÉ•Í½±Ù”¡¹Õ±°¤í¥µœ¹ÍÉŒõÍÉŒíô¤íô(€€€ôì(€€€½¹ÍÐ±½Ý	•™½É”õÁÉ•Ù¥•Ý	•™½É•ññ‰•™½É•ñð¡!1MM}QMPýQMQ}QaQUIèˆˆ¤ì(€€€½¹ÍÐ±½Ý™Ñ•ÈõÁÉ•Ù¥•Ý™Ñ•Éññ…™Ñ•Éñð¡!1MM}QMPýQMQ}QaQUIèˆˆ¤ì(€€€AÉ½µ¥Í”¹…±°¡m±½…¡±½Ý	•™½É”¤°±½…¡±½Ý™Ñ•È¥t¤¹Ñ¡•¸ ¡m„±‰t¤€ôøì(€€€€€¥˜€¡…¹•±±•¥í„ü¹±½Í”ü¸ ¤íˆü¹±½Í”ü¸ ¤íÉ•ÑÕÉ¸íô¥µ…•Ì¹ÕÉÉ•¹Ð€ôì‰•™½É”è„°…™Ñ•Èèˆôì±½…‘•¹ÕÉÉ•¹Ð€ô	½½±•…¸¡„ñðˆ¤íÍ•ÑAÉ•Ù¥•Ý1½…‘¥¹œ¡™…±Í”¤íÉ•Í•Ð ¤ì(€€€ô¤ì(€€€½¹ÍÐ‘•Ñ…¥±M½ÕÉ”õ…Íå¹Œ¡­•ä±ÍÉŒ¤ôùì(€€€€€½¹ÍÐ…¡•õ‘•Ñ…¥±	±½‰Ì¹ÕÉÉ•¹Ñm­•åtí¥˜¡…¡•ü¹ÍÉŒôôõÍÉŒ¥É•ÑÕÉ¸…¡•ì(€€€€€ÑÉåì(€€€€€€€€¼¼!QQ@½‰±½ˆÍ½ÕÉ•Ì…¸‰”É½ÁÁ•™É½´Ñ¡•¥È‰åÑ•ÌÝ¥Ñ¡½ÕÐ­••Á¥¹œ„(€€€€€€€€¼¼Í•½¹™Õ±°‰¥Ñµ…À…±¥Ù”¸(€€€€€€€¥˜¡ÍÉŒ¹ÍÑ…ÉÑÍ]¥Ñ  ‰¡ÑÑÀèˆ¥ññÍÉŒ¹ÍÑ…ÉÑÍ]¥Ñ  ‰¡ÑÑÁÌèˆ¥ññÍÉŒ¹ÍÑ…ÉÑÍ]¥Ñ  ‰‰±½ˆèˆ¤¥ì(€€€€€€€€€½¹ÍÐÉ•ÍÁ½¹Í”õ…Ý…¥Ð™•Ñ ¡ÍÉŒ±íÍ¥¹…°é½¹ÑÉ½±±•È¹Í¥¹…±ô¤í½¹ÍÐ‰±½ˆõ…Ý…¥ÐÉ•ÍÁ½¹Í”¹‰±½ˆ ¤í¥˜¡‰±½ˆ¹Í¥é”ðÈÐ¥Ñ¡É½Ü¹•ÜÉÉ½È ‰¥¹Ù…±¥A9ˆ¤ì(€€€€€€€€€½¹ÍÐ¡•…‘•Èõ…Ý…¥Ð‰±½ˆ¹Í±¥” ÄØ°ÈÐ¤¹…ÉÉ…å	Õ™™•È ¤±Ù¥•Üõ¹•Ü…Ñ…Y¥•Ü¡¡•…‘•È¤±µ•Ñ„õíÍÉŒ±‰±½ˆ±Ý¥‘Ñ éÙ¥•Ü¹•ÑU¥¹ÐÌÈ À¤±¡•¥¡ÐéÙ¥•Ü¹•ÑU¥¹ÐÌÈ Ð¥ôí‘•Ñ…¥±	±½‰Ì¹ÕÉÉ•¹Ñm­•åtõµ•Ñ„íÉ•ÑÕÉ¸µ•Ñ„ì(€€€€€€€ô(€€€€€õ…Ñ ¡•ÉÉ½È¥í¥˜¡…¹•±±•‘ññ•ÉÉ½Èü¹¹…µ”ôôô‰‰½ÉÑÉÉ½Èˆ¥Ñ¡É½Ü•ÉÉ½Èíô(€€€€€€¼¼EÐ]•‰¹¥¹”‘¥ÍÁ±…åÌÑ•áÑÕÉ”è¼¼…¹ÅÉŒè¼UI1Ì¥¸€ñ¥µœø°‰ÕÐ•Ñ (€€€€€€¼¼…¸É•©•ÐÑ¡½Í”ÕÍÑ½´Í¡•µ•Ì¸•½‘”Ñ¡É½Õ Ñ¡”¹…Ñ¥Ù”¥µ…”Á…Ñ (€€€€€€¼¼…¹Ñ¡•¸É•…Ñ”½¹±äÑ¡”Ù¥Í¥‰±”€àÀÀ”É½À¸(€€€€€½¹ÍÐ¥µ…”õ…Ý…¥Ð¹•ÜAÉ½µ¥Í” ¡É•Í½±Ù”±É•©•Ð¤ôùí½¹ÍÐÙ…±Õ”õ¹•Ü%µ…” ¤íÙ…±Õ”¹‘•½‘¥¹œô‰…Íå¹ŒˆíÙ…±Õ”¹½¹±½…ô ¤ôùÙ…±Õ”¹¹…ÑÕÉ…±]¥‘Ñ ýÉ•Í½±Ù”¡Ù…±Õ”¤éÉ•©•Ð¡¹•ÜÉÉ½È ‰•µÁÑä¥µ…”ˆ¤¤íÙ…±Õ”¹½¹•ÉÉ½Èô ¤ôùÉ•©•Ð¡¹•ÜÉÉ½È ‰™Õ±°¥µ…”‘•½‘”™…¥±•ˆ¤¤íÙ…±Õ”¹ÍÉŒõÍÉŒíô¤ì(€€€€€½¹ÍÐµ•Ñ„õíÍÉŒ±¥µ…”±Ý¥‘Ñ é¥µ…”¹¹…ÑÕÉ…±]¥‘Ñ ±¡•¥¡Ðé¥µ…”¹¹…ÑÕÉ…±!•¥¡Ñôí‘•Ñ…¥±	±½‰Ì¹ÕÉÉ•¹Ñm­•åtõµ•Ñ„íÉ•ÑÕÉ¸µ•Ñ„ì(€€€ôì(€€€½¹ÍÐÉ½Á½Èô¡µ•Ñ„±­•ä¤ôùì(€€€€€½¹ÍÐÉ•Ðõ¡½ÍÐ¹ÕÉÉ•¹Ðü¹•Ñ	½Õ¹‘¥¹±¥•¹ÑI•Ð ¤í¥˜ …É•Ðü¹Ý¥‘Ñ¡ñð…É•Ðü¹¡•¥¡Ð¥É•ÑÕÉ¸¹Õ±°ì(€€€€€½¹ÍÐÁ…¸õµ½‘•I•˜¹ÕÉÉ•¹Ðôôô‰Á…¸ˆ˜™¥µ…•Ì¹ÕÉÉ•¹Ð¹‰•™½É”˜™¥µ…•Ì¹ÕÉÉ•¹Ð¹…™Ñ•È±Á…¹•]¥‘Ñ õÁ…¸ýÉ•Ð¹Ý¥‘Ñ ¼ÈéÉ•Ð¹Ý¥‘Ñ ±àÀõÁ…¸˜™­•äôôô‰™Õ±±™Ñ•ÈˆýÉ•Ð¹Ý¥‘Ñ ¼ÈèÀì(€€€€€½¹ÍÐ™¥Ðõ5…Ñ ¹µ¥¸¡Á…¹•]¥‘Ñ ½µ•Ñ„¹Ý¥‘Ñ ±É•Ð¹¡•¥¡Ð½µ•Ñ„¹¡•¥¡Ð¤±Í…±”õ™¥Ð©Ñ…É•Ð¹ÕÉÉ•¹Ð¹Ì±àõÁ…¸ýàÀ­Á…¹•]¥‘Ñ ¼ÈéÉ•Ð¹Ý¥‘Ñ ¼È±‘àõàµµ•Ñ„¹Ý¥‘Ñ ©Í…±”¼È­Ñ…É•Ð¹ÕÉÉ•¹Ð¹à±‘äõÉ•Ð¹¡•¥¡Ð¼Èµµ•Ñ„¹¡•¥¡Ð©Í…±”¼È­Ñ…É•Ð¹ÕÉÉ•¹Ð¹äì(€€€€€½¹ÍÐµ…É¥¸õ5…Ñ ¹µ…à äØ±5…Ñ ¹É½Õ¹¡5…Ñ ¹µ…à¡Á…¹•]¥‘Ñ ±É•Ð¹¡•¥¡Ð¤½5…Ñ ¹µ…à¡Í…±”°¸ÀÀÀÄ¤¨¸ÄÈ¤¤ì(€€€€€½¹ÍÐÍàõ5…Ñ ¹µ…à À±5…Ñ ¹™±½½È ¡àÀµ‘à¤½Í…±”¤µµ…É¥¸¤±Íäõ5…Ñ ¹µ…à À±5…Ñ ¹™±½½È µ‘ä½Í…±”¤µµ…É¥¸¤±•àõ5…Ñ ¹µ¥¸¡µ•Ñ„¹Ý¥‘Ñ ±5…Ñ ¹•¥° ¡àÀ­Á…¹•]¥‘Ñ µ‘à¤½Í…±”¤­µ…É¥¸¤±•äõ5…Ñ ¹µ¥¸¡µ•Ñ„¹¡•¥¡Ð±5…Ñ ¹•¥° ¡É•Ð¹¡•¥¡Ðµ‘ä¤½Í…±”¤­µ…É¥¸¤ì(€€€€€É•ÑÕÉ¸íàéÍà±äéÍä±Ý¥‘Ñ é5…Ñ ¹µ…à Ä±•àµÍà¤±¡•¥¡Ðé5…Ñ ¹µ…à Ä±•äµÍä¤±­•äé€‘íÍáôè‘íÍåôè‘í•áôè‘í•åôè‘íÑ…É•Ð¹ÕÉÉ•¹Ð¹Ì¹Ñ½¥á• Ì¥õôì(€€€ôì(€€€±•Ð‘•Ñ…¥±	ÕÍäõ™…±Í”±‘•Ñ…¥±A•¹‘¥¹œõ™…±Í”ì(€€€‘•Ñ…¥±I•ÅÕ•ÍÐ¹ÕÉÉ•¹Ðõ…Íå¹Œ ¤ôùì(€€€€€¥˜¡‘•Ñ…¥±	ÕÍä¥í‘•Ñ…¥±A•¹‘¥¹œõÑÉÕ”íÉ•ÑÕÉ¸íô(€€€€€¥˜¡…¹•±±•‘ññ¥¹Ñ•É…Ñ¥½¸¹ÕÉÉ•¹ÑññÑ…É•Ð¹ÕÉÉ•¹Ð¹ÌñQ%1}i==4¥É•ÑÕÉ¸ì(€€€€€¥˜¡!1MM}QMP¥ì(€€€€€€€¥µ…•Ì¹ÕÉÉ•¹Ð¹™Õ±±	•™½É”õ¥µ…•Ì¹ÕÉÉ•¹Ð¹‰•™½É”ì(€€€€€€€¥µ…•Ì¹ÕÉÉ•¹Ð¹™Õ±±™Ñ•Èõ¥µ…•Ì¹ÕÉÉ•¹Ð¹…™Ñ•Èì(€€€€€€€Í•Ñ•Ñ…¥±MÑ…Ñ” ‰É•…‘äˆ¤ì(€€€€€€€Ý¥¹‘½Ü¹}}I}U11}Q%1}Ie}|ô¡Ý¥¹‘½Ü¹}}I}U11}Q%1}Ie}}ñðÀ¤¬Äì(€€€€€€€Ý¥¹‘½Ü¹}}I}U11}Q%1}M1}|õÑ…É•Ð¹ÕÉÉ•¹Ð¹Ìì(€€€€€€€Ý…­” ¤ì(€€€€€€€É•ÑÕÉ¸ì(€€€€€ô(€€€€€Í•Ñ•Ñ…¥±MÑ…Ñ” ‰±½…‘¥¹œˆ¤ì(€€€€€‘•Ñ…¥±	ÕÍäõÑÉÕ”ì(€€€€€½¹ÍÐ™Õ±±	•™½É•M½ÕÉ”õ‰•™½É•ñð¡!1MM}QMPýQMQ}U11}QaQUIèˆˆ¤ì(€€€€€½¹ÍÐ™Õ±±™Ñ•ÉM½ÕÉ”õ…™Ñ•Éñð¡!1MM}QMPýQMQ}U11}QaQUIèˆˆ¤ì(€€€€€½¹ÍÐÁ…¥ÉÌõl(€€€€€€€l‰™Õ±±	•™½É”ˆ±™Õ±±	•™½É•M½ÕÉ”±±½Ý	•™½É”±‰•™½É•]¥‘Ñ ±‰•™½É•!•¥¡Ñt°(€€€€€€€l‰™Õ±±™Ñ•Èˆ±™Õ±±™Ñ•ÉM½ÕÉ”±±½Ý™Ñ•È±…™Ñ•É]¥‘Ñ ±…™Ñ•É!•¥¡Ñt°(€€€€€tì(€€€€€±•Ð±½…‘•‘•Ñ…¥°ôÀ±™…¥±•‘•Ñ…¥°ôÀ±•áÁ•Ñ•‘•Ñ…¥°ôÀì(€€€€€™½È¡½¹ÍÐm­•ä±ÍÉŒ±±½Ü±¹…Ñ¥Ù•]¥‘Ñ ±¹…Ñ¥Ù•!•¥¡Ñt½˜Á…¥ÉÌ¥ì(€€€€€€€¥˜¡…¹•±±•¥‰É•…¬ì(€€€€€€€¥˜ …ÍÉŒ¥½¹Ñ¥¹Õ”ì(€€€€€€€•áÁ•Ñ•‘•Ñ…¥°¬¬ì(€€€€€€€¥˜¡ÍÉŒôôõ±½Ü¥í±½…‘•‘•Ñ…¥°¬¬í½¹Ñ¥¹Õ”íô(€€€€€€€ÑÉåì(€€€€€€€€€½¹ÍÐ¹…Ñ¥Ù•Ù…¥±…‰±”õ	½½±•…¸¡‰…­•¹ü¹É•ÅÕ•ÍÑ•Ñ…¥±Q¥±”¤˜™ÍÉŒ¹ÍÑ…ÉÑÍ]¥Ñ  ‰Ñ•áÑÕÉ”è¼¼ˆ¤˜™¹…Ñ¥Ù•]¥‘Ñ øÀ˜™¹…Ñ¥Ù•!•¥¡ÐøÀì(€€€€€€€€€½¹ÍÐµ•Ñ„õ¹…Ñ¥Ù•Ù…¥±…‰±”ýíÍÉŒ±Ý¥‘Ñ é¹…Ñ¥Ù•]¥‘Ñ ±¡•¥¡Ðé¹…Ñ¥Ù•!•¥¡Ñôé…Ý…¥Ð‘•Ñ…¥±M½ÕÉ”¡­•ä±ÍÉŒ¤±É½ÀõÉ½Á½È¡µ•Ñ„±­•ä¤í¥˜ …É½À¥½¹Ñ¥¹Õ”ì(€€€€€€€€€¥˜¡¥µ…•Ì¹ÕÉÉ•¹Ñm­•åtü¹­•äôôõÉ½À¹­•ä¥í±½…‘•‘•Ñ…¥°¬¬í½¹Ñ¥¹Õ”íô(€€€€€€€€€±•Ð‰¥Ñµ…À±Ñ¥±•`õÉ½À¹à±Ñ¥±•dõÉ½À¹ä±Ñ¥±•]¥‘Ñ õÉ½À¹Ý¥‘Ñ ±Ñ¥±•!•¥¡ÐõÉ½À¹¡•¥¡Ð±™Õ±±]¥‘Ñ õµ•Ñ„¹Ý¥‘Ñ ±™Õ±±!•¥¡Ðõµ•Ñ„¹¡•¥¡Ðì(€€€€€€€€€¥˜¡¹…Ñ¥Ù•Ù…¥±…‰±”¥ì(€€€€€€€€€€€½¹ÍÐ¹…Ñ¥Ù•Q¥±”õ…Ý…¥ÐÉ•ÅÕ•ÍÑ9…Ñ¥Ù••Ñ…¥°¡ÍÉŒ±É½À¤ì(€€€€€€€€€€€‰¥Ñµ…Àõ…Ý…¥Ð±½…¡¹…Ñ¥Ù•Q¥±”¹ÕÉ°¤ì(€€€€€€€€€€€¥˜ …‰¥Ñµ…À¥Ñ¡É½Ü¹•ÜÉÉ½È ‰¹…Ñ¥Ù”Ñ¥±”‘•½‘”™…¥±•ˆ¤ì(€€€€€€€€€€€Ñ¥±•`õ9Õµ‰•È¡¹…Ñ¥Ù•Q¥±”¹à¤íÑ¥±•dõ9Õµ‰•È¡¹…Ñ¥Ù•Q¥±”¹ä¤íÑ¥±•]¥‘Ñ õ9Õµ‰•È¡¹…Ñ¥Ù•Q¥±”¹Ý¥‘Ñ ¤íÑ¥±•!•¥¡Ðõ9Õµ‰•È¡¹…Ñ¥Ù•Q¥±”¹¡•¥¡Ð¤ì(€€€€€€€€€€€™Õ±±]¥‘Ñ õ9Õµ‰•È¡¹…Ñ¥Ù•Q¥±”¹™Õ±±]¥‘Ñ ¤í™Õ±±!•¥¡Ðõ9Õµ‰•È¡¹…Ñ¥Ù•Q¥±”¹™Õ±±!•¥¡Ð¤ì(€€€€€€€€€õ•±Í•ì(€€€€€€€€€€€‰¥Ñµ…Àõ…Ý…¥ÐÉ•…Ñ•%µ…•	¥Ñµ…À¡µ•Ñ„¹‰±½‰ññµ•Ñ„¹¥µ…”±É½À¹à±É½À¹ä±É½À¹Ý¥‘Ñ ±É½À¹¡•¥¡Ð±í½±½ÉMÁ…•½¹Ù•ÉÍ¥½¸è‰‘•™…Õ±Ðˆ±ÁÉ•µÕ±Ñ¥Á±å±Á¡„è‰‘•™…Õ±Ð‰ô¤ì(€€€€€€€€€ô(€€€€€€€€€¥˜¡…¹•±±•‘ññ¥¹Ñ•É…Ñ¥½¸¹ÕÉÉ•¹Ð¥í‰¥Ñµ…À¹±½Í”ü¸ ¤í½¹Ñ¥¹Õ”íô(€€€€€€€€€¥µ…•Ì¹ÕÉÉ•¹Ñm­•åtü¹‰¥Ñµ…Àü¹±½Í”ü¸ ¤í¥µ…•Ì¹ÕÉÉ•¹Ñm­•åtõí‰¥Ñµ…À±™Õ±±]¥‘Ñ ±™Õ±±!•¥¡Ð±Ñ¥±•`±Ñ¥±•d±Ñ¥±•]¥‘Ñ ±Ñ¥±•!•¥¡Ð±­•äéÉ½À¹­•åôíÝ…­” ¤ì(€€€€€€€€€±½…‘•‘•Ñ…¥°¬¬ì(€€€€€€€€€€¼¼=¹±ä„Ù¥Í¥‰±”Í½ÕÉ”Ñ¥±”É•…¡•ÌÑ¡”AT¸QÝ¼™Õ±°€á,‰¥Ñµ…ÁÌ(€€€€€€€€€€¼¼…É”¹•Ù•ÈÉ•Í¥‘•¹Ð…ÐÑ¡”Í…µ”Ñ¥µ”¸(€€€€€€€€€…Ý…¥Ð¹•ÜAÉ½µ¥Í”¡É•Í½±Ù”ôùÍ•ÑQ¥µ•½ÕÐ¡É•Í½±Ù”°Ðà¤¤ì(€€€€€€€õ…Ñ¡í™…¥±•‘•Ñ…¥°¬¬í¥˜¡…¹•±±•¥‰É•…¬íô(€€€€€ô(€€€€€‘•Ñ…¥±	ÕÍäõ™…±Í”ì(€€€€€¥˜ ……¹•±±•¥í½¹ÍÐÉ•…‘äõ•áÁ•Ñ•‘•Ñ…¥°øÀ˜™±½…‘•‘•Ñ…¥°ôôõ•áÁ•Ñ•‘•Ñ…¥°íÍ•Ñ•Ñ…¥±MÑ…Ñ”¡É•…‘äü‰É•…‘äˆé™…¥±•‘•Ñ…¥°ü‰™…±±‰…¬ˆè‰ÁÉ•Ù¥•Üˆ¤í¥˜¡É•…‘ä¥íÝ¥¹‘½Ü¹}}I}U11}Q%1}Ie}|ô¡Ý¥¹‘½Ü¹}}I}U11}Q%1}Ie}}ñðÀ¤¬ÄíÝ¥¹‘½Ü¹}}I}U11}Q%1}M1}|õÑ…É•Ð¹ÕÉÉ•¹Ð¹Ìíõô(€€€€€¥˜¡‘•Ñ…¥±A•¹‘¥¹œ˜˜……¹•±±•¥í‘•Ñ…¥±A•¹‘¥¹œõ™…±Í”íÍ•ÑQ¥µ•½ÕÐ  ¤ôù‘•Ñ…¥±I•ÅÕ•ÍÐ¹ÕÉÉ•¹Ð ¤°À¤íô(€€€ôì(€€€É•ÑÕÉ¸€ ¤€ôøì…¹•±±•€ôÑÉÕ”í½¹ÑÉ½±±•È¹…‰½ÉÐ ¤í…±¥Ù”¹ÕÉÉ•¹Ð€ô™…±Í”ì…¹•±¹¥µ…Ñ¥½¹É…µ”¡™É…µ”¹ÕÉÉ•¹Ð¤ì™É…µ”¹ÕÉÉ•¹Ð€ô€Àí±•…ÉQ¥µ•½ÕÐ¡¥¹Ñ•É…Ñ¥½¹Q¥µ•È¹ÕÉÉ•¹Ð¤í±•…ÉQ¥µ•½ÕÐ¡‘•Ñ…¥±Q¥µ•È¹ÕÉÉ•¹Ð¤í¥¹Ñ•É…Ñ¥½¸¹ÕÉÉ•¹Ðõ™…±Í”í‘¥ÍÁ…Ñ¡Ù•¹Ð¡¹•ÜÕÍÑ½µÙ•¹Ð ‰…Èµ‘É…œˆ±í‘•Ñ…¥°é™…±Í•ô¤¤í‘•Ñ…¥±I•ÅÕ•ÍÐ¹ÕÉÉ•¹Ðô ¤ôùíôíÉ•±•…Í” ¤ìôì(€ô°m‰•™½É”°…™Ñ•È°ÁÉ•Ù¥•Ý	•™½É”°ÁÉ•Ù¥•Ý™Ñ•È°‰•™½É•]¥‘Ñ °‰•™½É•!•¥¡Ð°…™Ñ•É]¥‘Ñ °…™Ñ•É!•¥¡Ð°‰…­•¹°½¹Ñ•¹ÑI•…‘ä°•áÑ•É¹…±1½…‘¥¹œ°É•ÅÕ•ÍÑ9…Ñ¥Ù••Ñ…¥°°É•Í•Ð°Ý…­•t¤ì(€ÕÍ•™™•Ð  ¤€ôøì(€€€½¹ÍÐ½‰Í•ÉÙ•È€ô¹•ÜI•Í¥é•=‰Í•ÉÙ•È  ¤ôùíÑ…É•Ð¹ÕÉÉ•¹Ðõ±…µÁY¥•Ü¡Ñ…É•Ð¹ÕÉÉ•¹Ð¤íÝ…­” ¤íô¤ì¥˜€¡¡½ÍÐ¹ÕÉÉ•¹Ð¤½‰Í•ÉÙ•È¹½‰Í•ÉÙ”¡¡½ÍÐ¹ÕÉÉ•¹Ð¤ì(€€€É•ÑÕÉ¸€ ¤€ôø½‰Í•ÉÙ•È¹‘¥Í½¹¹•Ð ¤ì(€ô°mÝ…­”±±…µÁY¥•Ýt¤ì(€½¹ÍÐé½½´€ôÕÍ•…±±‰…¬ ¡™…Ñ½È°½à€ô€À°½ä€ô€À¤€ôøì(€€€½¹ÍÐÐ€ôÑ…É•Ð¹ÕÉÉ•¹Ð°Ì€ô5…Ñ ¹µ…à Ä°5…Ñ ¹µ¥¸¡5a}i==4°Ð¹Ì€¨™…Ñ½È¤¤°É…Ñ¥¼€ôÌ€¼Ð¹Ìì(€€€½¹ÍÐÉ…Üõì¸¸¹Ð±Ì±àé½à´¡½àµÐ¹à¤©É…Ñ¥¼±äé½ä´¡½äµÐ¹ä¤©É…Ñ¥½ô±¹•áÐõ±…µÁY¥•Ü¡É…Ü¤ì(€€€¥˜¡5…Ñ ¹…‰Ì¡¹•áÐ¹àµÉ…Ü¹à¤ð¸ÀÀÄ˜™5…Ñ ¹…‰Ì¡¹•áÐ¹äµÉ…Ü¹ä¤ð¸ÀÀÄ¥Ý¥¹‘½Ü¹}}I}i==5}9!=I}II=I}|õ5…Ñ ¹¡åÁ½Ð ¡½àµ¹•áÐ¹à¤½Ì´¡½àµÐ¹à¤½Ð¹Ì°¡½äµ¹•áÐ¹ä¤½Ì´¡½äµÐ¹ä¤½Ð¹Ì¤ì(€€€Ñ…É•Ð¹ÕÉÉ•¹Ðõ¹•áÐí±•…ÉQ¥µ•½ÕÐ¡‘•Ñ…¥±Q¥µ•È¹ÕÉÉ•¹Ð¤ì(€€€¥˜¡ÌøõQ%1}i==4¥íÍ•Ñ•Ñ…¥±MÑ…Ñ” ‰±½…‘¥¹œˆ¤í‘•Ñ…¥±Q¥µ•È¹ÕÉÉ•¹ÐõÍ•ÑQ¥µ•½ÕÐ  ¤ôù‘•Ñ…¥±I•ÅÕ•ÍÐ¹ÕÉÉ•¹Ð ¤°ÈØÀ¤íô(€€€•±Í•íÍ•Ñ•Ñ…¥±MÑ…Ñ” ‰ÁÉ•Ù¥•Üˆ¤í¥˜¡ÌðÄ¸ÌÔ¥í™½È¡½¹ÍÐ­•ä½˜l‰™Õ±±	•™½É”ˆ°‰™Õ±±™Ñ•È‰t¥í¥µ…•Ì¹ÕÉÉ•¹Ñm­•åtü¹‰¥Ñµ…Àü¹±½Í”ü¸ ¤í¥µ…•Ì¹ÕÉÉ•¹Ñm­•åtü¹±½Í”ü¸ ¤í¥µ…•Ì¹ÕÉÉ•¹Ñm­•åtõ¹Õ±°íõ‘•Ñ…¥±	±½‰Ì¹ÕÉÉ•¹Ðõíôíõô(€€€½¹i½½´ü¸¡Ì¤ìÝ¥¹‘½Ü¹}}I}i==5}QIQ}|€ôÌìÝ…­” ¤ì(€ô°m½¹i½½´°Ý…­”±±…µÁY¥•Ýt¤ì(€ÕÍ•™™•Ð  ¤€ôøì(€€€½¹ÍÐ¹½‘”€ô¡½ÍÐ¹ÕÉÉ•¹Ðì¥˜€ …¹½‘”¤É•ÑÕÉ¸ì(€€€½¹ÍÐÝ¡••°€ô€¡”¤€ôøì”¹ÁÉ•Ù•¹Ñ•™…Õ±Ð ¤íÍ•Ñ%¹Ñ•É…Ñ¥½¸¡ÑÉÕ”¤íÍ•Ñ%¹Ñ•É…Ñ¥½¸¡™…±Í”°ÄÐÀ¤ìÝ¥¹‘½Ü¹}}I}]!1}=U9Q}|€ô€¡Ý¥¹‘½Ü¹}}I}]!1}=U9Q}|ñð€À¤€¬€Äì½¹ÍÐÈõ¹½‘”¹•Ñ	½Õ¹‘¥¹±¥•¹ÑI•Ð ¤±±½…±`õ”¹±¥•¹Ñ`µÈ¹±•™Ð±Á…¹••¹Ñ•Èõµ½‘•I•˜¹ÕÉÉ•¹Ðôôô‰Á…¸ˆü¡±½…±`ñÈ¹Ý¥‘Ñ ¼ÈýÈ¹Ý¥‘Ñ ¨¸ÈÔéÈ¹Ý¥‘Ñ ¨¸ÜÔ¤éÈ¹Ý¥‘Ñ ¨¸Ôìé½½´¡5…Ñ ¹•áÀ¡5…Ñ ¹µ…à ´¸ÄÐ°5…Ñ ¹µ¥¸ ¸ÄÐ°€µ”¹‘•±Ñ…d¨¸ÀÀÄÈ¤¤¤°±½…±`µÁ…¹••¹Ñ•È°”¹±¥•¹ÑdµÈ¹Ñ½ÀµÈ¹¡•¥¡Ð¼È¤ìôì(€€€¹½‘”¹…‘‘Ù•¹Ñ1¥ÍÑ•¹•È ‰Ý¡••°ˆ°Ý¡••°°ìÁ…ÍÍ¥Ù”è™…±Í”ô¤ìÉ•ÑÕÉ¸€ ¤€ôø¹½‘”¹É•µ½Ù•Ù•¹Ñ1¥ÍÑ•¹•È ‰Ý¡••°ˆ°Ý¡••°¤ì(€ô°mÍ•Ñ%¹Ñ•É…Ñ¥½¸±é½½µt¤ì(€ÕÍ•™™•Ð  ¤€ôøì(€€€¥˜€ …!1MM}QMP¤É•ÑÕÉ¸ì(€€€½¹ÍÐè€ô”€ôøìÝ¥¹‘½Ü¹}}I}]!1}=U9Q}|€ô€¡Ý¥¹‘½Ü¹}}I}]!1}=U9Q}|ñð€À¤€¬€Äìé½½´¡9Õµ‰•È¡”¹‘•Ñ…¥°ü¹™…Ñ½Èñð€Ä¸Ä¤¤ìôì(€€€½¹ÍÐ€ô”€ôøìÑ…É•Ð¹ÕÉÉ•¹Ðõ±…µÁY¥•Ü¡ì¸¸¹Ñ…É•Ð¹ÕÉÉ•¹Ð±àéÑ…É•Ð¹ÕÉÉ•¹Ð¹à­9Õµ‰•È¡”¹‘•Ñ…¥°ü¹áñðÀ¤±äéÑ…É•Ð¹ÕÉÉ•¹Ð¹ä­9Õµ‰•È¡”¹‘•Ñ…¥°ü¹åñðÀ¥ô¤ìÝ¥¹‘½Ü¹}}I}QMQ}YIQ%1}e}|õÑ…É•Ð¹ÕÉÉ•¹Ð¹äìÝ…­” ¤ìôì(€€€…‘‘Ù•¹Ñ1¥ÍÑ•¹•È ‰…ÈµÑ•ÍÐµé½½´ˆ°è¤ì…‘‘Ù•¹Ñ1¥ÍÑ•¹•È ‰…ÈµÑ•ÍÐµ‘É…œˆ°¤ìÉ•ÑÕÉ¸€ ¤€ôøìÉ•µ½Ù•Ù•¹Ñ1¥ÍÑ•¹•È ‰…ÈµÑ•ÍÐµé½½´ˆ°è¤ìÉ•µ½Ù•Ù•¹Ñ1¥ÍÑ•¹•È ‰…ÈµÑ•ÍÐµ‘É…œˆ°¤ìôì(€ô°mÝ…­”°é½½´±±…µÁY¥•Ýt¤ì(€É•ÑÕÉ¸€ñ‘¥ØÉ•˜õí¡½ÍÑô±…ÍÍ9…µ”ô‰Íµ½½Ñ µ½µÁ…É”ˆ½¹A½¥¹Ñ•É½Ý¸õì¡”¤€ôøì(€€€¥˜¡”¹Ñ…É•Ð¹±½Í•ÍÐü¸ ‰‰ÕÑÑ½¸ˆ¤¥É•ÑÕÉ¸ì(€€€½¹ÍÐÈõ¡½ÍÐ¹ÕÉÉ•¹Ð¹•Ñ	½Õ¹‘¥¹±¥•¹ÑI•Ð ¤°¹•…Èõµ½‘”ôôô‰Ý¥Á”ˆ€˜˜5…Ñ ¹…‰Ì¡”¹±¥•¹Ñ`µÈ¹±•™ÐµÈ¹Ý¥‘Ñ ©Ñ…É•Ð¹ÕÉÉ•¹Ð¹ÍÁ±¥Ð¤ðÌÐì(€€€‘É…œ¹ÕÉÉ•¹ÐõìÁàé”¹±¥•¹Ñ`°Áäé”¹±¥•¹Ñd°àéÑ…É•Ð¹ÕÉÉ•¹Ð¹à°äéÑ…É•Ð¹ÕÉÉ•¹Ð¹ä°Ý¥Á”é¹•…Èôì”¹ÕÉÉ•¹ÑQ…É•Ð¹Í•ÑA½¥¹Ñ•É…ÁÑÕÉ”¡”¹Á½¥¹Ñ•É%¤íÍ•Ñ%¹Ñ•É…Ñ¥½¸¡ÑÉÕ”¤ì(€õô½¹A½¥¹Ñ•É5½Ù”õì¡”¤€ôøì(€€€¥˜€ …‘É…œ¹ÕÉÉ•¹Ð¤É•ÑÕÉ¸ì½¹ÍÐÈõ¡½ÍÐ¹ÕÉÉ•¹Ð¹•Ñ	½Õ¹‘¥¹±¥•¹ÑI•Ð ¤ì(€€€¥˜€¡‘É…œ¹ÕÉÉ•¹Ð¹Ý¥Á”¤Ñ…É•Ð¹ÕÉÉ•¹Ð¹ÍÁ±¥Ðõ5…Ñ ¹µ…à ¸ÀÈ±5…Ñ ¹µ¥¸ ¸äà°¡”¹±¥•¹Ñ`µÈ¹±•™Ð¤½È¹Ý¥‘Ñ ¤¤ì(€€€•±Í”ìÑ…É•Ð¹ÕÉÉ•¹Ðõ±…µÁY¥•Ü¡ì¸¸¹Ñ…É•Ð¹ÕÉÉ•¹Ð±àé‘É…œ¹ÕÉÉ•¹Ð¹à­”¹±¥•¹Ñ`µ‘É…œ¹ÕÉÉ•¹Ð¹Áà±äé‘É…œ¹ÕÉÉ•¹Ð¹ä­”¹±¥•¹Ñdµ‘É…œ¹ÕÉÉ•¹Ð¹Áåô¤ìô(€€€Ý…­” ¤ì(€õô½¹A½¥¹Ñ•ÉUÀõì ¤€ôøì‘É…œ¹ÕÉÉ•¹Ðõ¹Õ±°íÍ•Ñ%¹Ñ•É…Ñ¥½¸¡™…±Í”¤ìõô½¹A½¥¹Ñ•É…¹•°õì ¤€ôøì‘É…œ¹ÕÉÉ•¹Ðõ¹Õ±°íÍ•Ñ%¹Ñ•É…Ñ¥½¸¡™…±Í”¤ìõôø(€€€€ñ…¹Ù…ÌÉ•˜õí…¹Ù…Íô€¼ø(€€€íÁÉ•Ù¥•Ý1½…‘¥¹œ˜˜ñ‘¥Ø±…ÍÍ9…µ”ô‰½µÁ…É”µ±½…‘•Èˆøñ¤¼øñÍÑÉ½¹œùí½¹Ñ•¹ÑI•…‘äü‹B_BCBOBƒBB[BCBWBpƒBcB_B{BGBƒBCB[BWBwBcBTˆè‹BBWBƒBWB—B{BP‰ôð½ÍÑÉ½¹œøð½‘¥Øùô(€€€ì…ÁÉ•Ù¥•Ý1½…‘¥¹œ˜™‘•Ñ…¥±MÑ…Ñ”ôôô‰±½…‘¥¹œˆ˜˜ñ‘¥Ø±…ÍÍ9…µ”ô‰‘•Ñ…¥°µ±½…‘•Èˆøñ¤¼øñÍÁ…¸ùU10€ÄèÄð½ÍÁ…¸øð½‘¥Øùô(€€€í‰•™½É”˜˜ñÍÁ…¸±…ÍÍ9…µ”ô‰½µÁ…É”µ±…‰•°‰•™½É”ˆûB{BƒBcBOBcBwBCBlí‘•Ñ…¥±MÑ…Ñ”ôôô‰É•…‘äˆ˜™Ñ…É•Ð¹ÕÉÉ•¹Ð¹ÌøõQ%1}i==4ü‹
+ÜU10ˆèˆ‰ôð½ÍÁ…¸ùõí…™Ñ•È˜˜ñÍÁ…¸±…ÍÍ9…µ”ô‰½µÁ…É”µ±…‰•°…™Ñ•ÈˆûBƒBWB_BBoB³B‹BCBˆí‘•Ñ…¥±MÑ…Ñ”ôôô‰É•…‘äˆ˜™Ñ…É•Ð¹ÕÉÉ•¹Ð¹ÌøõQ%1}i==4ü‹
+ÜU10ˆèˆ‰ôð½ÍÁ…¸ùô(€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰Ù¥•ÝÁ½ÉÐµ…Ñ¥½¹Ìˆ½¹A½¥¹Ñ•É½Ý¸õì¡”¤ôù”¹ÍÑ½ÁAÉ½Á……Ñ¥½¸ ¥ôøñ‰ÕÑÑ½¸ÑåÁ”ô‰‰ÕÑÑ½¸ˆ‘…Ñ„µÁÕ±Í”ô‰ÍÝ••Àˆ½¹±¥¬õì¡”¤ôùí”¹ÍÑ½ÁAÉ½Á……Ñ¥½¸ ¤íÉ•Í•Ð Ä¥õôûBKBBcB‡BCB‹B°ð½‰ÕÑÑ½¸øñ‰ÕÑÑ½¸ÑåÁ”ô‰‰ÕÑÑ½¸ˆ‘…Ñ„µÁÕ±Í”ô‰½É¹•ÉÌˆ½¹±¥¬õì¡”¤ôùí”¹ÍÑ½ÁAÉ½Á……Ñ¥½¸ ¤íÉ•Í•Ð Ð¥õôøÐÀÀ”ð½‰ÕÑÑ½¸øñ‰ÕÑÑ½¸ÑåÁ”ô‰‰ÕÑÑ½¸ˆ‘…Ñ„µÁÕ±Í”ô‰½É‰¥Ðˆ½¹±¥¬õì¡”¤ôùí”¹ÍÑ½ÁAÉ½Á……Ñ¥½¸ ¤íÉ•Í•Ð à¥õôøàÀÀ”ð½‰ÕÑÑ½¸øñ‰ÕÑÑ½¸ÑåÁ”ô‰‰ÕÑÑ½¸ˆ‘…Ñ„µÁÕ±Í”ô‰ÍÁ±¥Ðˆ½¹±¥¬õì¡”¤ôùí”¹ÍÑ½ÁAÉ½Á……Ñ¥½¸ ¤íÉ•Í•Ð ÄØ¥õôøÄØÀÀ”ð½‰ÕÑÑ½¸øð½‘¥Øø(€€ð½‘¥Øøì)ô¤ì()½¹ÍÐ½µÁ…É¥Í½¹MÕÉ™…”€ôI•…Ð¹µ•µ¼¡™Õ¹Ñ¥½¸½µÁ…É¥Í½¹MÕÉ™…”¡ì(€‰•™½É”°(€…™Ñ•È°(€ÁÉ•Ù¥•Ý	•™½É”°(€ÁÉ•Ù¥•Ý™Ñ•È°(€‰•™½É•]¥‘Ñ €ô€À°(€‰•™½É•!•¥¡Ð€ô€À°(€…™Ñ•É]¥‘Ñ €ô€À°(€…™Ñ•É!•¥¡Ð€ô€À°(€‰…­•¹°(€™½ÕÌ°(€½¹½ÕÌ°(€…±±½Ý]¥Á”€ô™…±Í”°(€½¹=Á•¹½±‘•È°(€½¹Ñ•¹ÑI•…‘ä€ôÑÉÕ”°(€±½…‘¥¹œ€ô™…±Í”°)ô¤ì(€½¹ÍÐmµ½‘”°Í•Ñ5½‘•t€ôÕÍ•MÑ…Ñ” ‰Á…¸ˆ¤ì(€½¹ÍÐmé½½µ1…‰•°°Í•Ñi½½µ1…‰•±t€ôÕÍ•MÑ…Ñ” ÄÀÀ¤ì(€½¹ÍÐÕÁ‘…Ñ•i½½µ1…‰•°€ôÕÍ•…±±‰…¬ ¡Ì¤€ôøÍ•Ñi½½µ1…‰•°¡5…Ñ ¹É½Õ¹¡Ì€¨€ÄÀÀ¤¤°mt¤ì(€É•ÑÕÉ¸€ (€€€€ñÍ•Ñ¥½¸±…ÍÍ9…µ”ô‰½µÁ…É”µ…ÉÑÉ…¹ÍÁ…É•¹Ðˆø(€€€€€í…±±½Ý]¥Á”€˜˜…™Ñ•È€˜˜€ (€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰½µÁ…É¥Í½¸µµ½‘•Ìˆø(€€€€€€€€€€ñ‰ÕÑÑ½¸±…ÍÍ9…µ”õíµ½‘”€ôôô€‰Á…¸ˆ€ü€‰…Ñ¥Ù”ˆ€è€ˆ‰ô½¹±¥¬õì ¤€ôøÍ•Ñ5½‘” ‰Á…¸ˆ¥ôø(€€€€€€€€€€€ƒB‡BcBwB—BƒB{BwBwB¯Bdi==4(€€€€€€€€€€ð½‰ÕÑÑ½¸ø(€€€€€€€€€€ñ‰ÕÑÑ½¸±…ÍÍ9…µ”õíµ½‘”€ôôô€‰Ý¥Á”ˆ€ü€‰…Ñ¥Ù”ˆ€è€ˆ‰ô½¹±¥¬õì ¤€ôøÍ•Ñ5½‘” ‰Ý¥Á”ˆ¥ôø(€€€€€€€€€€€ƒB£B‹B{BƒBkB@ƒBSBx€¼ƒBB{B‡BoBT(€€€€€€€€€€ð½‰ÕÑÑ½¸ø(€€€€€€€€ð½‘¥Øø(€€€€€€¥ô(€€€€€€ñMµ½½Ñ¡½µÁ…É•Y¥•ÝÁ½ÉÐ(€€€€€€€‰•™½É”õí‰•™½É•ô(€€€€€€€…™Ñ•Èõí…™Ñ•Éô(€€€€€€€ÁÉ•Ù¥•Ý	•™½É”õíÁÉ•Ù¥•Ý	•™½É•ô(€€€€€€€ÁÉ•Ù¥•Ý™Ñ•ÈõíÁÉ•Ù¥•Ý™Ñ•Éô(€€€€€€€‰•™½É•]¥‘Ñ õí‰•™½É•]¥‘Ñ¡ô(€€€€€€€‰•™½É•!•¥¡Ðõí‰•™½É•!•¥¡Ñô(€€€€€€€…™Ñ•É]¥‘Ñ õí…™Ñ•É]¥‘Ñ¡ô(€€€€€€€…™Ñ•É!•¥¡Ðõí…™Ñ•É!•¥¡Ñô(€€€€€€€‰…­•¹õí‰…­•¹‘ô(€€€€€€€µ½‘”õíµ½‘•ô(€€€€€€€½¹i½½´õíÕÁ‘…Ñ•i½½µ1…‰•±ô(€€€€€€€½¹Ñ•¹ÑI•…‘äõí½¹Ñ•¹ÑI•…‘åô(€€€€€€€•áÑ•É¹…±1½…‘¥¹œõí±½…‘¥¹ô(€€€€€€¼ø(€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰½µÁ…É¥Í½¸µÑÉÕÑ ˆø(€€€€€€€€ñÍÁ…¸ûB{BƒBcBOBcBwBCBlƒ
+ÜƒBBƒBWBKB³B¸ƒBSBx€Üää”ƒ
+ÜU10€ÄèÄƒB{Bˆ€àÀÀ”ð½ÍÁ…¸ø(€€€€€€€€ñÍÁ…¸ûBƒBWB_BBoB³B‹BCBˆƒ
+ÜƒBBƒBWBKB³B¸ƒBSBx€Üää”ƒ
+ÜU10€ÄèÄƒB{Bˆ€àÀÀ”ð½ÍÁ…¸ø(€€€€€€ð½‘¥Øø(€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰½µÁ…É”µÑ½½±Ìˆø(€€€€€€€€ñÍÁ…¸±…ÍÍ9…µ”ô‰±¥Ù”µé½½´ˆùi==4íé½½µ1…‰•±ô”ƒ
+Ü5`í5a}i==4€¨€ÄÀÁô”ð½ÍÁ…¸ø(€€€€€€€€ñ	ÕÑÑ½¸ÅÕ¥•ÐÑ¥Àô‰½ÕÌ½µÁ…É¥Í½¸ƒ
+ÜƒBëBïBÃBËBãF#BÀˆ½¹±¥¬õí½¹½ÕÍôø(€€€€€€€€€€ñ½ÕÌ€¼øí™½ÕÌ€ü€‹BKB¯BgB‹B`ƒBcB\=ULˆ€è€‰=UL‰ô(€€€€€€€€ð½	ÕÑÑ½¸ø(€€€€€€€í½¹=Á•¹½±‘•È€˜˜€ñ	ÕÑÑ½¸ÅÕ¥•Ð½¹±¥¬õí½¹=Á•¹½±‘•ÉôûB{B‹BkBƒB¯B‹B°ƒBBCBBkBŒð½	ÕÑÑ½¸ùô(€€€€€€ð½‘¥Øø(€€€€ð½Í•Ñ¥½¸ø(€€¤ì)ô¤ì()™Õ¹Ñ¥½¸%µÁ½ÉÑ]¥¹‘½Ü¡ì…Ñ¥Ù”°ÁÉ½É•ÍÌ€ô€À°ÍÑ…ÑÕÌ°‰…Ñ €ô™…±Í”°½¹…µ”ô¤ì(€½¹ÍÐÙ…±Õ”õ5…Ñ ¹µ…à À±5…Ñ ¹µ¥¸ Ä±9Õµ‰•È¡ÁÉ½É•ÍÍñðÀ¤¤¤ì(€É•ÑÕÉ¸€ñ¹¥µ…Ñ•AÉ•Í•¹”ø(€€€í…Ñ¥Ù”˜˜ñµ½Ñ¥½¸¹Í•Ñ¥½¸±…ÍÍ9…µ”ô‰¥µ…”µ±½…µÝ¥¹‘½Üˆ¥¹¥Ñ¥…°õíí½Á…¥ÑäèÀ±Í…±”è¸äÝõô…¹¥µ…Ñ”õíí½Á…¥ÑäèÄ±Í…±”èÅõô•á¥Ðõíí½Á…¥ÑäèÀ±Í…±”è¸äàÕõôÑÉ…¹Í¥Ñ¥½¸õíí‘ÕÉ…Ñ¥½¸è¸ÌÈ±•…Í”él¸Äà°¸ÜÈ°¸È°Åuõôø(€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰¥µ…”µ±½…µÙ¥ÍÕ…°ˆøñ¤¼øñ¤¼øñ¤¼øñˆùí5…Ñ ¹É½Õ¹¡Ù…±Õ”¨ÄÀÀ¤¹Ñ½MÑÉ¥¹œ ¤¹Á…‘MÑ…ÉÐ È°ˆÀˆ¥ôð½ˆøð½‘¥Øø(€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰¥µ…”µ±½…µ½ÁäˆøñÍµ…±°ùí‰…Ñ ü‰	Q %5A%A1%9ˆè‰9A4%5A%A1%9‰ôð½Íµ…±°øñ ÈûB_BCBOBƒBB[BCBWBpƒBcB_B{BGBƒBCB[BWBwBcBTð½ ÈøñÀùíÍÑ…ÑÕÍñð‹BBûBÓBÏBûFBûBËBëBÀA9‰ôð½Àøñ±Õ¥‘AÉ½É•ÍÌÙ…±Õ”õíÙ…±Õ•ô¼øð½‘¥Øø(€€€€€€ñ	ÕÑÑ½¸ÅÕ¥•Ð½¹±¥¬õí½¹…µ•ôøñ…µ•Á…È¼øƒB{B‹BkBƒB¯B‹B°	1I%ð½	ÕÑÑ½¸ø(€€€€ð½µ½Ñ¥½¸¹Í•Ñ¥½¸ùô(€€ð½¹¥µ…Ñ•AÉ•Í•¹”øì)ô()½¹ÍÐ}AU1M}YI%9QLõl‰½É‰¥Ðˆ°‰ÍÝ••Àˆ°‰½É¹•ÉÌˆ°‰ÍÁ±¥Ðˆ°‰•¡¼‰tì)™Õ¹Ñ¥½¸‘•AÕ±Í•1…å•È ¥ì(€½¹ÍÐmÁÕ±Í•Ì±Í•ÑAÕ±Í•ÍtõÕÍ•MÑ…Ñ”¡mt¤±Í•É¥…°õÕÍ•I•˜ À¤ì(€ÕÍ•™™•Ð  ¤ôùì(€€€½¹ÍÐ™¥É”ô¡•Ù•¹Ð¤ôùì(€€€€€½¹ÍÐ‘•Ñ…¥°õ•Ù•¹Ð¹‘•Ñ…¥±ññíô±¥ô¬­Í•É¥…°¹ÕÉÉ•¹Ð±ÁÕ±Í”õí¥±àé9Õµ‰•È¡‘•Ñ…¥°¹áññ¥¹¹•É]¥‘Ñ ¼È¤±äé9Õµ‰•È¡‘•Ñ…¥°¹åññ¥¹¹•É!•¥¡Ð¼È¤±Ù…É¥…¹Ðé‘•Ñ…¥°¹Ù…É¥…¹Ññð‰½É‰¥Ðˆ±¡Õ”é9Õµ‰•È¡‘•Ñ…¥°¹¡Õ•ñðÀ¤±…¹±”é9Õµ‰•È¡‘•Ñ…¥°¹…¹±•ñðÀ¥ôì(€€€€€Í•ÑAÕ±Í•Ì ¡Ù…±Õ•Ì¤ôùl¸¸¹Ù…±Õ•Ì¹Í±¥” ´È¤±ÁÕ±Í•t¤ì(€€€€€Í•ÑQ¥µ•½ÕÐ  ¤ôùÍ•ÑAÕ±Í•Ì ¡Ù…±Õ•Ì¤ôùÙ…±Õ•Ì¹™¥±Ñ•È ¡Ù…±Õ”¤ôùÙ…±Õ”¹¥„ôõ¥¤¤°äàÀ¤ì(€€€ôì(€€€…‘‘Ù•¹Ñ1¥ÍÑ•¹•È ‰…Èµ•‘”µÁÕ±Í”ˆ±™¥É”¤íÉ•ÑÕÉ¸ ¤ôùÉ•µ½Ù•Ù•¹Ñ1¥ÍÑ•¹•È ‰…Èµ•‘”µÁÕ±Í”ˆ±™¥É”¤ì(€ô±mt¤ì(€É•ÑÕÉ¸€ñ‘¥Ø±…ÍÍ9…µ”ô‰•‘”µÁÕ±Í•Ìˆ…É¥„µ¡¥‘‘•¸ô‰ÑÉÕ”ˆùíÁÕ±Í•Ì¹µ…À ¡ÁÕ±Í”¤ôøñ¤­•äõíÁÕ±Í”¹¥‘ô±…ÍÍ9…µ”õíÁÕ±Í”´‘íÁÕ±Í”¹Ù…É¥…¹ÑõôÍÑå±”õíìˆ´µÁÕ±Í”µàˆé€‘íÁÕ±Í”¹áõÁá€°ˆ´µÁÕ±Í”µäˆé€‘íÁÕ±Í”¹åõÁá€°ˆ´µÁÕ±Í”µ¡Õ”ˆéÁÕ±Í”¹¡Õ”°ˆ´µÁÕ±Í”µ…¹±”ˆé€‘íÁÕ±Í”¹…¹±•õ‘•õôøñˆ¼øñˆ¼øñˆ¼øñˆ¼øñˆ¼øñˆ¼øð½¤ø¥ôð½‘¥Øøì)ô()™Õ¹Ñ¥½¸™¥±•UÉ±ÍÉ½µÉ½À¡•Ù•¹Ð¤ì(€½¹ÍÐÑÉ…¹Í™•Èõ•Ù•¹Ð¹‘…Ñ…QÉ…¹Í™•Èí¥˜ …ÑÉ…¹Í™•È¥É•ÑÕÉ¸mtì(€½¹ÍÐÕÉ¥1¥ÍÐõMÑÉ¥¹œ¡ÑÉ…¹Í™•È¹•Ñ…Ñ„ü¸ ‰Ñ•áÐ½ÕÉ¤µ±¥ÍÐˆ¥ñðˆˆ¤¹ÍÁ±¥Ð ½qÈýq¸¼¤¹µ…À ¡Ù…±Õ”¤ôùÙ…±Õ”¹ÑÉ¥´ ¤¤¹™¥±Ñ•È ¡Ù…±Õ”¤ôùÙ…±Õ”˜™Ù…±Õ•lÁt„ôôˆŒˆ˜™Ù…±Õ”¹ÍÑ…ÉÑÍ]¥Ñ  ‰™¥±”èˆ¤¤ì(€¥˜¡ÕÉ¥1¥ÍÐ¹±•¹Ñ ¥É•ÑÕÉ¸ÕÉ¥1¥ÍÐì(€É•ÑÕÉ¸ÉÉ…ä¹™É½´¡ÑÉ…¹Í™•È¹™¥±•Íññmt¤¹µ…À ¡™¥±”¤ôù™¥±”¹Á…Ñ¡ñðˆˆ¤¹™¥±Ñ•È¡	½½±•…¸¤¹µ…À ¡Á…Ñ ¤ôùÁ…Ñ ¹ÍÑ…ÉÑÍ]¥Ñ  ‰™¥±”èˆ¤ýÁ…Ñ é™¥±”è¼¼¼‘íÁ…Ñ ¹É•Á±…•±° ‰qpˆ°ˆ¼ˆ¤¹É•Á±…” ½yp¼¬¼°ˆˆ¥õ€¤ì)ô()™Õ¹Ñ¥½¸µÁÑåÉ½Ái½¹”¡ì‰…Ñ €ô™…±Í”°½¹A¥¬°½¹¥±•Ì°½µÁ…Ð€ô™…±Í”ô¤ì(€É•ÑÕÉ¸€ñ‰ÕÑÑ½¸(€€€ÑåÁ”ô‰‰ÕÑÑ½¸ˆ(€€€±…ÍÍ9…µ”õí•µÁÑäµ‘É½Àµé½¹”€‘í½µÁ…Ð€ü€‰½µÁ…Ðˆ€è€ˆ‰õô(€€€‘…Ñ„µÁÕ±Í”ô‰•¡¼ˆ(€€€…É¥„µ±…‰•°õí‰…Ñ €ü€‹BSBûBÇBÃBËBãFF0A9·FBÃBçBïF,ˆ€è€‹BcBóBÿBûFFBãFBûBËBÃFF0A9‰ô(€€€½¹±¥¬õí½¹A¥­ô(€€€½¹É…¹Ñ•Èõì¡•Ù•¹Ð¤ôùí•Ù•¹Ð¹ÁÉ•Ù•¹Ñ•™…Õ±Ð ¤í•Ù•¹Ð¹ÍÑ½ÁAÉ½Á……Ñ¥½¸ ¤í•Ù•¹Ð¹ÕÉÉ•¹ÑQ…É•Ð¹±…ÍÍ1¥ÍÐ¹…‘ ‰‘É…œµ…Ñ¥Ù”ˆ¤íõô(€€€½¹É…=Ù•Èõì¡•Ù•¹Ð¤ôùí•Ù•¹Ð¹ÁÉ•Ù•¹Ñ•™…Õ±Ð ¤í•Ù•¹Ð¹ÍÑ½ÁAÉ½Á……Ñ¥½¸ ¤í•Ù•¹Ð¹‘…Ñ…QÉ…¹Í™•È¹‘É½Á™™•Ðô‰½Áäˆí•Ù•¹Ð¹ÕÉÉ•¹ÑQ…É•Ð¹±…ÍÍ1¥ÍÐ¹…‘ ‰‘É…œµ…Ñ¥Ù”ˆ¤íõô(€€€½¹É…1•…Ù”õì¡•Ù•¹Ð¤ôùí¥˜ …•Ù•¹Ð¹ÕÉÉ•¹ÑQ…É•Ð¹½¹Ñ…¥¹Ì¡•Ù•¹Ð¹É•±…Ñ•‘Q…É•Ð¤¥•Ù•¹Ð¹ÕÉÉ•¹ÑQ…É•Ð¹±…ÍÍ1¥ÍÐ¹É•µ½Ù” ‰‘É…œµ…Ñ¥Ù”ˆ¤íõô(€€€½¹É½Àõì¡•Ù•¹Ð¤ôùí•Ù•¹Ð¹ÁÉ•Ù•¹Ñ•™…Õ±Ð ¤í•Ù•¹Ð¹ÍÑ½ÁAÉ½Á……Ñ¥½¸ ¤í•Ù•¹Ð¹ÕÉÉ•¹ÑQ…É•Ð¹±…ÍÍ1¥ÍÐ¹É•µ½Ù” ‰‘É…œµ…Ñ¥Ù”ˆ¤í½¹ÍÐÕÉ±Ìõ™¥±•UÉ±ÍÉ½µÉ½À¡•Ù•¹Ð¤í¥˜¡ÕÉ±Ì¹±•¹Ñ ¥½¹¥±•Ìü¸¡ÕÉ±Ì¤í•±Í”½¹A¥¬ü¸ ¤íõô(€€øñA±ÕÌ…É¥„µ¡¥‘‘•¸ô‰ÑÉÕ”ˆ€¼øð½‰ÕÑÑ½¸øì)ô()½¹ÍÐ	Q!}I=]}!%!PôÄäÐì)½¹ÍÐY¥ÉÑÕ…±	…Ñ¡1¥ÍÐõI•…Ð¹µ•µ¼¡™Õ¹Ñ¥½¸Y¥ÉÑÕ…±	…Ñ¡1¥ÍÐ¡í¥Ñ•µÌ±ÍÑ…Ñ”±‰…­•¹±Í•ÑMÉ••¸±½¹A¥­ô¥ì(€½¹ÍÐ¹½‘”õÕÍ•I•˜¡¹Õ±°¤±ÍÉ½±±É…µ”õÕÍ•I•˜ À¤±É•µ½Ù•Q¥µ•ÈõÕÍ•I•˜ À¤±¥Ñ•µÍI•˜õÕÍ•I•˜¡¥Ñ•µÌ¤±mÙ¥•ÝÁ½ÉÐ±Í•ÑY¥•ÝÁ½ÉÑtõÕÍ•MÑ…Ñ”¡íÑ½ÀèÀ±¡•¥¡ÐèÜÈÁô¤±mÉ•µ½Ù¥¹-•ä±Í•ÑI•µ½Ù¥¹-•åtõÕÍ•MÑ…Ñ” ˆˆ¤ì(€ÕÍ•™™•Ð  ¤ôùí¥Ñ•µÍI•˜¹ÕÉÉ•¹Ðõ¥Ñ•µÌí¥˜¡É•µ½Ù¥¹-•ä˜˜…¥Ñ•µÌ¹Í½µ” ¡¥Ñ•´¤ôø¡¥Ñ•´¹Í½ÕÉ•UÉ±ññ¥Ñ•´¹¹…µ”¤ôôõÉ•µ½Ù¥¹-•ä¤¥Í•ÑI•µ½Ù¥¹-•ä ˆˆ¤íô±m¥Ñ•µÌ±É•µ½Ù¥¹-•åt¤ì(€ÕÍ•™™•Ð  ¤ôø ¤ôù±•…ÉQ¥µ•½ÕÐ¡É•µ½Ù•Q¥µ•È¹ÕÉÉ•¹Ð¤±mt¤ì(€½¹ÍÐµ•…ÍÕÉ”õÕÍ•…±±‰…¬  ¤ôùíÍÉ½±±É…µ”¹ÕÉÉ•¹ÐôÀí½¹ÍÐÑ…É•Ðõ¹½‘”¹ÕÉÉ•¹Ðí¥˜¡Ñ…É•Ð¥Í•ÑY¥•ÝÁ½ÉÐ¡íÑ½ÀéÑ…É•Ð¹ÍÉ½±±Q½À±¡•¥¡ÐéÑ…É•Ð¹±¥•¹Ñ!•¥¡ÑñðÜÈÁô¤íô±mt¤ì(€ÕÍ•™™•Ð  ¤ôùí½¹ÍÐ½‰Í•ÉÙ•Èõ¹•ÜI•Í¥é•=‰Í•ÉÙ•È¡µ•…ÍÕÉ”¤í¥˜¡¹½‘”¹ÕÉÉ•¹Ð¥½‰Í•ÉÙ•È¹½‰Í•ÉÙ”¡¹½‘”¹ÕÉÉ•¹Ð¤íµ•…ÍÕÉ” ¤íÉ•ÑÕÉ¸ ¤ôùí½‰Í•ÉÙ•È¹‘¥Í½¹¹•Ð ¤í…¹•±¹¥µ…Ñ¥½¹É…µ”¡ÍÉ½±±É…µ”¹ÕÉÉ•¹Ð¤íôíô±mµ•…ÍÕÉ•t¤ì(€½¹ÍÐ½¹MÉ½±°ô ¤ôùí¥˜ …ÍÉ½±±É…µ”¹ÕÉÉ•¹Ð¥ÍÉ½±±É…µ”¹ÕÉÉ•¹ÐõÉ•ÅÕ•ÍÑ¹¥µ…Ñ¥½¹É…µ”¡µ•…ÍÕÉ”¤íôì(€½¹ÍÐÍÑ…ÉÐõ5…Ñ ¹µ…à À±5…Ñ ¹™±½½È¡Ù¥•ÝÁ½ÉÐ¹Ñ½À½	Q!}I=]}!%!P¤´È¤±•¹õ5…Ñ ¹µ¥¸¡¥Ñ•µÌ¹±•¹Ñ ±5…Ñ ¹•¥° ¡Ù¥•ÝÁ½ÉÐ¹Ñ½À­Ù¥•ÝÁ½ÉÐ¹¡•¥¡Ð¤½	Q!}I=]}!%!P¤¬Ì¤ì(€É•ÑÕÉ¸€ñÍ•Ñ¥½¸É•˜õí¹½‘•ô±…ÍÍ9…µ”ô‰‰…Ñ µ±¥ÍÐÙ¥ÉÑÕ…°µ‰…Ñ µ±¥ÍÐˆ½¹MÉ½±°õí½¹MÉ½±±ôø(€€€ì…¥Ñ•µÌ¹±•¹Ñ ˜˜ñµÁÑåÉ½Ái½¹”‰…Ñ ½µÁ…Ð½¹A¥¬õí½¹A¥­ô½¹¥±•Ìõì¡ÕÉ±Ì¤ôù‰…­•¹ü¹…‘‘	…Ñ¡¥±•Ìü¸¡ÕÉ±Ì¥ô¼ùô(€€€ì„…¥Ñ•µÌ¹±•¹Ñ ˜˜ñ‘¥Ø±…ÍÍ9…µ”ô‰‰…Ñ µÙ¥ÉÑÕ…°µÍÁ…•ÈˆÍÑå±”õíí¡•¥¡Ðé¥Ñ•µÌ¹±•¹Ñ ©	Q!}I=]}!%!Qõôø(€€€€€í¥Ñ•µÌ¹Í±¥”¡ÍÑ…ÉÐ±•¹¤¹µ…À ¡¥Ñ•´±½™™Í•Ð¤ôùí½¹ÍÐ¤õÍÑ…ÉÐ­½™™Í•Ð±­•äõ¥Ñ•´¹Í½ÕÉ•UÉ±ññ¥Ñ•´¹¹…µ•ññMÑÉ¥¹œ¡¤¤±¥ÍI•µ½Ù¥¹œõÉ•µ½Ù¥¹-•äôôõ­•äíÉ•ÑÕÉ¸€ñ…ÉÑ¥±”±…ÍÍ9…µ”õí‰…Ñ µÉ½ÜÙ¥ÉÑÕ…±¥é•€‘í¥Ñ•´¹¥µÁ½ÉÑ¥¹œü‰¥Ìµ¥µÁ½ÉÑ¥¹œˆèˆ‰ô€‘í¥Ñ•´¹™…¥±•ü‰¡…Ìµ•ÉÉ½Èˆèˆ‰ô€‘í¥ÍI•µ½Ù¥¹œü‰¥ÌµÉ•µ½Ù¥¹œˆèˆ‰õôÍÑå±”õííÑ½Àé¤©	Q!}I=]}!%!Qõô­•äõí­•åôø(€€€€€€€€ñ	ÕÑÑ½¸±…ÍÍ9…µ”ô‰É•µ½Ù”µ™¥±”ˆÅÕ¥•Ð‘…¹•È‘¥Í…‰±•õíÍÑ…Ñ”¹‰…Ñ¡	ÕÍåññÍÑ…Ñ”¹‰…Ñ¡%µÁ½ÉÑ	ÕÍåññ	½½±•…¸¡É•µ½Ù¥¹-•ä¥ôÑ¥ÀõíƒBBÓBÃBïBãFF0€‘í¥Ñ•´¹¹…µ•ôƒBãBÜƒBûFB×FB×BÓBáô…É¥„µ±…‰•°õíƒBBÓBÃBïBãFF0€‘í¥Ñ•´¹¹…µ•õô½¹±¥¬õì¡•Ù•¹Ð¤ôùì(€€€€€€€€€¥˜¡É•µ½Ù¥¹-•ä¥É•ÑÕÉ¸í½¹ÍÐ‰½àõ•Ù•¹Ð¹ÕÉÉ•¹ÑQ…É•Ð¹•Ñ	½Õ¹‘¥¹±¥•¹ÑI•Ð ¤íÍ•ÑI•µ½Ù¥¹-•ä¡­•ä¤ì(€€€€€€€€€€‘¥ÍÁ…Ñ¡Ù•¹Ð¡¹•ÜÕÍÑ½µÙ•¹Ð ‰…Èµ•‘”µÁÕ±Í”ˆ±í‘•Ñ…¥°éíàé‰½à¹±•™Ð­‰½à¹Ý¥‘Ñ ¼È±äé‰½à¹Ñ½À­‰½à¹¡•¥¡Ð¼È±Ù…É¥…¹Ðè‰‘…¹•Èˆ±¡Õ”èÀ±…¹±”èÁõô¤¤ì(€€€€€€€€€É•µ½Ù•Q¥µ•È¹ÕÉÉ•¹ÐõÍ•ÑQ¥µ•½ÕÐ  ¤ôùí½¹ÍÐÕÉÉ•¹Ñ%¹‘•àõ¥Ñ•µÍI•˜¹ÕÉÉ•¹Ð¹™¥¹‘%¹‘•à ¡Ù…±Õ”¤ôø¡Ù…±Õ”¹Í½ÕÉ•UÉ±ññÙ…±Õ”¹¹…µ”¤ôôõ­•ä¤í¥˜¡ÕÉÉ•¹Ñ%¹‘•àøôÀ¥‰…­•¹ü¹É•µ½Ù•	…Ñ¡%Ñ•´¡ÕÉÉ•¹Ñ%¹‘•à¤íô°ÐÈÀ¤ì(€€€€€€€õôøñ`¼øð½	ÕÑÑ½¸ø(€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰Ñ¡Õµˆˆùí¥Ñ•´¹¥µÁ½ÉÑ¥¹œüñ‘¥Ø±…ÍÍ9…µ”ô‰ÁÉ•Ù¥•Üµ±½…‘•Èˆøñ¤¼øñÍÁ…¸ûBB{BSBOB{B‹B{BKBkB@ð½ÍÁ…¸øð½‘¥Øøèñ¥µœ±½…‘¥¹œô‰±…éäˆ‘•½‘¥¹œô‰…Íå¹Œˆ‘É……‰±”ô‰™…±Í”ˆÍÉŒõí¥Ñ•´¹Ñ¡Õµ‰¹…¥±M½ÕÉ•UÉ±ññ¥Ñ•´¹½µÁ…É¥Í½¹M½ÕÉ•UÉ±ññ¥Ñ•´¹Í½ÕÉ•UÉ±ô¼ùôñÍÁ…¸ù	=Ið½ÍÁ…¸øð½‘¥Øø(€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰Ñ¡Õµˆˆùí¥Ñ•´¹É•ÍÕ±ÑUÉ°üñ¥µœ±½…‘¥¹œô‰±…éäˆ‘•½‘¥¹œô‰…Íå¹Œˆ‘É……‰±”ô‰™…±Í”ˆÍÉŒõí¥Ñ•´¹Ñ¡Õµ‰¹…¥±I•ÍÕ±ÑUÉ±ññ¥Ñ•´¹½µÁ…É¥Í½¹I•ÍÕ±ÑUÉ±ññ¥Ñ•´¹É•ÍÕ±ÑUÉ±ô¼øèñÀùQHð½ÀùôñÍÁ…¸ùQHð½ÍÁ…¸øð½‘¥Øø(€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰™¥±”µ‘…Ñ„ˆøñ Ìùí¥Ñ•´¹¹…µ•ôð½ ÌøñÀùí¥Ñ•´¹Ý¥‘Ñ ý€‘í¥Ñ•´¹Ý¥‘Ñ¡ôƒ\€‘í¥Ñ•´¹¡•¥¡Ñôƒ
+Ü€èˆ‰õíµˆ¡¥Ñ•´¹Í½ÕÉ•5ˆ¥ôí¥Ñ•´¹‘½¹”˜™ƒŠH€‘íµˆ¡¥Ñ•´¹½ÕÑÁÕÑ5ˆ¥õôð½Àøñ±Õ¥‘AÉ½É•ÍÌÙ…±Õ”õí¥Ñ•´¹ÁÉ½É•ÍÍñðÁô¼øñAÉ½•ÍÍM¥¹…°½µÁ…ÐÁÉ½É•ÍÌõí¥Ñ•´¹ÁÉ½É•ÍÍñð¡¥Ñ•´¹‘½¹”üÄèÀ¥ôÍÑ…ÑÕÌõí¥Ñ•´¹ÍÑ…ÑÕÍññ¥Ñ•´¹É•Á½ÉÑô¼øñ‘¥Øøñ	ÕÑÑ½¸‘¥Í…‰±•õì…¥Ñ•´¹‘½¹•ô½¹±¥¬õì ¤ôùÍ•ÑMÉ••¸¡½µÁ…É”è‘í¥õ€¥ôûB‡BƒBCBKBwBcB‹BWBoB³BwB¯BdƒBCBwBCBoBcB\ð½	ÕÑÑ½¸øñ	ÕÑÑ½¸ÅÕ¥•Ð‘¥Í…‰±•õì…¥Ñ•´¹‘½¹•ô½¹±¥¬õì ¤ôù‰…­•¹ü¹½Á•¹	…Ñ¡=ÕÑÁÕÐ¡¤¥ôûBBCBBkB@ð½	ÕÑÑ½¸øð½‘¥Øøð½‘¥Øø(€€€€€€ð½…ÉÑ¥±”øíô¥ô(€€€€ð½‘¥Øùô(€€ð½Í•Ñ¥½¸øì)ô¤ì()™Õ¹Ñ¥½¸]½É­ÍÁ…”¡ì­¥¹°ÍÑ…Ñ”°‰…­•¹°Í•ÑMÉ••¸°½¹Ñ•¹ÑI•…‘ä€ôÑÉÕ”ô¤ì(€½¹ÍÐ‰…Ñ €ô­¥¹€ôôô€‰‰…Ñ ˆ°(€€€m™½ÕÌ°Í•Ñ½ÕÍt€ôÕÍ•MÑ…Ñ”¡™…±Í”¤°(€€€¥Ñ•µÌ€ôÍÑ…Ñ”¹‰…Ñ¡%Ñ•µÌñðmt°(€€€‰•™½É”€ôÍÑ…Ñ”¹Í½ÕÉ•UÉ°ì(€½¹ÍÐÑ½±•½ÕÌ€ôÕÍ•…±±‰…¬  ¤€ôøÍ•Ñ½ÕÌ ¡Ù…±Õ”¤€ôø€…Ù…±Õ”¤°mt¤ì(€ÕÍ•™™•Ð  ¤€ôøì(€€€¥˜€ …‰…Ñ ¤‘¥ÍÁ…Ñ¡Ù•¹Ð¡¹•ÜÕÍÑ½µÙ•¹Ð ‰…Èµ™½ÕÌˆ°ì‘•Ñ…¥°è™½ÕÌô¤¤ì(€ô°m‰…Ñ °™½ÕÍt¤ì(€ÕÍ•™™•Ð  ¤€ôøì(€€€¥˜€¡‰…Ñ ¤É•ÑÕÉ¸ì(€€€½¹ÍÐ­•ä€ô€¡”¤€ôøì(€€€€€¥˜€¡”¹­•ä¹Ñ½1½Ý•É…Í” ¤€ôôô€‰˜ˆ¤Í•Ñ½ÕÌ ¡Ø¤€ôø€…Ø¤ì(€€€€€¥˜€¡”¹­•ä€ôôô€‰Í…Á”ˆ¤Í•Ñ½ÕÌ¡™…±Í”¤ì(€€€ôì(€€€…‘‘Ù•¹Ñ1¥ÍÑ•¹•È ‰­•å‘½Ý¸ˆ°­•ä¤ì(€€€É•ÑÕÉ¸€ ¤€ôøì(€€€€€É•µ½Ù•Ù•¹Ñ1¥ÍÑ•¹•È ‰­•å‘½Ý¸ˆ°­•ä¤ì(€€€€€‘¥ÍÁ…Ñ¡Ù•¹Ð¡¹•ÜÕÍÑ½µÙ•¹Ð ‰…Èµ™½ÕÌˆ°ì‘•Ñ…¥°è™…±Í”ô¤¤ì(€€€ôì(€ô°m‰…Ñ¡t¤ì(€É•ÑÕÉ¸€ (€€€€ñµ…¥¸±…ÍÍ9…µ”õíÝ½É­ÍÁ…”€‘ì…‰…Ñ €˜˜™½ÕÌ€ü€‰™½ÕÌµ½µÁ…É¥Í½¸ˆ€è€ˆ‰õôø(€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰Ý½É­ÍÁ…”µ¡•…ˆø(€€€€€€€€ñ	ÕÑÑ½¸(€€€€€€€€€ÅÕ¥•Ð(€€€€€€€€€Ñ¥Àô‹BKB×FB÷FFF3FF<ƒB÷BÀƒBÏBïBÃBËB÷F/BäƒF7BëFBÃBôˆ(€€€€€€€€€½¹±¥¬õì ¤€ôøÍ•ÑMÉ••¸ ‰¡½µ”ˆ¥ô(€€€€€€€€ø(€€€€€€€€€ƒŠ@ƒBKB¯BGB{B€ƒBƒBWB[BcBsB@(€€€€€€€€ð½	ÕÑÑ½¸ø(€€€€€€€€ñ‘¥Øø(€€€€€€€€€€ñÍµ…±°ø(€€€€€€€€€€€í‰…Ñ €ü€‰	Q €¼AQ%Y9Q%Yˆ€è€‹BwBBp€¼QIPƒŠ&€Ì5‰ô(€€€€€€€€€€ð½Íµ…±°ø(€€€€€€€€€€ñ ÄûB{BÿFBãBóBãBßBÃFBûF ƒFB×BëFFFF ð½ Äø(€€€€€€€€ð½‘¥Øø(€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰¡•…µ…Ñ¥½¹Ìˆø(€€€€€€€€€í‰…Ñ €˜˜€ (€€€€€€€€€€€€ñ	ÕÑÑ½¸(€€€€€€€€€€€€€ÅÕ¥•Ð(€€€€€€€€€€€€€‘¥Í…‰±•õíÍÑ…Ñ”¹‰…Ñ¡	ÕÍäñðÍÑ…Ñ”¹‰…Ñ¡%µÁ½ÉÑ	ÕÍåô(€€€€€€€€€€€€€Ñ¥Àô‹B{FBãFFBãFF0ƒBûFB×FB×BÓF0ˆ(€€€€€€€€€€€€€½¹±¥¬õì ¤€ôø‰…­•¹ü¹±•…É	…Ñ  ¥ô(€€€€€€€€€€€€ø(€€€€€€€€€€€€€ƒB{BŸBcB‡B‹BcB‹B°(€€€€€€€€€€€€ð½	ÕÑÑ½¸ø(€€€€€€€€€€¥ô(€€€€€€€€€€ñ	ÕÑÑ½¸(€€€€€€€€€€€±…å½ÕÑ%õí‰…Ñ €ü€‰É½ÕÑ”µÁÉ¥µ…Éäµ‰…Ñ ˆ€è€‰É½ÕÑ”µÁÉ¥µ…Éäµ¹Á´‰ô(€€€€€€€€€€€‘¥Í…‰±•õí‰…Ñ €üÍÑ…Ñ”¹‰…Ñ¡	ÕÍäñðÍÑ…Ñ”¹‰…Ñ¡%µÁ½ÉÑ	ÕÍä€èÍÑ…Ñ”¹‰ÕÍäñðÍÑ…Ñ”¹ÁÉ•Ù¥•Ý	ÕÍåô(€€€€€€€€€€€Ñ¥Àõí‰…Ñ €ü€‹BKF/BÇFBÃFF0ƒB÷B×FBëBûBïF3BëBøA9ˆ€è€‹BKF/BÇFBÃFF0A9‰ô(€€€€€€€€€€€½¹±¥¬õì ¤€ôø(€€€€€€€€€€€€€‰…Ñ €ü‰…­•¹ü¹¡½½Í•	…Ñ¡¥±•Ì ¤€è‰…­•¹ü¹¡½½Í•9Áµ¥±” ¤(€€€€€€€€€€€ô(€€€€€€€€€€ø(€€€€€€€€€€€í‰…Ñ €ü€‹BSB{BGBCBKBcB‹B°A9ˆ€è€‹BcBsBB{BƒBˆA9‰ô(€€€€€€€€€€ð½	ÕÑÑ½¸ø(€€€€€€€€ð½‘¥Øø(€€€€€€ð½‘¥Øø(€€€€€ì…‰…Ñ ˜˜ñÍ•Ñ¥½¸±…ÍÍ9…µ”ô‰¹Á´µ½µµ…¹µÑ½Àˆø(€€€€€€€€ñAÉ½•ÍÍM¥¹…°ÁÉ½É•ÍÌõíÍÑ…Ñ”¹ÁÉ½É•ÍÍôÍÑ…ÑÕÌõíÍÑ…Ñ”¹ÍÑ…ÑÕÌñðÍÑ…Ñ”¹É•Á½ÉÑô€¼ø(€€€€€€€€ñ	ÕÑÑ½¸‘…¹•ÈõíÍÑ…Ñ”¹‰ÕÍåô‘¥Í…‰±•õíÍÑ…Ñ”¹ÁÉ•Ù¥•Ý	ÕÍåñð …ÍÑ…Ñ”¹Í½ÕÉ•UÉ°˜˜…ÍÑ…Ñ”¹‰ÕÍä¥ô½¹±¥¬õì ¤ôùÍÑ…Ñ”¹‰ÕÍäý‰…­•¹ü¹ÍÑ½ÁÕÉÉ•¹Ð ¤é‰…­•¹ü¹½ÁÑ¥µ¥é” È¸ää¥ôùíÍÑ…Ñ”¹‰ÕÍäü‹B{B‡B‹BCBwB{BKBcB‹B°ˆè‹B{BB‹BcBsBcB_BcBƒB{BKBCB‹B°ƒBSBx€Ì5‰ôð½	ÕÑÑ½¸ø(€€€€€€€€ñ	ÕÑÑ½¸ÅÕ¥•Ð‘¥Í…‰±•õì…ÍÑ…Ñ”¹½ÕÑÁÕÑA…Ñ¡ô½¹±¥¬õì ¤ôù‰…­•¹ü¹½Á•¹=ÕÑÁÕÑ½±‘•È ¥ôøñ½±‘•É=Á•¸¼øƒBBCBBkB@ð½	ÕÑÑ½¸ø(€€€€€€ð½Í•Ñ¥½¸ùô(€€€€€í‰…Ñ €ü€ (€€€€€€€€ðø(€€€€€€€€€€ñÍ•Ñ¥½¸±…ÍÍ9…µ”ô‰Ñ•±•µ•ÑÉäˆø(€€€€€€€€€€€€ñI¥¹5•ÑÉ¥Œ(€€€€€€€€€€€€€±…‰•°ô‰%1Lˆ(€€€€€€€€€€€€€Ù…±Õ”õí¥Ñ•µÌ¹±•¹Ñ¡ô(€€€€€€€€€€€€€ÁÉ½É•ÍÌõí¥Ñ•µÌ¹±•¹Ñ €ü€Ä€è€Áô(€€€€€€€€€€€€€Ñ¥Àô‹B“BÃBçBïBûBÈƒBÈƒBûFB×FB×BÓBàˆ(€€€€€€€€€€€€¼ø(€€€€€€€€€€€€ñI¥¹5•ÑÉ¥Œ(€€€€€€€€€€€€€±…‰•°ô‰AI=IMLˆ(€€€€€€€€€€€€€Ù…±Õ”õí€‘í5…Ñ ¹É½Õ¹ ¡ÍÑ…Ñ”¹‰…Ñ¡AÉ½É•ÍÌñð€À¤€¨€ÄÀÀ¥ô•ô(€€€€€€€€€€€€€ÁÉ½É•ÍÌõíÍÑ…Ñ”¹‰…Ñ¡AÉ½É•ÍÌñð€Áô(€€€€€€€€€€€€€Ñ¥Àô‹B{BÇF'BãBäƒBÿFBûBÏFB×FFˆ(€€€€€€€€€€€€¼ø(€€€€€€€€€€€€ñMÁ…É­±¥¹”±…‰•°ô‰EUU1=\ˆÙ…±Õ•ÌõíÍÑ…Ñ”¹‰…Ñ¡AÉ½É•ÍÍ!¥ÍÑ½Éåô€¼ø(€€€€€€€€€€€€ñMÁ…É­±¥¹”(€€€€€€€€€€€€€±…‰•°ô‰IÈÐQ%Y%Qdˆ(€€€€€€€€€€€€€Ù…±Õ•ÌõíÍÑ…Ñ”¹‰…Ñ¡Ñ¥Ù¥Ñå!¥ÍÑ½Éåô(€€€€€€€€€€€€€½±½Èô‰Ù…È ´µ…•¹ÐÈ¤ˆ(€€€€€€€€€€€€¼ø(€€€€€€€€€€€€ñ	ÕÑÑ½¸(€€€€€€€€€€€€€‘…¹•ÈõíÍÑ…Ñ”¹‰…Ñ¡	ÕÍåô(€€€€€€€€€€€€€‘¥Í…‰±•õíÍÑ…Ñ”¹‰…Ñ¡%µÁ½ÉÑ	ÕÍäñð€ …¥Ñ•µÌ¹Í½µ” ¡¥Ñ•´¤€ôø€…¥Ñ•´¹‘½¹”€˜˜€…¥Ñ•´¹™…¥±•€˜˜€…¥Ñ•´¹¥µÁ½ÉÑ¥¹œ¤€˜˜€…ÍÑ…Ñ”¹‰…Ñ¡	ÕÍä¥ô(€€€€€€€€€€€€€Ñ¥Àõì(€€€€€€€€€€€€€€€ÍÑ…Ñ”¹‰…Ñ¡	ÕÍä(€€€€€€€€€€€€€€€€€€ü€‹B{FFBÃB÷BûBËBãFF0ƒBÿBûFBïBÔƒBÇB×BßBûBÿBÃFB÷BûBÏBøƒF#BÃBÏBÀˆ(€€€€€€€€€€€€€€€€€€è€‹B{BÇFBÃBÇBûFBÃFF0ƒFBûBïF3BëBøƒB÷BûBËF/BÔA9ˆ(€€€€€€€€€€€€€ô(€€€€€€€€€€€€€½¹±¥¬õì ¤€ôø(€€€€€€€€€€€€€€€ÍÑ…Ñ”¹‰…Ñ¡	ÕÍä(€€€€€€€€€€€€€€€€€€ü‰…­•¹ü¹ÍÑ½Á	…Ñ  ¤(€€€€€€€€€€€€€€€€€€è‰…­•¹ü¹½ÁÑ¥µ¥é•	…Ñ  ¤(€€€€€€€€€€€€€ô(€€€€€€€€€€€€ø(€€€€€€€€€€€€€íÍÑ…Ñ”¹‰…Ñ¡	ÕÍä€ü€‹B{B‡B‹BCBwB{BKBcB‹B°ˆ€è€‹B{BB‹BcBsBcB_BcBƒB{BKBCB‹B°ƒBwB{BKB¯BT‰ô(€€€€€€€€€€€€ð½	ÕÑÑ½¸ø(€€€€€€€€€€ð½Í•Ñ¥½¸ø(€€€€€€€€€€ñÍ•Ñ¥½¸±…ÍÍ9…µ”õí‰…Ñ µ¥µÁ½ÉÐµÁ…¹•°€‘íÍÑ…Ñ”¹‰…Ñ¡%µÁ½ÉÑ	ÕÍä€ü€‰…Ñ¥Ù”ˆ€è€ˆ‰õôø(€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰¥µÁ½ÉÐµ½Áäˆø(€€€€€€€€€€€€€€ñÁÔ€¼ø(€€€€€€€€€€€€€€ñ‘¥Øø(€€€€€€€€€€€€€€€€ñÍµ…±°ùíÍÑ…Ñ”¹‰…Ñ¡%µÁ½ÉÑ	ÕÍä€ü€‹B“B{BwB{BKBCB¼ƒB_BCBOBƒBB_BkB@A9ˆ€èƒBCBBBCBƒBCB‹BwBCB¼ƒB{BŸBWBƒBWBSB°ƒ
+Ü€‘íÍÑ…Ñ”¹‰…Ñ¡]½É­•ÉÌñð€Åô€‘íÍÑ…Ñ”¹‰…Ñ¡]½É­•ÉÌ€ôôô€Ä€ü€‹BB{B‹B{Bhˆ€è€‹BB{B‹B{BkB@‰õôð½Íµ…±°ø(€€€€€€€€€€€€€€€€ñÍÑÉ½¹œùíÍÑ…Ñ”¹‰…Ñ¡%µÁ½ÉÑ	ÕÍä€üÍÑ…Ñ”¹‰…Ñ¡%µÁ½ÉÑMÑ…ÑÕÌ€èÍÑ…Ñ”¹‰…Ñ¡MÑ…ÑÕÍôð½ÍÑÉ½¹œø(€€€€€€€€€€€€€€ð½‘¥Øø(€€€€€€€€€€€€ð½‘¥Øø(€€€€€€€€€€€€ñ±Õ¥‘AÉ½É•ÍÌÙ…±Õ”õíÍÑ…Ñ”¹‰…Ñ¡%µÁ½ÉÑ	ÕÍä€üÍÑ…Ñ”¹‰…Ñ¡%µÁ½ÉÑAÉ½É•ÍÌ€èÍÑ…Ñ”¹‰…Ñ¡AÉ½É•ÍÍô€¼ø(€€€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰¥µÁ½ÉÐµ¹…µ•Ìˆø(€€€€€€€€€€€€€í¥Ñ•µÌ¹Í±¥” ´Ø¤¹µ…À ¡¥Ñ•´¤€ôø€ (€€€€€€€€€€€€€€€€ñÍÁ…¸­•äõí¥Ñ•´¹Í½ÕÉ•UÉ±ô±…ÍÍ9…µ”õí¥Ñ•´¹¥µÁ½ÉÑ¥¹œ€ü€‰±½…‘¥¹œˆ€è¥Ñ•´¹™…¥±•€ü€‰™…¥±•ˆ€è€‰É•…‘ä‰ôø(€€€€€€€€€€€€€€€€€í¥Ñ•´¹¹…µ•ô(€€€€€€€€€€€€€€€€ð½ÍÁ…¸ø(€€€€€€€€€€€€€€¤¥ô(€€€€€€€€€€€€ð½‘¥Øø(€€€€€€€€€€ð½Í•Ñ¥½¸ø(€€€€€€€€€€ñY¥ÉÑÕ…±	…Ñ¡1¥ÍÐ¥Ñ•µÌõí¥Ñ•µÍôÍÑ…Ñ”õíÍÑ…Ñ•ô‰…­•¹õí‰…­•¹‘ôÍ•ÑMÉ••¸õíÍ•ÑMÉ••¹ô½¹A¥¬õì ¤ôù‰…­•¹ü¹¡½½Í•	…Ñ¡¥±•Ì ¥ô¼ø(€€€€€€€€ð¼ø(€€€€€€¤€è€ (€€€€€€€€ðø(€€€€€€€€€€ñÍ•Ñ¥½¸±…ÍÍ9…µ”ô‰Ñ•±•µ•ÑÉäˆø(€€€€€€€€€€€€ñ5•ÑÉ¥Œ(€€€€€€€€€€€€€±…‰•°ô‰M=UIˆ(€€€€€€€€€€€€€Ù…±Õ”õíµˆ¡ÍÑ…Ñ”¹Í½ÕÉ•¥±•5ˆ¥ô(€€€€€€€€€€€€€Ñ¥Àô‹BcFFBûBÓB÷F/BäA9ˆ(€€€€€€€€€€€€¼ø(€€€€€€€€€€€€ñI¥¹5•ÑÉ¥Œ(€€€€€€€€€€€€€±…‰•°ô‰A%A1%9ˆ(€€€€€€€€€€€€€Ù…±Õ”õí€‘í5…Ñ ¹É½Õ¹ ¡ÍÑ…Ñ”¹ÁÉ½É•ÍÌñð€À¤€¨€ÄÀÀ¥ô•ô(€€€€€€€€€€€€€ÁÉ½É•ÍÌõíÍÑ…Ñ”¹ÁÉ½É•ÍÌñð€Áô(€€€€€€€€€€€€€Ñ¥Àô‹BFBûBÏFB×FFIÈÐˆ(€€€€€€€€€€€€¼ø(€€€€€€€€€€€€ñ5•ÑÉ¥Œ(€€€€€€€€€€€€€±…‰•°ô‰=UQAUPˆ(€€€€€€€€€€€€€Ù…±Õ”õíµˆ¡ÍÑ…Ñ”¹½ÕÑÁÕÑ¥±•5ˆ¥ô(€€€€€€€€€€€€€Ñ¥Àô‹BOBûFBûBËF/BäA9ˆ(€€€€€€€€€€€€¼ø(€€€€€€€€€€€€ñMÁ…É­±¥¹”±…‰•°ô‰IÈÐA%A1%9ˆÙ…±Õ•ÌõíÍÑ…Ñ”¹ÁÉ½É•ÍÍ!¥ÍÑ½Éåô€¼ø(€€€€€€€€€€€€ñMÁ…É­±¥¹”(€€€€€€€€€€€€€±…‰•°ô‰91eM%L1=ˆ(€€€€€€€€€€€€€Ù…±Õ•ÌõíÍÑ…Ñ”¹…Ñ¥Ù¥Ñå!¥ÍÑ½Éåô(€€€€€€€€€€€€€½±½Èô‰Ù…È ´µ…•¹ÐÈ¤ˆ(€€€€€€€€€€€€¼ø(€€€€€€€€€€ð½Í•Ñ¥½¸ø(€€€€€€€€€í‰•™½É”ñð!1MM}QMP€ü€ñ½µÁ…É¥Í½¹MÕÉ™…”(€€€€€€€€€€€‰•™½É”õí‰•™½É•ô(€€€€€€€€€€€…™Ñ•ÈõíÍÑ…Ñ”¹É•ÍÕ±ÑUÉ±ô(€€€€€€€€€€€ÁÉ•Ù¥•Ý	•™½É”õíÍÑ…Ñ”¹Ý½É­¥¹AÉ•Ù¥•ÝUÉ±ô(€€€€€€€€€€€ÁÉ•Ù¥•Ý™Ñ•ÈõíÍÑ…Ñ”¹É•ÍÕ±ÑUÉ±ô(€€€€€€€€€€€‰•™½É•]¥‘Ñ õíÍÑ…Ñ”¹Í½ÕÉ•]¥‘Ñ¡ô(€€€€€€€€€€€‰•™½É•!•¥¡ÐõíÍÑ…Ñ”¹Í½ÕÉ•!•¥¡Ñô(€€€€€€€€€€€…™Ñ•É]¥‘Ñ õíÍÑ…Ñ”¹Ý½É­¥¹]¥‘Ñ¡ññÍÑ…Ñ”¹Í½ÕÉ•]¥‘Ñ¡ô(€€€€€€€€€€€…™Ñ•É!•¥¡ÐõíÍÑ…Ñ”¹Ý½É­¥¹!•¥¡ÑññÍÑ…Ñ”¹Í½ÕÉ•!•¥¡Ñô(€€€€€€€€€€€‰…­•¹õí‰…­•¹‘ô(€€€€€€€€€€€™½ÕÌõí™½ÕÍô(€€€€€€€€€€€½¹½ÕÌõíÑ½±•½ÕÍô(€€€€€€€€€€€½¹Ñ•¹ÑI•…‘äõí½¹Ñ•¹ÑI•…‘åô(€€€€€€€€€€€±½…‘¥¹œõíÍÑ…Ñ”¹ÁÉ•Ù¥•Ý	ÕÍåô(€€€€€€€€€€€…±±½Ý]¥Á”(€€€€€€€€€€¼ø€è€ñÍ•Ñ¥½¸±…ÍÍ9…µ”ô‰½µÁ…É”µ…ÉÑÉ…¹ÍÁ…É•¹ÐˆøñµÁÑåÉ½Ái½¹”½¹A¥¬õì ¤ôù‰…­•¹ü¹¡½½Í•9Áµ¥±” ¥ô½¹¥±•Ìõì¡ÕÉ±Ì¤ôù‰…­•¹ü¹±½…ü¸¡ÕÉ±ÍlÁt¥ô¼øð½Í•Ñ¥½¸ùô(€€€€€€€€ð¼ø(€€€€€€¥ô(€€€€€€ñ%µÁ½ÉÑ]¥¹‘½Ü(€€€€€€€…Ñ¥Ù”õí‰…Ñ ýÍÑ…Ñ”¹‰…Ñ¡%µÁ½ÉÑ	ÕÍäéÍÑ…Ñ”¹ÁÉ•Ù¥•Ý	ÕÍåô(€€€€€€€ÁÉ½É•ÍÌõí‰…Ñ ýÍÑ…Ñ”¹‰…Ñ¡%µÁ½ÉÑAÉ½É•ÍÌéÍÑ…Ñ”¹ÁÉ•Ù¥•ÝAÉ½É•ÍÍô(€€€€€€€ÍÑ…ÑÕÌõí‰…Ñ ýÍÑ…Ñ”¹‰…Ñ¡%µÁ½ÉÑMÑ…ÑÕÌéÍÑ…Ñ”¹ÍÑ…ÑÕÍô(€€€€€€€‰…Ñ õí‰…Ñ¡ô(€€€€€€€½¹…µ”õì ¤ôùÍ•ÑMÉ••¸ ‰…µ”ˆ¥ô(€€€€€€¼ø(€€€€ð½µ…¥¸ø(€€¤ì)ô)™Õ¹Ñ¥½¸½µÁ…É”¡ì¥¹‘•à°ÍÑ…Ñ”°‰…­•¹°Í•ÑMÉ••¸°½¹Ñ•¹ÑI•…‘ä€ôÑÉÕ”ô¤ì(€½¹ÍÐ¥Ñ•´€ô€¡ÍÑ…Ñ”¹‰…Ñ¡%Ñ•µÌñðmt¥m¥¹‘•át°(€€€m™½ÕÌ°Í•Ñ½ÕÍt€ôÕÍ•MÑ…Ñ”¡™…±Í”¤ì(€½¹ÍÐÑ½±•½ÕÌ€ôÕÍ•…±±‰…¬  ¤€ôøÍ•Ñ½ÕÌ ¡Ù…±Õ”¤€ôø€…Ù…±Õ”¤°mt¤ì(€½¹ÍÐ½Á•¹½±‘•È€ôÕÍ•…±±‰…¬  ¤€ôø‰…­•¹ü¹½Á•¹	…Ñ¡=ÕÑÁÕÐ¡¥¹‘•à¤°m‰…­•¹°¥¹‘•át¤ì(€ÕÍ•™™•Ð  ¤€ôøì(€€€‘¥ÍÁ…Ñ¡Ù•¹Ð¡¹•ÜÕÍÑ½µÙ•¹Ð ‰…Èµ™½ÕÌˆ°ì‘•Ñ…¥°è™½ÕÌô¤¤ì(€ô°m™½ÕÍt¤ì(€ÕÍ•™™•Ð  ¤€ôøì(€€€½¹ÍÐ­•ä€ô€¡”¤€ôøì(€€€€€¥˜€¡”¹­•ä¹Ñ½1½Ý•É…Í” ¤€ôôô€‰˜ˆ¤Í•Ñ½ÕÌ ¡Ø¤€ôø€…Ø¤ì(€€€€€¥˜€¡”¹­•ä€ôôô€‰Í…Á”ˆ¤Í•Ñ½ÕÌ¡™…±Í”¤ì(€€€ôì(€€€…‘‘Ù•¹Ñ1¥ÍÑ•¹•È ‰­•å‘½Ý¸ˆ°­•ä¤ì(€€€É•ÑÕÉ¸€ ¤€ôøì(€€€€€É•µ½Ù•Ù•¹Ñ1¥ÍÑ•¹•È ‰­•å‘½Ý¸ˆ°­•ä¤ì(€€€€€‘¥ÍÁ…Ñ¡Ù•¹Ð¡¹•ÜÕÍÑ½µÙ•¹Ð ‰…Èµ™½ÕÌˆ°ì‘•Ñ…¥°è™…±Í”ô¤¤ì(€€€ôì(€ô°mt¤ì(€¥˜€ …¥Ñ•´¤(€€€É•ÑÕÉ¸€ (€€€€€€ñµ…¥¸±…ÍÍ9…µ”ô‰Ý½É­ÍÁ…”ˆø(€€€€€€€€ñ	ÕÑÑ½¸½¹±¥¬õì ¤€ôøÍ•ÑMÉ••¸ ‰‰…Ñ ˆ¥ôûBKBWBƒBwBB‹B³B‡B¼ƒBhƒB‡BBcB‡BkBŒð½	ÕÑÑ½¸ø(€€€€€€ð½µ…¥¸ø(€€€€¤ì(€É•ÑÕÉ¸€ (€€€€ñµ…¥¸±…ÍÍ9…µ”õíÝ½É­ÍÁ…”½µÁ…É”µÍ•¹”€‘í™½ÕÌ€ü€‰™½ÕÌµ½µÁ…É¥Í½¸ˆ€è€ˆ‰õôø(€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰Ý½É­ÍÁ…”µ¡•…ˆø(€€€€€€€€ñ	ÕÑÑ½¸ÅÕ¥•Ð½¹±¥¬õì ¤€ôøÍ•ÑMÉ••¸ ‰‰…Ñ ˆ¥ôø(€€€€€€€€€ƒŠ@ƒBhƒB‡BBcB‡BkBŒ(€€€€€€€€ð½	ÕÑÑ½¸ø(€€€€€€€€ñ‘¥Øø(€€€€€€€€€€ñÍµ…±°ù@91eM%Lƒ
+ÜIÈÐð½Íµ…±°ø(€€€€€€€€€€ñ Äùí¥Ñ•´¹¹…µ•ôð½ Äø(€€€€€€€€ð½‘¥Øø(€€€€€€ð½‘¥Øø(€€€€€€ñÍ•Ñ¥½¸±…ÍÍ9…µ”ô‰…¹…±åÍ¥ÌµÍÕµµ…Éäˆø(€€€€€€€€ñ‘¥ØøñÍµ…±°ûBcB‡B—B{BSBwBcBhð½Íµ…±°øñÍÑÉ½¹œùíµˆ¡¥Ñ•´¹Í½ÕÉ•5ˆ¥ôð½ÍÑÉ½¹œøð½‘¥Øø(€€€€€€€€ñ‘¥ØøñÍµ…±°ûBƒBWB_BBoB³B‹BCBˆð½Íµ…±°øñÍÑÉ½¹œùíµˆ¡¥Ñ•´¹½ÕÑÁÕÑ5ˆ¥ôð½ÍÑÉ½¹œøð½‘¥Øø(€€€€€€€€ñ‘¥ØøñÍµ…±°ûB·BkB{BwB{BsBcB¼ð½Íµ…±°øñÍÑÉ½¹œùí¥Ñ•´¹Í½ÕÉ•5ˆ€ü€‘í5…Ñ ¹µ…à À°5…Ñ ¹É½Õ¹  Ä€´¥Ñ•´¹½ÕÑÁÕÑ5ˆ€¼¥Ñ•´¹Í½ÕÉ•5ˆ¤€¨€ÄÀÀ¤¥ô•€€è€‹ŠP‰ôð½ÍÑÉ½¹œøð½‘¥Øø(€€€€€€€€ñAÉ½•ÍÍM¥¹…°½µÁ…ÐÁÉ½É•ÍÌõìÅôÍÑ…ÑÕÌõí¥Ñ•´¹ÍÑ…ÑÕÌñð€‹BCB÷BÃBïBãBÜƒBßBÃBËB×FF#FGBô‰ô€¼ø(€€€€€€ð½Í•Ñ¥½¸ø(€€€€€€ñ½µÁ…É¥Í½¹MÕÉ™…”(€€€€€€€‰•™½É”õí¥Ñ•´¹Í½ÕÉ•UÉ±ô(€€€€€€€…™Ñ•Èõí¥Ñ•´¹É•ÍÕ±ÑUÉ±ô(€€€€€€€ÁÉ•Ù¥•Ý	•™½É”õí¥Ñ•´¹½µÁ…É¥Í½¹M½ÕÉ•UÉ±ô(€€€€€€€ÁÉ•Ù¥•Ý™Ñ•Èõí¥Ñ•´¹½µÁ…É¥Í½¹I•ÍÕ±ÑUÉ±ô(€€€€€€€‰•™½É•]¥‘Ñ õí¥Ñ•´¹Ý¥‘Ñ¡ô(€€€€€€€‰•™½É•!•¥¡Ðõí¥Ñ•´¹¡•¥¡Ñô(€€€€€€€…™Ñ•É]¥‘Ñ õí¥Ñ•´¹Ý¥‘Ñ¡ô(€€€€€€€…™Ñ•É!•¥¡Ðõí¥Ñ•´¹¡•¥¡Ñô(€€€€€€€‰…­•¹õí‰…­•¹‘ô(€€€€€€€™½ÕÌõí™½ÕÍô(€€€€€€€½¹½ÕÌõíÑ½±•½ÕÍô(€€€€€€€…±±½Ý]¥Á”(€€€€€€€½¹=Á•¹½±‘•Èõí½Á•¹½±‘•Éô(€€€€€€€½¹Ñ•¹ÑI•…‘äõí½¹Ñ•¹ÑI•…‘åô(€€€€€€¼ø(€€€€ð½µ…¥¸ø(€€¤ì)ô()™Õ¹Ñ¥½¸)½ÕÉ¹•åQÉ…¹Í¥Ñ¥½¸¡ì©½ÕÉ¹•äô¤ì(€½¹ÍÐÁ…Ñ¡Ìõì(€€€¹Á´è‰4€ÜÈÀ€ÔØÀ€äÐÀ€ÔÈÀ€ÄÄÄÀ€ÌäÀ€ÄÌÈÀ€ÈàÔ€ÄÔÄÀ€ÄäÀ€ÄØäÀ€ÈÌÔ€ÄàÐÀ€ÄàÀˆ°(€€€‰…Ñ è‰4€ÜÈÀ€ÔØÀ€äÌÀ€ØÀÀ€ÄÀäÀ€ÜÌÔ€ÄÌÀÔ€àÀÔ€ÄÔÄÀ€àÜÀ€ÄØäÀ€àÄÀ€ÄàÐÀ€äÀÀˆ°(€€€É½ÍÌè‰4€ÄàÐÀ€ÄàÀ€ÄÔÀÀ€ÈØÀ€ÄÈÈÀ€ÐÐÀ€ÜÈÀ€ÔØÀ€ÄÈÄÀ€ØäÀ€ÄÔÄÀ€àÈÀ€ÄàÐÀ€äÀÀˆ°(€ôì(€½¹ÍÐÍ•±•Ñ•õÁ…Ñ¡Ím©½ÕÉ¹•ä¹Á…Ñ¡uññÁ…Ñ¡Ì¹¹Á´ì(€É•ÑÕÉ¸€ñ¹¥µ…Ñ•AÉ•Í•¹”ø(€€€í©½ÕÉ¹•ä¹…Ñ¥Ù”˜˜ñµ½Ñ¥½¸¹‘¥Ø±…ÍÍ9…µ”õí©½ÕÉ¹•äÁ…Ñ ´‘í©½ÕÉ¹•ä¹Á…Ñ¡õô¥¹¥Ñ¥…°õíí½Á…¥ÑäèÁõô…¹¥µ…Ñ”õíí½Á…¥ÑäèÅõô•á¥Ðõíí½Á…¥ÑäèÁõôÑÉ…¹Í¥Ñ¥½¸õíí‘ÕÉ…Ñ¥½¸è¸ÈÕõô…É¥„µ¡¥‘‘•¸ô‰ÑÉÕ”ˆø(€€€€€€ñÍÙœÙ¥•Ý	½àôˆÀ€À€ÄäÈÀ€ÄÀàÀˆÁÉ•Í•ÉÙ•ÍÁ•ÑI…Ñ¥¼ô‰¹½¹”ˆø(€€€€€€€€ñÁ…Ñ ±…ÍÍ9…µ”ô‰©½ÕÉ¹•äµ‰É…¹ µÕÑ•ˆõíÁ…Ñ¡Ì¹¹Áµô¼øñÁ…Ñ ±…ÍÍ9…µ”ô‰©½ÕÉ¹•äµ‰É…¹ µÕÑ•ˆõíÁ…Ñ¡Ì¹‰…Ñ¡ô¼ø(€€€€€€€€ñµ½Ñ¥½¸¹Á…Ñ ±…ÍÍ9…µ”ô‰©½ÕÉ¹•äµ‰É…¹ Í•±•Ñ•ˆõíÍ•±•Ñ•‘ô¥¹¥Ñ¥…°õííÁ…Ñ¡1•¹Ñ èÀ±½Á…¥Ñäè¸Éõô…¹¥µ…Ñ”õííÁ…Ñ¡1•¹Ñ èÄ±½Á…¥ÑäèÅõôÑÉ…¹Í¥Ñ¥½¸õíí‘ÕÉ…Ñ¥½¸èÄ¸Ì±•…Í”él¸È°¸ÜÈ°¸Äà°Åuõô€¼ø(€€€€€€€€ñ¥É±”ÈôˆÜˆ±…ÍÍ9…µ”ô‰©½ÕÉ¹•äµ¹½‘”ˆøñ…¹¥µ…Ñ•5½Ñ¥½¸‘ÕÈôˆÄ¸ÍÌˆ™¥±°ô‰™É••é”ˆÁ…Ñ õíÍ•±•Ñ•‘ô­•åA½¥¹ÑÌõí©½ÕÉ¹•ä¹É•Ù•ÉÍ”üˆÄìÀˆèˆÀìÄ‰ô­•åQ¥µ•ÌôˆÀìÄˆ…±5½‘”ô‰±¥¹•…Èˆ€¼øð½¥É±”ø(€€€€€€ð½ÍÙœø(€€€€€€ñ‘¥ØøñÍµ…±°ùQ%YI=UQð½Íµ…±°øñÍÑÉ½¹œùí©½ÕÉ¹•ä¹±…‰•±ôð½ÍÑÉ½¹œøð½‘¥Øø(€€€€ð½µ½Ñ¥½¸¹‘¥Øùô(€€ð½¹¥µ…Ñ•AÉ•Í•¹”øì)ô)™Õ¹Ñ¥½¸M•É•ÑM•¹”¡ì…Ñ¥Ù”°½¹½¹”ô¤ì(€½¹ÍÐmÑ¥Ñ±”±Í•ÑQ¥Ñ±•tõÕÍ•MÑ…Ñ” ‰%MM5-Hˆ¤ì(€ÕÍ•™™•Ð  ¤€ôøì(€€€¥˜€ ……Ñ¥Ù”¤É•ÑÕÉ¸ì(€€€½¹ÍÐÐ€ôÍ•ÑQ¥µ•½ÕÐ¡½¹½¹”°€ØàÀÀ¤ì(€€€É•ÑÕÉ¸€ ¤€ôø±•…ÉQ¥µ•½ÕÐ¡Ð¤ì(€ô°m…Ñ¥Ù”°½¹½¹•t¤ì(€ÕÍ•™™•Ð  ¤ôùí¥˜ ……Ñ¥Ù”¥íÍ•ÑQ¥Ñ±” ‰%MM5-Hˆ¤íÉ•ÑÕÉ¸íõ½¹ÍÐÍ½ÕÉ”ô‰%MM5-Hˆ±…±Á¡…‰•Ðô‰	!%)-159=AEIMQUY]aehÀÄÈÌÐÔØÜàäˆ±ÍÑ…ÉÐõÁ•É™½Éµ…¹”¹¹½Ü ¤í½¹ÍÐÑ¥µ•ÈõÍ•Ñ%¹Ñ•ÉÙ…°  ¤ôùí½¹ÍÐ•±…ÁÍ•õÁ•É™½Éµ…¹”¹¹½Ü ¤µÍÑ…ÉÐ±É•Í½±Ù•õ5…Ñ ¹™±½½È¡5…Ñ ¹µ…à À±•±…ÁÍ•´ÐÈÀ¤¼ÄÀÔ¤íÍ•ÑQ¥Ñ±”¡ÉÉ…ä¹™É½´¡Í½ÕÉ”¤¹µ…À ¡¡…È±¥¹‘•à¤ôù¥¹‘•àñÉ•Í½±Ù•ý¡…Èé…±Á¡…‰•Ñm5…Ñ ¹™±½½È¡5…Ñ ¹É…¹‘½´ ¤©…±Á¡…‰•Ð¹±•¹Ñ ¥t¤¹©½¥¸ ˆˆ¤¤í¥˜¡É•Í½±Ù•øõÍ½ÕÉ”¹±•¹Ñ ¥í±•…É%¹Ñ•ÉÙ…°¡Ñ¥µ•È¤íÍ•ÑQ¥Ñ±”¡Í½ÕÉ”¤íõô°ÐÈ¤íÉ•ÑÕÉ¸ ¤ôù±•…É%¹Ñ•ÉÙ…°¡Ñ¥µ•È¤íô±m…Ñ¥Ù•t¤ì(€É•ÑÕÉ¸€ (€€€€ñ¹¥µ…Ñ•AÉ•Í•¹”ø(€€€€€í…Ñ¥Ù”€˜˜€ (€€€€€€€€ñµ½Ñ¥½¸¹‘¥Ø(€€€€€€€€€±…ÍÍ9…µ”ô‰Í•É•ÐµÍ•¹”ˆ(€€€€€€€€€¥¹¥Ñ¥…°õíì½Á…¥Ñäè€Àõô(€€€€€€€€€…¹¥µ…Ñ”õíì½Á…¥Ñäè€Äõô(€€€€€€€€€•á¥Ðõíì½Á…¥Ñäè€Àõô(€€€€€€€€ø(€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰Í•É•ÐµÙ•¥°ˆ¼ø(€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰Í•É•ÐµÝ…Ù•ÌˆùíÉÉ…ä¹™É½´¡í±•¹Ñ èÄÑô°¡|±¤¤ôøñ¤­•äõí¥ôÍÑå±”õíìˆ´µÍ¥é”ˆé€‘ìÄÌÀ­¤¨ÔÉõÁá€°ˆ´µÉ½Ñ…Ñ¥½¸ˆé€‘ìÄä­¤¨Ñõ‘•€°ˆ´µ‘•±…äˆé€‘í¤¨´¸ÄÙõÍõô¼ø¥ôð½‘¥Øø(€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰Í•É•ÐµÑ¥Ñ±”ˆøñÍµ…±°ùUQ!=HMEU9ð½Íµ…±°øñˆùíÑ¥Ñ±•ôð½ˆøñÍÁ…¸ùIÈÐƒ
+ÜM%9QUIYI%%ð½ÍÁ…¸øð½‘¥Øø(€€€€€€€€ð½µ½Ñ¥½¸¹‘¥Øø(€€€€€€¥ô(€€€€ð½¹¥µ…Ñ•AÉ•Í•¹”ø(€€¤ì)ô()™Õ¹Ñ¥½¸%¹ÑÉ½M•ÅÕ•¹”¡í…Ñ¥Ù”±½¹M­¥Áô¥ì(€É•ÑÕÉ¸€ñ¹¥µ…Ñ•AÉ•Í•¹”ø(€€€í…Ñ¥Ù”˜˜ñµ½Ñ¥½¸¹‘¥Ø±…ÍÍ9…µ”ô‰¥¹ÑÉ¼µÍ•ÅÕ•¹”ˆ¥¹¥Ñ¥…°õíí½Á…¥ÑäèÅõô•á¥Ðõíí½Á…¥ÑäèÁõôÑÉ…¹Í¥Ñ¥½¸õíí‘ÕÉ…Ñ¥½¸è¸ÜÈ±•…Í”él¸Äà°¸ÜÈ°¸È°Åuõôø(€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰¥¹ÑÉ¼µÉ¥ˆ¼ø(€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰¥¹ÑÉ¼µ‰±…‘•ÌˆùíÉÉ…ä¹™É½´¡í±•¹Ñ èÌÑô°¡|±¤¤ôøñ¤­•äõí¥ôÍÑå±”õíìˆ´µ¤ˆé¥õô¼ø¥ôð½‘¥Øø(€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰¥¹ÑÉ¼µ¥É¥Ìˆøñ¤¼øñ¤¼øñ¤¼øð½‘¥Øø(€€€€€€ñµ½Ñ¥½¸¹‘¥Ø±…ÍÍ9…µ”ô‰¥¹ÑÉ¼µ½Áäˆ¥¹¥Ñ¥…°õíí½Á…¥ÑäèÀ±äèÄáõô…¹¥µ…Ñ”õíí½Á…¥ÑäèÄ±äèÁõôÑÉ…¹Í¥Ñ¥½¸õíí‘•±…äè¸ÔÔ±‘ÕÉ…Ñ¥½¸è¸áõôøñÍµ…±°ùIÈÐð½Íµ…±°øñÍÑÉ½¹œûB{BB‹BcBsBcB_BCB‹B{B€ƒB‹BWBkB‡B‹BB€ð½ÍÑÉ½¹œøñÍÁ…¸ùØÈð½ÍÁ…¸øð½µ½Ñ¥½¸¹‘¥Øø(€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰¥¹ÑÉ¼µÁÉ½É•ÍÌˆøñ¤¼øñÍÁ…¸ûB_BCBBB‡BhØÈð½ÍÁ…¸øð½‘¥Øø(€€€€€€ñ‰ÕÑÑ½¸½¹±¥¬õí½¹M­¥ÁôûBBƒB{BBB‡B‹BcB‹B°ð½‰ÕÑÑ½¸ø(€€€€ð½µ½Ñ¥½¸¹‘¥Øùô(€€ð½¹¥µ…Ñ•AÉ•Í•¹”øì)ô()™Õ¹Ñ¥½¸ÁÀ ¤ì(€½¹ÍÐì‰…­•¹°ÍÑ…Ñ”ô€ôÕÍ•	…­•¹ ¤°(€€€…ÁÁI½½Ð€ôÕÍ•I•˜¡¹Õ±°¤°(€€€mÉ½ÕÑ”°Í•ÑI½ÕÑ•t€ôÕÍ•MÑ…Ñ” ‰¡½µ”ˆ¤°(€€€mÍ¡…Á•MÑ…Ñ”±Í•ÑM¡…Á•MÑ…Ñ•tõÕÍ•MÑ…Ñ” ‰¡½µ”ˆ¤°(€€€mÑÉ…¹Í¥Ñ¥½¹-¥¹±Í•ÑQÉ…¹Í¥Ñ¥½¹-¥¹‘tõÕÍ•MÑ…Ñ” ‰¡½µ”ù¡½µ”ˆ¤°(€€€m¡½±±Í•Ñ!½±‘tõÕÍ•MÑ…Ñ” À¤°(€€€m¡½±‘A½¥¹Ð±Í•Ñ!½±‘A½¥¹ÑtõÕÍ•MÑ…Ñ”¡íàé¥¹¹•É]¥‘Ñ ¼È±äé¥¹¹•É!•¥¡Ð¼Éô¤°(€€€m‘¥Ù¥¹œ°Í•Ñ¥Ù¥¹t€ôÕÍ•MÑ…Ñ”¡™…±Í”¤°(€€€mÉ•Ù•…±¥¹œ±Í•ÑI•Ù•…±¥¹tõÕÍ•MÑ…Ñ”¡™…±Í”¤°(€€€m¥¹ÑÉ¼±Í•Ñ%¹ÑÉ½tõÕÍ•MÑ…Ñ”  ¤ôø…!1MM}QMP¤°(€€€m½¹Ñ•¹ÑI•…‘ä°Í•Ñ½¹Ñ•¹ÑI•…‘åt€ôÕÍ•MÑ…Ñ”¡ÑÉÕ”¤°(€€€mÍ•ÑÑ¥¹Ì°Í•ÑM•ÑÑ¥¹Ít€ôÕÍ•MÑ…Ñ”¡™…±Í”¤°(€€€mÑ¡•µ”°Í•ÑQ¡•µ•t€ôÕÍ•MÑ…Ñ”  ¤€ôø(€€€€€É•…‘AÉ•™•É•¹” ‰…ÈµÑ¡•µ”ˆ°=‰©•Ð¹­•åÌ¡Q!5}=1=IL¤°€‰•µ•É…±ˆ¤°(€€€€¤°(€€€mÅÕ…±¥Ñä°Í•ÑEÕ…±¥Ñåt€ôÕÍ•MÑ…Ñ”  ¤€ôø(€€€€€É•…‘AÉ•™•É•¹” ‰…ÈµÅÕ…±¥Ñäˆ°EU1%Qe}1Y1L°€‰‰…±…¹•ˆ¤°(€€€€¤°(€€€m‰É¥¡Ñ¹•ÍÌ±Í•Ñ	É¥¡Ñ¹•ÍÍtõÕÍ•MÑ…Ñ”  ¤ôùÉ•…‘9Õµ‰•ÉAÉ•™•É•¹” ‰…Èµ‰É¥¡Ñ¹•ÍÌˆ°Ä¸ÌÈ°¸ÔÔ°Ä¸Ð¤¤°(€€€m•™™•ÑÌ±Í•Ñ™™•ÑÍtõÕÍ•MÑ…Ñ”  ¤ôùÉ•…‘9Õµ‰•ÉAÉ•™•É•¹” ‰…Èµ•™™•ÑÌˆ°Ä¸ÈÔ°À°Ä¸ÌÔ¤¤°(€€€mÁ•É™½Éµ…¹•5½‘”±Í•ÑA•É™½Éµ…¹•5½‘•tõÕÍ•MÑ…Ñ”  ¤ôùÉ•…‘AÉ•™•É•¹” ‰…ÈµÁ•É™½Éµ…¹”ˆ±EU1%Qe}1Y1L°‰‰…±…¹•ˆ¤¤°(€€€mÍ•É•Ð°Í•ÑM•É•Ñt€ôÕÍ•MÑ…Ñ”¡™…±Í”¤°(€€€¡½±‘I•˜õÕÍ•I•˜¡íÙ…±Õ”èÁô¤°(€€€É½ÕÑ•Q¥µ•ÉÌ€ôÕÍ•I•˜¡mt¤°(€€€ÍÉ••¸€ôÉ½ÕÑ”¹ÍÑ…ÉÑÍ]¥Ñ  ‰½µÁ…É”ˆ¤€ü€‰½µÁ…É”ˆ€èÉ½ÕÑ”°(€€€Í•ÑMÉ••¸€ôÕÍ•…±±‰…¬ (€€€€€€¡¹•áÐ¤€ôøì(€€€€€€€¥˜€¡¹•áÐ€ôôôÉ½ÕÑ”ñð€¡¹•áÐ€ôôô€‰½µÁ…É”ˆ€˜˜ÍÉ••¸€ôôô€‰½µÁ…É”ˆ¤¤(€€€€€€€€€É•ÑÕÉ¸ì(€€€€€€€É½ÕÑ•Q¥µ•ÉÌ¹ÕÉÉ•¹Ð¹™½É… ¡±•…ÉQ¥µ•½ÕÐ¤ì(€€€€€€€¥˜€¡!1MM}QMP¤ì(€€€€€€€€€Í•ÑM•ÑÑ¥¹Ì¡™…±Í”¤ì(€€€€€€€€€Í•ÑI½ÕÑ”¡¹•áÐ¤ì(€€€€€€€€€Í•ÑM¡…Á•MÑ…Ñ”¡¹•áÐ¹ÍÑ…ÉÑÍ]¥Ñ  ‰½µÁ…É”ˆ¤ü‰½µÁ…É”ˆé¹•áÐ¤ì(€€€€€€€€€Í•Ñ½¹Ñ•¹ÑI•…‘ä¡ÑÉÕ”¤ì(€€€€€€€€€É•ÑÕÉ¸ì(€€€€€€€ô(€€€€€€€½¹ÍÐ¹•áÑMÉ••¸õ¹•áÐ¹ÍÑ…ÉÑÍ]¥Ñ  ‰½µÁ…É”ˆ¤ü‰½µÁ…É”ˆé¹•áÐì(€€€€€€€Í•ÑI•Ù•…±¥¹œ¡™…±Í”¤ì(€€€€€€€Í•Ñ¥Ù¥¹œ¡ÑÉÕ”¤ì(€€€€€€€Í•Ñ½¹Ñ•¹ÑI•…‘ä¡™…±Í”¤ì(€€€€€€€Í•ÑM•ÑÑ¥¹Ì¡™…±Í”¤ì(€€€€€€€‘¥ÍÁ…Ñ¡Ù•¹Ð¡¹•ÜÕÍÑ½µÙ•¹Ð ‰…Èµ¡¥¹Ðˆ°ì‘•Ñ…¥°èì½Á•¸è™…±Í”ôô¤¤ì(€€€€€€€Í•ÑQÉ…¹Í¥Ñ¥½¹-¥¹¡€‘íÍ¡…Á•MÑ…Ñ•ôø‘í¹•áÑMÉ••¹õ€¤ì(€€€€€€€Í•ÑM¡…Á•MÑ…Ñ”¡¹•áÑMÉ••¸¤ì(€€€€€€€É½ÕÑ•Q¥µ•ÉÌ¹ÕÉÉ•¹Ð€ôl(€€€€€€€€€Í•ÑQ¥µ•½ÕÐ  ¤€ôøì(€€€€€€€€€€€Í•ÑI½ÕÑ”¡¹•áÐ¤ì(€€€€€€€€€ô°€ÈØÀ¤°(€€€€€€€€€Í•ÑQ¥µ•½ÕÐ  ¤€ôøì(€€€€€€€€€€€Í•Ñ¥Ù¥¹œ¡™…±Í”¤íÍ•ÑI•Ù•…±¥¹œ¡ÑÉÕ”¤ì(€€€€€€€€€€€Í•Ñ½¹Ñ•¹ÑI•…‘ä¡ÑÉÕ”¤ì(€€€€€€€€€ô°€ØÈÀ¤°(€€€€€€€€€Í•ÑQ¥µ•½ÕÐ  ¤ôùÍ•ÑI•Ù•…±¥¹œ¡™…±Í”¤°ÄÈàÀ¤°(€€€€€€€tì(€€€€€ô°(€€€€€mÉ½ÕÑ”°ÍÉ••¸±Í¡…Á•MÑ…Ñ•t°(€€€€¤ì(€ÕÍ•™™•Ð  ¤€ôøì(€€€½¹ÍÐÕÁ‘…Ñ”€ô€¡”¤€ôø…ÁÁI½½Ð¹ÕÉÉ•¹Ðü¹±…ÍÍ1¥ÍÐ¹Ñ½±” ‰¥Ìµ‘É…¥¹œˆ°	½½±•…¸¡”¹‘•Ñ…¥°¤¤ì(€€€…‘‘Ù•¹Ñ1¥ÍÑ•¹•È ‰…Èµ‘É…œˆ°ÕÁ‘…Ñ”¤ì(€€€É•ÑÕÉ¸€ ¤€ôøÉ•µ½Ù•Ù•¹Ñ1¥ÍÑ•¹•È ‰…Èµ‘É…œˆ°ÕÁ‘…Ñ”¤ì(€ô°mt¤ì(€ÕÍ•™™•Ð  ¤€ôøì(€€€½¹ÍÐÕÁ‘…Ñ”€ô€¡”¤€ôø…ÁÁI½½Ð¹ÕÉÉ•¹Ðü¹±…ÍÍ1¥ÍÐ¹Ñ½±” ‰™½ÕÌµ½µÁ…É¥Í½¸µ…Ñ¥Ù”ˆ°	½½±•…¸¡”¹‘•Ñ…¥°¤¤ì(€€€…‘‘Ù•¹Ñ1¥ÍÑ•¹•È ‰…Èµ™½ÕÌˆ°ÕÁ‘…Ñ”¤ì(€€€É•ÑÕÉ¸€ ¤€ôøÉ•µ½Ù•Ù•¹Ñ1¥ÍÑ•¹•È ‰…Èµ™½ÕÌˆ°ÕÁ‘…Ñ”¤ì(€ô°mt¤ì(€ÕÍ•™™•Ð  ¤ôùì(€€€±•Ð‘•ÁÑ ôÀì(€€€½¹ÍÐ¥Í¥±•É…œô¡•Ù•¹Ð¤ôùÉÉ…ä¹™É½´¡•Ù•¹Ð¹‘…Ñ…QÉ…¹Í™•Èü¹ÑåÁ•Íññmt¤¹¥¹±Õ‘•Ì ‰¥±•Ìˆ¤ì(€€€½¹ÍÐ•¹Ñ•Èô¡•Ù•¹Ð¤ôùí¥˜ …¥Í¥±•É…œ¡•Ù•¹Ð¤¥É•ÑÕÉ¸í•Ù•¹Ð¹ÁÉ•Ù•¹Ñ•™…Õ±Ð ¤í‘•ÁÑ ¬¬í…ÁÁI½½Ð¹ÕÉÉ•¹Ðü¹±…ÍÍ1¥ÍÐ¹…‘ ‰¥Ìµ™¥±”µ‘É…¥¹œˆ¤íôì(€€€½¹ÍÐ½Ù•Èô¡•Ù•¹Ð¤ôùí¥˜ …¥Í¥±•É…œ¡•Ù•¹Ð¤¥É•ÑÕÉ¸í•Ù•¹Ð¹ÁÉ•Ù•¹Ñ•™…Õ±Ð ¤í•Ù•¹Ð¹‘…Ñ…QÉ…¹Í™•È¹‘É½Á™™•Ðô‰½Áäˆíôì(€€€½¹ÍÐ±•…Ù”ô¡•Ù•¹Ð¤ôùí¥˜ …¥Í¥±•É…œ¡•Ù•¹Ð¤¥É•ÑÕÉ¸í‘•ÁÑ õ5…Ñ ¹µ…à À±‘•ÁÑ ´Ä¤í¥˜ …‘•ÁÑ ¥…ÁÁI½½Ð¹ÕÉÉ•¹Ðü¹±…ÍÍ1¥ÍÐ¹É•µ½Ù” ‰¥Ìµ™¥±”µ‘É…¥¹œˆ¤íôì(€€€½¹ÍÐ‘É½Àô¡•Ù•¹Ð¤ôùí¥˜ …¥Í¥±•É…œ¡•Ù•¹Ð¤¥É•ÑÕÉ¸í•Ù•¹Ð¹ÁÉ•Ù•¹Ñ•™…Õ±Ð ¤í‘•ÁÑ ôÀí…ÁÁI½½Ð¹ÕÉÉ•¹Ðü¹±…ÍÍ1¥ÍÐ¹É•µ½Ù” ‰¥Ìµ™¥±”µ‘É…¥¹œˆ¤í½¹ÍÐÕÉ±Ìõ™¥±•UÉ±ÍÉ½µÉ½À¡•Ù•¹Ð¤í¥˜¡ÍÉ••¸ôôô‰¹Á´ˆ¥í¥˜¡ÕÉ±Ì¹±•¹Ñ ¥‰…­•¹ü¹±½…ü¸¡ÕÉ±ÍlÁt¤í•±Í”‰…­•¹ü¹¡½½Í•9Áµ¥±”ü¸ ¤íõ•±Í”¥˜¡ÍÉ••¸ôôô‰‰…Ñ ˆ¥í¥˜¡ÕÉ±Ì¹±•¹Ñ ¥‰…­•¹ü¹…‘‘	…Ñ¡¥±•Ìü¸¡ÕÉ±Ì¤í•±Í”‰…­•¹ü¹¡½½Í•	…Ñ¡¥±•Ìü¸ ¤íõôì(€€€…‘‘Ù•¹Ñ1¥ÍÑ•¹•È ‰‘É…•¹Ñ•Èˆ±•¹Ñ•È¤í…‘‘Ù•¹Ñ1¥ÍÑ•¹•È ‰‘É…½Ù•Èˆ±½Ù•È¤í…‘‘Ù•¹Ñ1¥ÍÑ•¹•È ‰‘É…±•…Ù”ˆ±±•…Ù”¤í…‘‘Ù•¹Ñ1¥ÍÑ•¹•È ‰‘É½Àˆ±‘É½À¤ì(€€€É•ÑÕÉ¸ ¤ôùíÉ•µ½Ù•Ù•¹Ñ1¥ÍÑ•¹•È ‰‘É…•¹Ñ•Èˆ±•¹Ñ•È¤íÉ•µ½Ù•Ù•¹Ñ1¥ÍÑ•¹•È ‰‘É…½Ù•Èˆ±½Ù•È¤íÉ•µ½Ù•Ù•¹Ñ1¥ÍÑ•¹•È ‰‘É…±•…Ù”ˆ±±•…Ù”¤íÉ•µ½Ù•Ù•¹Ñ1¥ÍÑ•¹•È ‰‘É½Àˆ±‘É½À¤íôì(€ô±m‰…­•¹±ÍÉ••¹t¤ì(€ÕÍ•™™•Ð  ¤ôùì(€€€½¹ÍÐÁÕ±Í”ô¡•Ù•¹Ð¤ôùì(€€€€€½¹ÍÐ‰ÕÑÑ½¸õ•Ù•¹Ð¹Ñ…É•Ðü¹±½Í•ÍÐü¸ ‰‰ÕÑÑ½¸ˆ¤ì(€€€€€¥˜ …‰ÕÑÑ½¹ññ‰ÕÑÑ½¸¹‘¥Í…‰±•‘ññ‰ÕÑÑ½¸¹±…ÍÍ1¥ÍÐ¹½¹Ñ…¥¹Ì ‰É•µ½Ù”µ™¥±”ˆ¤¥É•ÑÕÉ¸ì(€€€€€½¹ÍÐÉ•Ðõ‰ÕÑÑ½¸¹•Ñ	½Õ¹‘¥¹±¥•¹ÑI•Ð ¤±­•äõ‰ÕÑÑ½¸¹‘…Ñ…Í•Ð¹É½ÕÑ•ññ‰ÕÑÑ½¸¹•ÑÑÑÉ¥‰ÕÑ” ‰…É¥„µ±…‰•°ˆ¥ññ‰ÕÑÑ½¸¹Ñ•áÑ½¹Ñ•¹Ñññ‰ÕÑÑ½¸¹±…ÍÍ9…µ•ñð‰‰ÕÑÑ½¸ˆì(€€€€€±•Ð¡…Í ôÈÄØØÄÌØÈØÄí™½È¡½¹ÍÐ¡…È½˜­•ä¥í¡…Í¡xõ¡…È¹¡…É½‘•Ð À¤í¡…Í õ5…Ñ ¹¥µÕ°¡¡…Í °ÄØÜÜÜØÄä¤íõ¡…Í øøøôÀì(€€€€€‘¥ÍÁ…Ñ¡Ù•¹Ð¡¹•ÜÕÍÑ½µÙ•¹Ð ‰…Èµ•‘”µÁÕ±Í”ˆ±í‘•Ñ…¥°éíàéÉ•Ð¹±•™Ð­É•Ð¹Ý¥‘Ñ ¼È±äéÉ•Ð¹Ñ½À­É•Ð¹¡•¥¡Ð¼È±Ù…É¥…¹Ðé‰ÕÑÑ½¸¹‘…Ñ…Í•Ð¹ÁÕ±Í•ññ}AU1M}YI%9QMm¡…Í •}AU1M}YI%9QL¹±•¹Ñ¡t±¡Õ”è¡¡…Í ¨ÌÜ¤”ÌØÀ±…¹±”è¡¡…Í ¨Èä¤”ÌØÁõô¤¤ì(€€€ôì(€€€…‘‘Ù•¹Ñ1¥ÍÑ•¹•È ‰±¥¬ˆ±ÁÕ±Í”¤íÉ•ÑÕÉ¸ ¤ôùÉ•µ½Ù•Ù•¹Ñ1¥ÍÑ•¹•È ‰±¥¬ˆ±ÁÕ±Í”¤ì(€ô±mt¤ì(€ÕÍ•™™•Ð  ¤€ôø€ ¤€ôøÉ½ÕÑ•Q¥µ•ÉÌ¹ÕÉÉ•¹Ð¹™½É… ¡±•…ÉQ¥µ•½ÕÐ¤°mt¤ì(€ÕÍ•™™•Ð  ¤ôùì(€€€¥˜ …¥¹ÑÉ¼¥É•ÑÕÉ¸Õ¹‘•™¥¹•ì(€€€½¹ÍÐ™¥¹¥Í ô ¤ôùíÍ•Ñ%¹ÑÉ¼¡™…±Í”¤íÍ•ÑI•Ù•…±¥¹œ¡ÑÉÕ”¤íÍ•ÑQ¥µ•½ÕÐ  ¤ôùÍ•ÑI•Ù•…±¥¹œ¡™…±Í”¤°àÈÀ¤íôì(€€€½¹ÍÐÑ¥µ•ÈõÍ•ÑQ¥µ•½ÕÐ¡™¥¹¥Í °ÌØÀÀ¤íÉ•ÑÕÉ¸ ¤ôù±•…ÉQ¥µ•½ÕÐ¡Ñ¥µ•È¤ì(€ô±m¥¹ÑÉ½t¤ì(€ÕÍ•™™•Ð  ¤€ôøÝÉ¥Ñ•AÉ•™•É•¹” ‰…ÈµÑ¡•µ”ˆ°Ñ¡•µ”¤°mÑ¡•µ•t¤ì(€ÕÍ•™™•Ð  ¤€ôøÝÉ¥Ñ•AÉ•™•É•¹” ‰…ÈµÅÕ…±¥Ñäˆ°ÅÕ…±¥Ñä¤°mÅÕ…±¥Ñåt¤ì(€ÕÍ•™™•Ð  ¤€ôøÝÉ¥Ñ•AÉ•™•É•¹” ‰…Èµ‰É¥¡Ñ¹•ÍÌˆ°‰É¥¡Ñ¹•ÍÌ¤°m‰É¥¡Ñ¹•ÍÍt¤ì(€ÕÍ•™™•Ð  ¤€ôøÝÉ¥Ñ•AÉ•™•É•¹” ‰…Èµ•™™•ÑÌˆ°•™™•ÑÌ¤°m•™™•ÑÍt¤ì(€ÕÍ•™™•Ð  ¤€ôøÝÉ¥Ñ•AÉ•™•É•¹” ‰…ÈµÁ•É™½Éµ…¹”ˆ°Á•É™½Éµ…¹•5½‘”¤°mÁ•É™½Éµ…¹•5½‘•t¤ì(€ÕÍ•™™•Ð  ¤ôùí¥˜¡±½…±MÑ½É…”¹•Ñ%Ñ•´ ‰…ÈµØÔØµÙ¥ÍÕ…°µ‘•™…Õ±ÑÌˆ¤¥É•ÑÕÉ¸íÍ•ÑQ¡•µ” ‰•µ•É…±ˆ¤íÍ•Ñ	É¥¡Ñ¹•ÍÌ Ä¸ÌÈ¤íÍ•Ñ™™•ÑÌ Ä¸ÈÔ¤í±½…±MÑ½É…”¹Í•Ñ%Ñ•´ ‰…ÈµØÔØµÙ¥ÍÕ…°µ‘•™…Õ±ÑÌˆ°ˆÄˆ¤íô±mt¤ì(€ÕÍ•™™•Ð  ¤€ôøí‰…­•¹ü¹Í•ÑA•É™½Éµ…¹•5½‘”ü¸¡Á•É™½Éµ…¹•5½‘”¤íô°m‰…­•¹±Á•É™½Éµ…¹•5½‘•t¤ì(€ÕÍ•™™•Ð  ¤ôùì(€€€½¹ÍÐ‘½Ý¸ô¡•Ù•¹Ð¤ôùì(€€€€€¥˜¡ÍÉ••¸„ôô‰¡½µ”‰ññ•Ù•¹Ð¹‰ÕÑÑ½¸„ôôÁññ•Ù•¹Ð¹Ñ…É•Ð¹±½Í•ÍÐ ‰‰ÕÑÑ½¸±¥¹ÁÕÐ±m‘…Ñ„µ¹¼µ¡½±‘tˆ¤¥É•ÑÕÉ¸ì(€€€€€Í•Ñ!½±‘A½¥¹Ð¡íàé•Ù•¹Ð¹±¥•¹Ñ`±äé•Ù•¹Ð¹±¥•¹Ñeô¤ì(€€€€€Í…À¹­¥±±QÝ••¹Í=˜¡¡½±‘I•˜¹ÕÉÉ•¹Ð¤íÍ…À¹Ñ¼¡¡½±‘I•˜¹ÕÉÉ•¹Ð±íÙ…±Õ”èÄ±‘ÕÉ…Ñ¥½¸èÄ¸ØÔ±•…Í”è‰Á½Ý•ÈÈ¹¥¹=ÕÐˆ±½¹UÁ‘…Ñ”è ¤ôùÍ•Ñ!½±¡¡½±‘I•˜¹ÕÉÉ•¹Ð¹Ù…±Õ”¥ô¤ì(€€€ôì(€€€½¹ÍÐµ½Ù”ô¡•Ù•¹Ð¤ôùí¥˜¡¡½±‘I•˜¹ÕÉÉ•¹Ð¹Ù…±Õ”ø¸ÀÄ¥Í•Ñ!½±‘A½¥¹Ð¡íàé•Ù•¹Ð¹±¥•¹Ñ`±äé•Ù•¹Ð¹±¥•¹Ñeô¤íôì(€€€½¹ÍÐÕÀô ¤ôùíÍ…À¹­¥±±QÝ••¹Í=˜¡¡½±‘I•˜¹ÕÉÉ•¹Ð¤íÍ…À¹Ñ¼¡¡½±‘I•˜¹ÕÉÉ•¹Ð±íÙ…±Õ”èÀ±‘ÕÉ…Ñ¥½¸è¸Üà±•…Í”è‰Á½Ý•ÈÌ¹½ÕÐˆ±½¹UÁ‘…Ñ”è ¤ôùÍ•Ñ!½±¡¡½±‘I•˜¹ÕÉÉ•¹Ð¹Ù…±Õ”¥ô¤íôì(€€€…‘‘Ù•¹Ñ1¥ÍÑ•¹•È ‰Á½¥¹Ñ•É‘½Ý¸ˆ±‘½Ý¸¤í…‘‘Ù•¹Ñ1¥ÍÑ•¹•È ‰Á½¥¹Ñ•Éµ½Ù”ˆ±µ½Ù”±íÁ…ÍÍ¥Ù”éÑÉÕ•ô¤í…‘‘Ù•¹Ñ1¥ÍÑ•¹•È ‰Á½¥¹Ñ•ÉÕÀˆ±ÕÀ¤í…‘‘Ù•¹Ñ1¥ÍÑ•¹•È ‰Á½¥¹Ñ•É…¹•°ˆ±ÕÀ¤ì(€€€É•ÑÕÉ¸ ¤ôùíÉ•µ½Ù•Ù•¹Ñ1¥ÍÑ•¹•È ‰Á½¥¹Ñ•É‘½Ý¸ˆ±‘½Ý¸¤íÉ•µ½Ù•Ù•¹Ñ1¥ÍÑ•¹•È ‰Á½¥¹Ñ•Éµ½Ù”ˆ±µ½Ù”¤íÉ•µ½Ù•Ù•¹Ñ1¥ÍÑ•¹•È ‰Á½¥¹Ñ•ÉÕÀˆ±ÕÀ¤íÉ•µ½Ù•Ù•¹Ñ1¥ÍÑ•¹•È ‰Á½¥¹Ñ•É…¹•°ˆ±ÕÀ¤íôì(€ô±mÍÉ••¹t¤ì(€½¹ÍÐÍ•ÑM•ÑÑ¥¹Í=Á•¸õÕÍ•…±±‰…¬ ¡½Á•¸¤ôùíÍ•ÑM•ÑÑ¥¹Ì¡½Á•¸¤íô±mt¤ì(€½¹ÍÐ½Á•¹M•É•ÐõÕÍ•…±±‰…¬  ¤ôùì(€€€É½ÕÑ•Q¥µ•ÉÌ¹ÕÉÉ•¹Ð¹™½É… ¡±•…ÉQ¥µ•½ÕÐ¤íÍ•ÑM•ÑÑ¥¹Ì¡™…±Í”¤íÍ•ÑI•Ù•…±¥¹œ¡™…±Í”¤íÍ•Ñ¥Ù¥¹œ¡ÑÉÕ”¤ì(€€€É½ÕÑ•Q¥µ•ÉÌ¹ÕÉÉ•¹Ðõl(€€€€€Í•ÑQ¥µ•½ÕÐ  ¤ôùíÍ•ÑM•É•Ð¡ÑÉÕ”¤íÍ•ÑQÉ…¹Í¥Ñ¥½¹-¥¹¡€‘íÍ¡…Á•MÑ…Ñ•ôùÍ•É•Ñ€¤íÍ•ÑM¡…Á•MÑ…Ñ” ‰Í•É•Ðˆ¤íô°ÌÈÀ¤°(€€€€€Í•ÑQ¥µ•½ÕÐ  ¤ôùíÍ•Ñ¥Ù¥¹œ¡™…±Í”¤íÍ•ÑI•Ù•…±¥¹œ¡ÑÉÕ”¤íô°ÄÐÔÀ¤°(€€€€€Í•ÑQ¥µ•½ÕÐ  ¤ôùÍ•ÑI•Ù•…±¥¹œ¡™…±Í”¤°ÈÄÔÀ¤°(€€€tì(€ô±mÍ¡…Á•MÑ…Ñ•t¤ì(€½¹ÍÐ±½Í•M•É•ÐõÕÍ•…±±‰…¬  ¤ôùì(€€€É½ÕÑ•Q¥µ•ÉÌ¹ÕÉÉ•¹Ð¹™½É… ¡±•…ÉQ¥µ•½ÕÐ¤íÍ•ÑI•Ù•…±¥¹œ¡™…±Í”¤íÍ•Ñ¥Ù¥¹œ¡ÑÉÕ”¤ì(€€€É½ÕÑ•Q¥µ•ÉÌ¹ÕÉÉ•¹Ðõl(€€€€€Í•ÑQ¥µ•½ÕÐ  ¤ôùíÍ•ÑM•É•Ð¡™…±Í”¤íÍ•ÑQÉ…¹Í¥Ñ¥½¹-¥¹¡Í•É•Ðø‘íÍÉ••¹õ€¤íÍ•ÑM¡…Á•MÑ…Ñ”¡ÍÉ••¸¤íô°ÌÈÀ¤°(€€€€€Í•ÑQ¥µ•½ÕÐ  ¤ôùíÍ•Ñ¥Ù¥¹œ¡™…±Í”¤íÍ•ÑI•Ù•…±¥¹œ¡ÑÉÕ”¤íô°ÄÐÔÀ¤°(€€€€€Í•ÑQ¥µ•½ÕÐ  ¤ôùÍ•ÑI•Ù•…±¥¹œ¡™…±Í”¤°ÈÄÔÀ¤°(€€€tì(€ô±mÍÉ••¹t¤ì(€½¹ÍÐÁ…”€ô(€€€ÍÉ••¸€ôôô€‰¡½µ”ˆ€ü€ (€€€€€€ñ!½µ”Í•ÑMÉ••¸õíÍ•ÑMÉ••¹ô€¼ø(€€€€¤€èÍÉ••¸€ôôô€‰¹Á´ˆ€ü€ (€€€€€€ñ]½É­ÍÁ…”(€€€€€€€­¥¹ô‰¹Á´ˆ(€€€€€€€ÍÑ…Ñ”õíÍÑ…Ñ•ô(€€€€€€€‰…­•¹õí‰…­•¹‘ô(€€€€€€€Í•ÑMÉ••¸õíÍ•ÑMÉ••¹ô(€€€€€€€½¹Ñ•¹ÑI•…‘äõí½¹Ñ•¹ÑI•…‘åô(€€€€€€¼ø(€€€€¤€èÍÉ••¸€ôôô€‰‰…Ñ ˆ€ü€ (€€€€€€ñ]½É­ÍÁ…”(€€€€€€€­¥¹ô‰‰…Ñ ˆ(€€€€€€€ÍÑ…Ñ”õíÍÑ…Ñ•ô(€€€€€€€‰…­•¹õí‰…­•¹‘ô(€€€€€€€Í•ÑMÉ••¸õíÍ•ÑMÉ••¹ô(€€€€€€€½¹Ñ•¹ÑI•…‘äõí½¹Ñ•¹ÑI•…‘åô(€€€€€€¼ø(€€€€¤€èÍÉ••¸€ôôô€‰…µ”ˆ€ü€ (€€€€€€ñ	±…‘•É¥(€€€€€€€‰…­É½Õ¹‘	ÕÍäõíÍÑ…Ñ”¹ÁÉ•Ù¥•Ý	ÕÍåññÍÑ…Ñ”¹‰…Ñ¡%µÁ½ÉÑ	ÕÍåññÍÑ…Ñ”¹‰ÕÍåññÍÑ…Ñ”¹‰…Ñ¡	ÕÍåô(€€€€€€€‰…­É½Õ¹‘AÉ½É•ÍÌõíÍÑ…Ñ”¹‰…Ñ¡%µÁ½ÉÑ	ÕÍäýÍÑ…Ñ”¹‰…Ñ¡%µÁ½ÉÑAÉ½É•ÍÌéÍÑ…Ñ”¹ÁÉ•Ù¥•Ý	ÕÍäýÍÑ…Ñ”¹ÁÉ•Ù¥•ÝAÉ½É•ÍÌéÍÑ…Ñ”¹‰…Ñ¡	ÕÍäýÍÑ…Ñ”¹‰…Ñ¡AÉ½É•ÍÌéÍÑ…Ñ”¹ÁÉ½É•ÍÍô(€€€€€€€‰…­É½Õ¹‘MÑ…ÑÕÌõíÍÑ…Ñ”¹‰…Ñ¡%µÁ½ÉÑ	ÕÍäýÍÑ…Ñ”¹‰…Ñ¡%µÁ½ÉÑMÑ…ÑÕÌéÍÑ…Ñ”¹‰…Ñ¡	ÕÍäýÍÑ…Ñ”¹‰…Ñ¡MÑ…ÑÕÌéÍÑ…Ñ”¹ÍÑ…ÑÕÍô(€€€€€€€½¹	…¬õì ¤ôùÍ•ÑMÉ••¸ ‰¡½µ”ˆ¥ô(€€€€€€¼ø(€€€€¤€è€ (€€€€€€ñ½µÁ…É”(€€€€€€€¥¹‘•àõí9Õµ‰•È¡É½ÕÑ”¹ÍÁ±¥Ð ˆèˆ¥lÅtñð€À¥ô(€€€€€€€ÍÑ…Ñ”õíÍÑ…Ñ•ô(€€€€€€€‰…­•¹õí‰…­•¹‘ô(€€€€€€€Í•ÑMÉ••¸õíÍ•ÑMÉ••¹ô(€€€€€€€½¹Ñ•¹ÑI•…‘äõí½¹Ñ•¹ÑI•…‘åô(€€€€€€¼ø(€€€€¤ì(€É•ÑÕÉ¸€ (€€€€ñ‘¥Ø(€€€€€É•˜õí…ÁÁI½½Ñô(€€€€€±…ÍÍ9…µ”õí…ÁÀÑ¡•µ”´‘íÑ¡•µ•ôÅÕ…±¥Ñä´‘íÅÕ…±¥ÑåôÍ•¹”´‘íÍÉ••¹ô€‘í!1MM}QMPü‰¥Ìµ¡•…‘±•ÍÌµÑ•ÍÐˆèˆ‰ô€‘í‘¥Ù¥¹œ€ü€‰¥Ìµ‘¥Ù¥¹œˆ€è€ˆ‰ô€‘íÉ•Ù•…±¥¹œü‰¥ÌµÉ•Ù•…±¥¹œˆèˆ‰ô€‘í¥¹ÑÉ¼ü‰¥Ìµ¥¹ÑÉ¼ˆèˆ‰ô€‘í¡½±ø¸ÀÄü‰¥Ìµ¡½±‘¥¹œˆèˆ‰ô€‘íÍ•É•Ðü‰¡…ÌµÍ•É•Ðˆèˆ‰ô€‘íÍÑ…Ñ”¹‰ÕÍåññÍÑ…Ñ”¹‰…Ñ¡	ÕÍåññÍÑ…Ñ”¹‰…Ñ¡%µÁ½ÉÑ	ÕÍåññÍÑ…Ñ”¹ÁÉ•Ù¥•Ý	ÕÍäü‰¥ÌµÁÉ½•ÍÍ¥¹œˆèˆ‰õô(€€€€€ÍÑå±”õíìˆ´µÕ¤µ‰É¥¡Ñ¹•ÍÌˆé‰É¥¡Ñ¹•ÍÌ°ˆ´µ•™™•Ðµ±•Ù•°ˆé•™™•ÑÌ°ˆ´µ¡½±ˆé¡½±‘õô(€€€€ø(€€€€€€ñ	…­É½Õ¹‘±½Ý1¥¹•Ì¼ø(€€€€€€ñÕÉÍ½ÉA…ÉÑ¥±•¥•±Ñ¡•µ”õíÑ¡•µ•ô•™™•ÑÌõí•™™•ÑÍô¼ø(€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰Ý•‰°ˆø(€€€€€€€í!1MM}QMP€ü€ (€€€€€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰¡•…‘±•ÍÌµÍ•¹”ˆ€¼ø(€€€€€€€€¤€è€ (€€€€€€€€€€ñM•¹•	½Õ¹‘…Éäø(€€€€€€€€€€€€ñM•¹”(€€€€€€€€€€€€€Ñ¡•µ”õíÑ¡•µ•ô(€€€€€€€€€€€€€ÅÕ…±¥ÑäõíÅÕ…±¥Ñåô(€€€€€€€€€€€€€ÍÉ••¸õíÍ¡…Á•MÑ…Ñ•ô(€€€€€€€€€€€€€ÑÉ…¹Í¥Ñ¥½¹-¥¹õíÑÉ…¹Í¥Ñ¥½¹-¥¹‘ô(€€€€€€€€€€€€€‰É¥¡Ñ¹•ÍÌõí‰É¥¡Ñ¹•ÍÍô(€€€€€€€€€€€€€•™™•ÑÌõí•™™•ÑÍô(€€€€€€€€€€€€€¡½±õí¡½±‘ô(€€€€€€€€€€€€€¡½±‘A½¥¹Ðõí¡½±‘A½¥¹Ñô(€€€€€€€€€€€€€ÁÉ½•ÍÍ¥¹œõíÍÑ…Ñ”¹‰ÕÍåññÍÑ…Ñ”¹‰…Ñ¡	ÕÍåññÍÑ…Ñ”¹‰…Ñ¡%µÁ½ÉÑ	ÕÍåññÍÑ…Ñ”¹ÁÉ•Ù¥•Ý	ÕÍåô(€€€€€€€€€€€€¼ø(€€€€€€€€€€ð½M•¹•	½Õ¹‘…Éäø(€€€€€€€€¥ô(€€€€€€ð½‘¥Øø(€€€€€€ñ!½±‘MÁ…”ÁÉ½É•ÍÌõí¡½±‘ôÁ½¥¹Ðõí¡½±‘A½¥¹Ñô¼ø(€€€€€€ñÕÉÍ½É™™•ÑÌ•™™•ÑÌõí•™™•ÑÍô¼ø(€€€€€€ñ‘•AÕ±Í•1…å•È¼ø(€€€€€€ñ‘¥Ø±…ÍÍ9…µ”ô‰™¥±”µ‘É½Àµ•‘”ˆ…É¥„µ¡¥‘‘•¸ô‰ÑÉÕ”ˆøñ¤¼øñ¤¼øñ¤¼øñ¤¼øð½‘¥Øø(€€€€€€ñQ½½±Ñ¥Á1…å•È€¼ø(€€€€€€ñ!•…‘•È(€€€€€€€ÍÉ••¸õíÍÉ••¹ô(€€€€€€€‰…­•¹õí‰…­•¹‘ô(€€€€€€€½¹M•ÑÑ¥¹Ìõì ¤€ôøÍ•ÑM•ÑÑ¥¹Í=Á•¸ …Í•ÑÑ¥¹Ì¥ô(€€€€€€¼ø(€€€€€€ñI¥¡Ñ½¬(€€€€€€€ÍÉ••¸õíÍÉ••¹ô(€€€€€€€Í•ÑMÉ••¸õíÍ•ÑMÉ••¹ô(€€€€€€€ÍÑ…Ñ”õíÍÑ…Ñ•ô(€€€€€€¼ø(€€€€€€ñ¹¥µ…Ñ•AÉ•Í•¹”¥¹¥Ñ¥…°õí™…±Í•ôµ½‘”ô‰Íå¹Œˆø(€€€€€€€€ñµ½Ñ¥½¸¹‘¥Ø(€€€€€€€€€±…ÍÍ9…µ”ô‰É½ÕÑ”µÍÑ…”ˆ(€€€€€€€€€­•äõíÉ½ÕÑ•ô(€€€€€€€€€¥¹¥Ñ¥…°õíì½Á…¥Ñäè€Àõô(€€€€€€€€€…¹¥µ…Ñ”õíì½Á…¥Ñäè€Äõô(€€€€€€€€€•á¥Ðõíì½Á…¥Ñäè€Àõô(€€€€€€€€€ÑÉ…¹Í¥Ñ¥½¸õíì‘ÕÉ…Ñ¥½¸è!1MM}QMP€ü€À€è€¸ÔØ°•…Í”èlÀ¸ÈÈ°€À¸ÜÈ°€À¸È°€Åtõô(€€€€€€€€ø(€€€€€€€€€íÁ…•ô(€€€€€€€€ð½µ½Ñ¥½¸¹‘¥Øø(€€€€€€ð½¹¥µ…Ñ•AÉ•Í•¹”ø(€€€€€€ñM•ÑÑ¥¹ÍA…¹•°(€€€€€€€½Á•¸õíÍ•ÑÑ¥¹Íô(€€€€€€€Í•Ñ=Á•¸õíÍ•ÑM•ÑÑ¥¹Í=Á•¹ô(€€€€€€€Ñ¡•µ”õíÑ¡•µ•ô(€€€€€€€Í•ÑQ¡•µ”õíÍ•ÑQ¡•µ•ô(€€€€€€€ÅÕ…±¥ÑäõíÅÕ…±¥Ñåô(€€€€€€€Í•ÑEÕ…±¥ÑäõíÍ•ÑEÕ…±¥Ñåô(€€€€€€€‰É¥¡Ñ¹•ÍÌõí‰É¥¡Ñ¹•ÍÍô(€€€€€€€Í•Ñ	É¥¡Ñ¹•ÍÌõíÍ•Ñ	É¥¡Ñ¹•ÍÍô(€€€€€€€•™™•ÑÌõí•™™•ÑÍô(€€€€€€€Í•Ñ™™•ÑÌõíÍ•Ñ™™•ÑÍô(€€€€€€€Á•É™½Éµ…¹•5½‘”õíÁ•É™½Éµ…¹•5½‘•ô(€€€€€€€Í•ÑA•É™½Éµ…¹•5½‘”õíÍ•ÑA•É™½Éµ…¹•5½‘•ô(€€€€€€€¡…É‘Ý…É•Q¡É•…‘ÌõíÍÑ…Ñ”¹¡…É‘Ý…É•Q¡É•…‘Íô(€€€€€€€‰…­•¹õí‰…­•¹‘ô(€€€€€€¼ø(€€€€€€ñ‰ÕÑÑ½¸(€€€€€€€±…ÍÍ9…µ”ô‰Í¥¹…ÑÕÉ”ˆ(€€€€€€€‘…Ñ„µ¹¼µ¡½±(€€€€€€€½¹±¥¬õí½Á•¹M•É•Ñô(€€€€€€ø(€€€€€€€‰ä¥ÍÍµ…­•È(€€€€€€ð½‰ÕÑÑ½¸ø(€€€€€€ñM•É•ÑM•¹”(€€€€€€€…Ñ¥Ù”õíÍ•É•Ñô(€€€€€€€½¹½¹”õí±½Í•M•É•Ñô(€€€€€€¼ø(€€€€€€ñ%¹ÑÉ½M•ÅÕ•¹”…Ñ¥Ù”õí¥¹ÑÉ½ô½¹M­¥Àõì ¤ôùíÍ•Ñ%¹ÑÉ¼¡™…±Í”¤íÍ•ÑI•Ù•…±¥¹œ¡ÑÉÕ”¤íÍ•ÑQ¥µ•½ÕÐ  ¤ôùÍ•ÑI•Ù•…±¥¹œ¡™…±Í”¤°àÈÀ¤íõô¼ø(€€€€ð½‘¥Øø(€€¤ì)ô)É•…Ñ•I½½Ð¡‘½Õµ•¹Ð¹•Ñ±•µ•¹Ñ	å% ‰É½½Ðˆ¤¤¹É•¹‘•È ñÁÀ€¼ø¤ì(

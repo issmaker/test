@@ -69,6 +69,7 @@ const EMPTY = {
 };
 const HEADLESS_TEST = new URLSearchParams(location.search).has("headless-test");
 const TEST_TEXTURE = "qrc:/icons/liquid.svg";
+const TEST_FULL_TEXTURE = "qrc:/icons/house.svg";
 const ROUTES = [
   ["home", "Главная", House],
   ["npm", "НПМ · 3 MB", ScanLine],
@@ -1491,7 +1492,7 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before
   useEffect(() => {
     alive.current = true; loaded.current = false;
     let cancelled = false;const controller=new AbortController();
-    const release=()=>{const unique=new Set(Object.values(images.current));for(const image of unique){image?.bitmap?.close?.();image?.close?.();}images.current={before:null,after:null,fullBefore:null,fullAfter:null};detailBlobs.current={};loaded.current=false;setDetailState("preview");if(canvas.current){canvas.current.width=1;canvas.current.height=1;}};
+    const release=()=>{const unique=new Set(Object.values(images.current));for(const image of unique){image?.bitmap?.close?.();image?.close?.();}for(const detail of Object.values(detailBlobs.current)){if(detail?.image)detail.image.src="";}images.current={before:null,after:null,fullBefore:null,fullAfter:null};detailBlobs.current={};loaded.current=false;setDetailState("preview");if(canvas.current){canvas.current.width=1;canvas.current.height=1;}};
     release();
     if(!contentReady||externalLoading){setPreviewLoading(true);return()=>{alive.current=false;};}
     setPreviewLoading(Boolean(before||after));
@@ -1510,8 +1511,19 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before
     });
     const detailSource=async(key,src)=>{
       const cached=detailBlobs.current[key];if(cached?.src===src)return cached;
-      const response=await fetch(src,{signal:controller.signal});const blob=await response.blob();if(blob.size<24)throw new Error("invalid PNG");
-      const header=await blob.slice(16,24).arrayBuffer(),view=new DataView(header),meta={src,blob,width:view.getUint32(0),height:view.getUint32(4)};detailBlobs.current[key]=meta;return meta;
+      try{
+        // HTTP/blob sources can be cropped from their bytes without keeping a
+        // second full bitmap alive.
+        if(src.startsWith("http:")||src.startsWith("https:")||src.startsWith("blob:")){
+          const response=await fetch(src,{signal:controller.signal});const blob=await response.blob();if(blob.size<24)throw new Error("invalid PNG");
+          const header=await blob.slice(16,24).arrayBuffer(),view=new DataView(header),meta={src,blob,width:view.getUint32(0),height:view.getUint32(4)};detailBlobs.current[key]=meta;return meta;
+        }
+      }catch(error){if(cancelled||error?.name==="AbortError")throw error;}
+      // Qt WebEngine displays texture:// and qrc:/ URLs in <img>, but Fetch
+      // can reject those custom schemes. Decode through the native image path
+      // and then create only the visible 800% crop.
+      const image=await new Promise((resolve,reject)=>{const value=new Image();value.decoding="async";value.onload=()=>value.naturalWidth?resolve(value):reject(new Error("empty image"));value.onerror=()=>reject(new Error("full image decode failed"));value.src=src;});
+      const meta={src,image,width:image.naturalWidth,height:image.naturalHeight};detailBlobs.current[key]=meta;return meta;
     };
     const cropFor=(meta,key)=>{
       const rect=host.current?.getBoundingClientRect();if(!rect?.width||!rect?.height)return null;
@@ -1527,7 +1539,9 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before
       if(cancelled||interaction.current||target.current.s<DETAIL_ZOOM)return;
       setDetailState("loading");
       detailBusy=true;
-      const pairs=[["fullBefore",before,lowBefore],["fullAfter",after,lowAfter]];
+      const fullBeforeSource=before||(HEADLESS_TEST?TEST_FULL_TEXTURE:"");
+      const fullAfterSource=after||(HEADLESS_TEST?TEST_FULL_TEXTURE:"");
+      const pairs=[["fullBefore",fullBeforeSource,lowBefore],["fullAfter",fullAfterSource,lowAfter]];
       let loadedDetail=0,failedDetail=0,expectedDetail=0;
       for(const [key,src,low] of pairs){
         if(cancelled)break;
@@ -1537,7 +1551,7 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before
         try{
           const meta=await detailSource(key,src),crop=cropFor(meta,key);if(!crop)continue;
           if(images.current[key]?.key===crop.key){loadedDetail++;continue;}
-          const bitmap=await createImageBitmap(meta.blob,crop.x,crop.y,crop.width,crop.height,{colorSpaceConversion:"default",premultiplyAlpha:"default"});
+          const bitmap=await createImageBitmap(meta.blob||meta.image,crop.x,crop.y,crop.width,crop.height,{colorSpaceConversion:"default",premultiplyAlpha:"default"});
           if(cancelled||interaction.current){bitmap.close();continue;}
           images.current[key]?.bitmap?.close?.();images.current[key]={bitmap,fullWidth:meta.width,fullHeight:meta.height,tileX:crop.x,tileY:crop.y,tileWidth:crop.width,tileHeight:crop.height,key:crop.key};wake();
           loadedDetail++;
@@ -1547,7 +1561,7 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before
         }catch{failedDetail++;if(cancelled)break;}
       }
       detailBusy=false;
-      if(!cancelled)setDetailState(expectedDetail>0&&loadedDetail===expectedDetail?"ready":failedDetail?"fallback":"preview");
+      if(!cancelled){const ready=expectedDetail>0&&loadedDetail===expectedDetail;setDetailState(ready?"ready":failedDetail?"fallback":"preview");if(ready)window.__AGR_FULL_DETAIL_READY__=(window.__AGR_FULL_DETAIL_READY__||0)+1;}
       if(detailPending&&!cancelled){detailPending=false;setTimeout(()=>detailRequest.current(),0);}
     };
     return () => { cancelled = true;controller.abort();alive.current = false; cancelAnimationFrame(frame.current); frame.current = 0;clearTimeout(interactionTimer.current);clearTimeout(detailTimer.current);interaction.current=false;dispatchEvent(new CustomEvent("agr-drag",{detail:false}));detailRequest.current=()=>{};release(); };
@@ -1945,7 +1959,7 @@ function IntroSequence({active,onSkip}){
       <div className="intro-grid"/>
       <div className="intro-blades">{Array.from({length:34},(_,i)=><i key={i} style={{"--i":i}}/>)}</div>
       <div className="intro-iris"><i/><i/><i/></div>
-      <motion.div className="intro-copy" initial={{opacity:0,y:18}} animate={{opacity:1,y:0}} transition={{delay:.55,duration:.8}}><small>ADAPTIVE TEXTURE SYSTEM</small><strong>ISSMAKER</strong><span>RGB24 · VISUAL CORE v59</span></motion.div>
+      <motion.div className="intro-copy" initial={{opacity:0,y:18}} animate={{opacity:1,y:0}} transition={{delay:.55,duration:.8}}><small>ADAPTIVE TEXTURE SYSTEM</small><strong>RGB24</strong><span>VISUAL CORE · v59</span></motion.div>
       <div className="intro-progress"><i/><span>INITIALIZING OPTICAL PIPELINE</span></div>
       <button onClick={onSkip}>ПРОПУСТИТЬ</button>
     </motion.div>}

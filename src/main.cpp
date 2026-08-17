@@ -247,13 +247,13 @@ int main(int argc,char**argv){
                     const zoomed=Boolean(zoomLabel&& !zoomLabel.textContent.includes('ZOOM 100%'));
                     const canvasReady=Boolean(document.querySelector('.smooth-compare canvas'))&&Boolean(document.querySelector('.right-dock [data-route="game"]'));
                     const verticalSafe=Math.abs(Number(window.__AGR_TEST_VERTICAL_Y__||0))>.1;
-                    const stressSafe=Boolean(window.__AGR_STRESS_DONE__)&&Number(window.__AGR_WHEEL_COUNT__||0)>=40&&Number(window.__AGR_ZOOM_TARGET__||0)>=7.99&&Number(window.__AGR_ZOOM_BUTTON_SCALE__||0)===8;
+                    const stressSafe=Boolean(window.__AGR_STRESS_DONE__)&&Number(window.__AGR_WHEEL_COUNT__||0)>=40&&Number(window.__AGR_ZOOM_TARGET__||0)>=7.99&&Number(window.__AGR_ZOOM_BUTTON_SCALE__||0)===8&&Number(window.__AGR_FULL_DETAIL_READY__||0)>0;
                     const anchorSafe=Number(window.__AGR_ZOOM_ANCHOR_ERROR__||0)<.001;
                     const honestLabels=document.querySelectorAll('.comparison-truth span').length===2;
                     const interactionBudget=Number(window.__AGR_INTERACTION_PAUSE_COUNT__||0)>0;
                     const panClamped=Boolean(window.__AGR_PAN_CLAMPED__);
                     const mask=(document.querySelector('.workspace')?1:0)|(document.querySelector('.settings-panel')?2:0)|(document.querySelector('.topbar')?4:0)|(zoomed?8:0)|(box&&box.left>10&&box.top>10?16:0)|(canvasReady?32:0)|(verticalSafe?64:0)|(stressSafe?128:0)|(anchorSafe?256:0)|(honestLabels?512:0)|(interactionBudget?1024:0)|(panClamped?2048:0);
-                    return `${mask}|${zoomLabel?.textContent}|${window.__AGR_WHEEL_COUNT__||0}|${window.__AGR_ZOOM_TARGET__||0}|${document.querySelectorAll('.smooth-compare').length}|${document.querySelectorAll('.smooth-compare canvas').length}|${window.__AGR_TEST_VERTICAL_Y__||0}|${window.__AGR_ZOOM_ANCHOR_ERROR__||0}`;
+                    return `${mask}|${zoomLabel?.textContent}|${window.__AGR_WHEEL_COUNT__||0}|${window.__AGR_ZOOM_TARGET__||0}|${document.querySelectorAll('.smooth-compare').length}|${document.querySelectorAll('.smooth-compare canvas').length}|${window.__AGR_TEST_VERTICAL_Y__||0}|${window.__AGR_ZOOM_ANCHOR_ERROR__||0}|${window.__AGR_FULL_DETAIL_READY__||0}`;
                 })())JS"),[](const QVariant &result){
                     const QString details=result.toString();const int mask=details.section('|',0,0).toInt();
                     constexpr int shellMask=1|2|4|128|256|512|1024|2048;

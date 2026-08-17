@@ -72,7 +72,7 @@ const EMPTY = {
 };
 const HEADLESS_TEST = new URLSearchParams(location.search).has("headless-test");
 const TEST_TEXTURE = "qrc:/icons/liquid.svg";
-const TEST_FULL_TEXTURE = "qrc:/icons/lucide/house.svg";
+const TEST_FULL_TEXTURE = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
 const ROUTES = [
   ["home", "Главная", House],
   ["npm", "НПМ · 3 MB", ScanLine],

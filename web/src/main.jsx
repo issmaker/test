@@ -8,7 +8,7 @@ import React, {
 } from "react";
 import { createRoot } from "react-dom/client";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Sparkles } from "@react-three/drei";
+import { Environment, Lightformer, Sparkles } from "@react-three/drei";
 import { AnimatePresence, motion } from "motion/react";
 import { gsap } from "gsap";
 import {
@@ -28,7 +28,10 @@ import {
 } from "lucide-react";
 import * as THREE from "three";
 import "./style.css";
-import "./v53.css";
+import "./v47.css";
+import "./v48.css";
+import "./v49.css";
+import "./v54.css";
 
 const EMPTY = {
   sourceUrl: "",
@@ -72,12 +75,16 @@ const PRESETS = [
   ["cyan", "Arctic cyan", "#37e7ff"],
   ["violet", "Ultraviolet", "#9a72ff"],
   ["amber", "Amber pulse", "#ffad42"],
+  ["emerald", "Emerald matrix", "#19e69b"],
+  ["cobalt", "Electric cobalt", "#2778ff"],
 ];
 const THEME_COLORS = {
   rose: ["#ff3f93", "#8c54ff"],
   cyan: ["#37e7ff", "#3879ff"],
   violet: ["#a67cff", "#f05dff"],
   amber: ["#ffad42", "#ff4f73"],
+  emerald: ["#19e69b", "#28d9f7"],
+  cobalt: ["#2778ff", "#d6f6ff"],
 };
 const QUALITY_LEVELS = ["eco", "balanced", "max"];
 const MAX_ZOOM = 16;
@@ -97,6 +104,9 @@ function writePreference(key, value) {
   } catch {
     // The UI remains usable when Chromium storage is disabled or unavailable.
   }
+}
+function readNumberPreference(key,fallback,min,max){
+  try{const value=Number(localStorage.getItem(key));return Number.isFinite(value)?Math.max(min,Math.min(max,value)):fallback;}catch{return fallback;}
 }
 
 function useBackend() {
@@ -537,102 +547,86 @@ function NeuralLines({ active, motionValue, colors }) {
   );
 }
 
-const FLOW_VERTEX = `
-  varying vec2 vUv;
-  void main(){ vUv=uv; gl_Position=vec4(position.xy,0.0,1.0); }
-`;
-const FLOW_FRAGMENT = `
-  precision highp float;
-  varying vec2 vUv;
-  uniform float uTime;
-  uniform vec2 uPointer;
-  uniform vec3 uAccent;
-  uniform vec3 uAccent2;
-  float hash(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
-  float noise(vec2 p){ vec2 i=floor(p),f=fract(p); f=f*f*(3.0-2.0*f); return mix(mix(hash(i),hash(i+vec2(1.,0.)),f.x),mix(hash(i+vec2(0.,1.)),hash(i+vec2(1.)),f.x),f.y); }
-  void main(){
-    vec2 p=(vUv-.5)*vec2(1.78,1.0);
-    vec2 mouse=uPointer*vec2(.34,.2);
-    float pull=exp(-dot(p-mouse,p-mouse)*2.8);
-    p+=(mouse-p)*pull*.16;
-    float t=uTime*.11;
-    float n=noise(p*2.2+vec2(t,-t*.62));
-    p.x+=sin(p.y*3.2+t*1.7)*.20+n*.11;
-    p.y+=sin(p.x*2.1-t)*.12;
-    float a=atan(p.y,p.x), r=length(p);
-    float spiral=abs(r-(.34+.105*sin(a*2.2-t*1.6)+.055*sin(a*5.0+t)));
-    float ribbon=exp(-spiral*13.0);
-    float core=exp(-spiral*34.0);
-    float sweep=exp(-abs(p.y-sin(p.x*2.4+t)*.23)*7.5)*.45;
-    vec3 cyan=vec3(.02,.75,1.0), hot=vec3(1.0,.08,.22), violet=vec3(.72,.02,1.0);
-    vec3 color=mix(uAccent2*.08,cyan,ribbon*.52+sweep*.18);
-    color+=mix(violet,uAccent,clamp(.5+.5*sin(a+t),0.0,1.0))*ribbon*.95;
-    color+=hot*core*(.9+pull*.65);
-    color+=cyan*sweep*.34;
-    float vignette=smoothstep(1.18,.28,length((vUv-.5)*vec2(1.1,1.0)));
-    float alpha=(.08+ribbon*.78+sweep*.28+n*.06)*vignette;
-    gl_FragColor=vec4(color,alpha);
-  }
-`;
-
-function NeonFlow({ theme }) {
-  const material=useRef();
-  const colors=THEME_COLORS[theme]||THEME_COLORS.rose;
-  const uniforms=useMemo(()=>({uTime:{value:0},uPointer:{value:new THREE.Vector2()},uAccent:{value:new THREE.Color(colors[0])},uAccent2:{value:new THREE.Color(colors[1])}}),[]);
-  useEffect(()=>{uniforms.uAccent.value.set(colors[0]);uniforms.uAccent2.value.set(colors[1]);},[colors,uniforms]);
-  useFrame(({clock,pointer})=>{
-    if(!material.current)return;
-    material.current.uniforms.uTime.value=clock.elapsedTime;
-    material.current.uniforms.uPointer.value.lerp(pointer,.035);
-  });
-  return <mesh frustumCulled={false}>
-    <planeGeometry args={[2,2]} />
-    <shaderMaterial ref={material} uniforms={uniforms} vertexShader={FLOW_VERTEX} fragmentShader={FLOW_FRAGMENT} transparent depthWrite={false} blending={THREE.AdditiveBlending} />
-  </mesh>;
-}
-
 function InteractionFrameBudget(){
   const setFrameloop=useThree((state)=>state.setFrameloop),invalidate=useThree((state)=>state.invalidate);
   useEffect(()=>{const update=(event)=>{setFrameloop(event.detail?"never":"always");if(!event.detail)invalidate();};addEventListener("agr-drag",update);return()=>{removeEventListener("agr-drag",update);setFrameloop("always");};},[invalidate,setFrameloop]);
   return null;
 }
 
-function FluidTube({ points, radius, color, index, quality }) {
-  const mesh=useRef();
-  const geometry=useMemo(()=>{
-    const curve=new THREE.CatmullRomCurve3(points.map((p)=>new THREE.Vector3(...p)),true,"catmullrom",.46);
-    return new THREE.TubeGeometry(curve,quality==="eco"?64:quality==="max"?128:88,radius,quality==="eco"?8:14,true);
-  },[points,radius,quality]);
-  useEffect(()=>()=>geometry.dispose(),[geometry]);
-  useFrame(({clock,pointer})=>{
-    if(!mesh.current)return;
-    const t=clock.elapsedTime;
-    mesh.current.rotation.x=THREE.MathUtils.lerp(mesh.current.rotation.x,pointer.y*.10+Math.sin(t*.16+index)*.035,.018);
-    mesh.current.rotation.y=THREE.MathUtils.lerp(mesh.current.rotation.y,pointer.x*.14+Math.sin(t*.12+index*.7)*.045,.018);
-    mesh.current.rotation.z=THREE.MathUtils.lerp(mesh.current.rotation.z,Math.sin(t*.1+index)*.055,.012);
-    mesh.current.position.x=THREE.MathUtils.lerp(mesh.current.position.x,pointer.x*(.16+index*.025),.018);
-    mesh.current.position.y=THREE.MathUtils.lerp(mesh.current.position.y,pointer.y*(.10+index*.018),.018);
-  });
-  return <mesh ref={mesh} geometry={geometry}>
-    <meshPhysicalMaterial color={color} roughness={.24} metalness={.03} clearcoat={1} clearcoatRoughness={.16} transmission={.08} thickness={1.1} emissive={color} emissiveIntensity={.075} />
-  </mesh>;
-}
+const bladePose=(state,u,time=0,out)=>{
+  const a=u*Math.PI*2, breathe=Math.sin(time*.38+a*2)*.035;
+  let x=0,y=0,z=0,width=1.8,twist=0;
+  if(state==="npm"){
+    x=(u-.5)*7.1;y=Math.sin(a)*1.34*(.72+Math.abs(u-.5));z=Math.cos(a)*.74;twist=a*.72;width=1.25+Math.sin(Math.PI*u)*1.05;
+  }else if(state==="batch"){
+    x=(u-.5)*7.2;y=Math.sin(a*1.5)*1.52;z=Math.cos(a*3)*.58;twist=Math.sin(a*1.5)*1.05;width=1.05+.7*(.5+.5*Math.cos(a*3));
+  }else if(state==="compare"){
+    x=Math.sin(a)*3.25;y=Math.sign(Math.cos(a))*1.05+.34*Math.cos(a*2);z=.58*Math.sin(a*2);twist=Math.PI*.5*Math.sin(a);width=1.2+.72*Math.abs(Math.cos(a));
+  }else if(state==="settings"){
+    x=Math.cos(a)*2.75;y=Math.sin(a)*1.72;z=.38*Math.sin(a*2);twist=a*.34;width=1.45+.22*Math.sin(a*3);
+  }else if(state==="secret"){
+    x=Math.sin(a)*2.45;y=(.5-u)*4.15+.36*Math.sin(a*2);z=.62*Math.cos(a*2);twist=a*1.18;width=1.08+.62*Math.sin(Math.PI*u);
+  }else{
+    const d=1+.58*Math.sin(a)*Math.sin(a);
+    x=.5+3.55*Math.cos(a)/d;y=2.25*Math.sin(a)*Math.cos(a)/d;z=.62*Math.sin(a)*(.35+Math.cos(a));twist=a*.86;width=1.15+1.02*Math.abs(Math.sin(a));
+  }
+  const pose=out||{position:new THREE.Vector3(),rotation:new THREE.Euler(0,0,0,"XYZ"),scale:new THREE.Vector3()};
+  pose.position.set(x,y+breathe,z);pose.rotation.set(.20*Math.sin(a*2),twist,.32*Math.cos(a),"XYZ");pose.scale.set(width,1,.88+.16*Math.sin(a*3));return pose;
+};
 
-function FluidForms({ quality }) {
-  const forms=useMemo(()=>[
-    {radius:.34,color:"#39dff4",points:[[-6,-1.8,-1],[-4.2,1.5,-.4],[-1.5,1.9,-1.1],[.2,.1,-.2],[-1.8,-1.8,.1],[-4.5,-2.5,-.6]]},
-    {radius:.46,color:"#376cff",points:[[-1.2,-3,-1.4],[.2,-.2,-.5],[2.4,2.4,-1.1],[5.2,1.7,-.5],[5.8,-1.4,-1.4],[2.7,-2.2,-.2]]},
-    {radius:.27,color:"#8c72ff",points:[[-5.5,2.8,-2.2],[-2.4,2.1,-1.1],[.8,3,-2],[2.2,.6,-1],[.6,-1.2,-1.9],[-3.1,.1,-1]]},
-    {radius:.18,color:"#8bf6ff",points:[[-6,.1,-2.7],[-3.8,-.8,-1.8],[-.7,.7,-2.4],[2.1,-.2,-1.5],[5.6,.4,-2.5],[3.2,-1.7,-1.6]]},
-  ],[]);
-  return <group position={[0,0,-2.4]} scale={[1.05,1.05,1.05]}>
-    {forms.map((form,index)=><FluidTube key={index} {...form} index={index} quality={quality} />)}
+function BladeSculpture({ state, theme, quality, brightness=1, effects=1, transitionKind="home>home", hold=0 }){
+  const count=quality==="eco"?112:quality==="max"?220:168;
+  const body=useRef(),edge=useRef(),current=useRef([]),targets=useRef([]),hover=useRef(-1),lastPointer=useRef(new THREE.Vector2()),tmp=useMemo(()=>({matrix:new THREE.Matrix4(),q:new THREE.Quaternion(),p:new THREE.Vector3(),s:new THREE.Vector3(),projected:new THREE.Vector3(),offset:new THREE.Vector3(),color:new THREE.Color(),white:new THREE.Color("#ffffff")}),[]);
+  const colors=THEME_COLORS[theme]||THEME_COLORS.cyan;
+  const accent=useMemo(()=>new THREE.Color(colors[0]),[colors]);
+  const accent2=useMemo(()=>new THREE.Color(colors[1]),[colors]);
+  const transitionMode=useMemo(()=>[...transitionKind].reduce((sum,char)=>sum+char.charCodeAt(0),0)%4,[transitionKind]);
+  useEffect(()=>{current.current=[];targets.current=[];},[count]);
+  useFrame(({clock,pointer,camera})=>{
+    if(!body.current||!edge.current)return;
+    const t=clock.elapsedTime, speed=pointer.distanceTo(lastPointer.current);lastPointer.current.lerp(pointer,.24);
+    let nearest=-1,nearestDistance=.29;
+    for(let i=0;i<count;i++){
+      const u=i/count,target=bladePose(state,u,t,targets.current[i]),phase=transitionMode===0?i:transitionMode===1?count-i:transitionMode===2?Math.abs(i-count/2)*2:(i%2?i:count-i);targets.current[i]=target;
+      if(hold>0){const pull=Math.exp(-Math.pow((u-.56)*5.5,2))*hold;target.position.z+=pull*.72;target.scale.x*=1-pull*.13;target.rotation.y+=pull*.28;}
+      if(!current.current[i])current.current[i]={p:target.position.clone(),q:new THREE.Quaternion().setFromEuler(target.rotation),s:target.scale.clone()};
+      const c=current.current[i],delay=.045+Math.min(.055,phase/count*.045);
+      c.p.lerp(target.position,delay);c.q.slerp(tmp.q.setFromEuler(target.rotation),delay);c.s.lerp(target.scale,delay);
+      tmp.matrix.compose(c.p,c.q,c.s);body.current.setMatrixAt(i,tmp.matrix);
+      tmp.offset.set(0,.038,.178*c.s.z).applyQuaternion(c.q);tmp.p.copy(c.p).add(tmp.offset);tmp.s.set(c.s.x,1,1);tmp.matrix.compose(tmp.p,c.q,tmp.s);edge.current.setMatrixAt(i,tmp.matrix);
+      tmp.projected.copy(c.p).project(camera);const distance=Math.hypot(tmp.projected.x-pointer.x,tmp.projected.y-pointer.y);
+      if(distance<nearestDistance){nearestDistance=distance;nearest=i;}
+    }
+    hover.current=nearest;
+    for(let i=0;i<count;i++){
+      const delta=nearest<0?count:Math.min(Math.abs(i-nearest),count-Math.abs(i-nearest));
+      const holdLight=hold*Math.exp(-Math.pow((i/count-.56)*6,2))*1.3;
+      const wave=Math.exp(-delta*delta/38)*effects+holdLight;
+      const runner=nearest<0?0:Math.exp(-Math.pow(delta-((t*18+speed*150)%20),2)/12)*.58*effects;
+      tmp.color.copy(accent).lerp(accent2,.28+.25*Math.sin(i*.17+t*.35)).multiplyScalar(.34+(wave+runner)*1.38*brightness);
+      if(delta<2)tmp.color.lerp(tmp.white,.42);
+      edge.current.setColorAt(i,tmp.color);
+    }
+    body.current.instanceMatrix.needsUpdate=true;edge.current.instanceMatrix.needsUpdate=true;if(edge.current.instanceColor)edge.current.instanceColor.needsUpdate=true;
+    body.current.rotation.y=THREE.MathUtils.lerp(body.current.rotation.y,pointer.x*.055*effects,.025);edge.current.rotation.y=body.current.rotation.y;
+    body.current.rotation.x=THREE.MathUtils.lerp(body.current.rotation.x,-pointer.y*.035*effects,.025);edge.current.rotation.x=body.current.rotation.x;
+  });
+  return <group position={[.38,0,-1.0]} scale={[.96,.96,.96]}>
+    <instancedMesh ref={body} args={[null,null,count]} frustumCulled={false}>
+      <boxGeometry args={[1,.062,.35]} />
+      <meshPhysicalMaterial color="#071622" metalness={.96} roughness={.19} clearcoat={.75} clearcoatRoughness={.12} envMapIntensity={2.35*brightness} />
+    </instancedMesh>
+    <instancedMesh ref={edge} args={[null,null,count]} frustumCulled={false}>
+      <boxGeometry args={[1,.018,.032]} />
+      <meshBasicMaterial vertexColors toneMapped={false} transparent opacity={.96} blending={THREE.AdditiveBlending} />
+    </instancedMesh>
   </group>;
 }
 
-function Scene({ theme, quality }) {
+function Scene({ theme, quality, screen, settingsOpen, secret, transitionKind, brightness, effects, hold }) {
   const colors = THEME_COLORS[theme] || THEME_COLORS.rose;
-  const density = quality === "eco" ? 18 : quality === "max" ? 58 : 34;
+  const density = quality === "eco" ? 10 : quality === "max" ? 42 : 24;
+  const state=secret?"secret":settingsOpen?"settings":screen;
   return (
     <Canvas
       dpr={
@@ -650,12 +644,17 @@ function Scene({ theme, quality }) {
         preserveDrawingBuffer: false,
       }}
     >
-      <color attach="background" args={["#06151e"]} />
-      <ambientLight intensity={1.05} color="#abcfff" />
-      <directionalLight position={[-4,5,5]} intensity={3.2} color="#c9ffff" />
-      <pointLight position={[5,2,3]} intensity={18} distance={15} color={colors[1]} />
-      <pointLight position={[-5,-2,2]} intensity={14} distance={13} color="#27e9ff" />
-      <FluidForms quality={quality} />
+      <color attach="background" args={["#030b13"]} />
+      <ambientLight intensity={.42*brightness} color="#9cc7db" />
+      <directionalLight position={[-4,5,5]} intensity={2.7*brightness} color="#d8f9ff" />
+      <pointLight position={[5,2,3]} intensity={15*brightness} distance={15} color={colors[1]} />
+      <pointLight position={[-5,-2,2]} intensity={12*brightness} distance={13} color={colors[0]} />
+      <Environment resolution={quality==="eco"?64:128}>
+        <Lightformer form="rect" intensity={5*brightness} color={colors[0]} scale={[5,2,1]} position={[-4,2,2]} rotation-y={Math.PI/2}/>
+        <Lightformer form="ring" intensity={4*brightness} color={colors[1]} scale={[4,2,1]} position={[4,-1,1]} rotation-y={-Math.PI/2}/>
+        <Lightformer form="circle" intensity={2.5*brightness} color="#dffcff" scale={2} position={[0,5,-2]} rotation-x={Math.PI/2}/>
+      </Environment>
+      <BladeSculpture state={state} theme={theme} quality={quality} brightness={brightness} effects={effects} transitionKind={transitionKind} hold={hold}/>
       <Sparkles
         count={density}
         scale={[12, 7, 4]}
@@ -840,7 +839,7 @@ function Header({ screen, backend, onSettings }) {
         </span>
         <div>
           <b>Оптимизатор текстур</b>
-          <small>ADAPTIVE RGB24 / v53</small>
+          <small>ADAPTIVE RGB24 / v54</small>
         </div>
       </div>
       <div className="route-status">
@@ -910,6 +909,24 @@ function RightDock({ screen, setScreen, state }) {
     </motion.aside>
   );
 }
+function WaterGlassField(){
+  const [ripples,setRipples]=useState([]),last=useRef({x:0,y:0,time:0,id:0});
+  useEffect(()=>{
+    const move=(event)=>{
+      const panel=event.target instanceof Element?event.target.closest(".hero-panel,.workspace-head,.telemetry,.bottom-process,.batch-list,.analysis-summary,.compare-card,.settings-panel,.right-dock,.topbar"):null;
+      if(!panel)return;
+      const box=panel.getBoundingClientRect(),x=event.clientX-box.left,y=event.clientY-box.top;
+      panel.style.setProperty("--water-x",`${x}px`);panel.style.setProperty("--water-y",`${y}px`);
+      const now=performance.now(),distance=Math.hypot(event.clientX-last.current.x,event.clientY-last.current.y);
+      if(now-last.current.time<85||distance<14)return;
+      const id=++last.current.id;last.current={x:event.clientX,y:event.clientY,time:now,id};
+      setRipples((values)=>[...values.slice(-7),{id,x:event.clientX,y:event.clientY,strength:Math.min(1,distance/80)}]);
+      setTimeout(()=>setRipples((values)=>values.filter((r)=>r.id!==id)),1250);
+    };
+    addEventListener("pointermove",move,{passive:true});return()=>removeEventListener("pointermove",move);
+  },[]);
+  return <div className="water-ripple-layer" aria-hidden="true">{ripples.map((r)=><i key={r.id} style={{left:r.x,top:r.y,"--strength":r.strength}}/>)}</div>;
+}
 function SettingsPanel({
   open,
   setOpen,
@@ -917,6 +934,13 @@ function SettingsPanel({
   setTheme,
   quality,
   setQuality,
+  brightness,
+  setBrightness,
+  effects,
+  setEffects,
+  performanceMode,
+  setPerformanceMode,
+  hardwareThreads,
   backend,
 }) {
   return (
@@ -946,31 +970,40 @@ function SettingsPanel({
                 key={id}
                 className={theme === id ? "active" : ""}
                 onClick={() => setTheme(id)}
-                style={{ "--swatch": color }}
+                style={{ "--swatch": color, "--swatch2": THEME_COLORS[id][1] }}
               >
                 <i />
                 <span>{label}</span>
               </button>
             ))}
           </div>
-          <p>Режим использования железа</p>
+          <p>Свет и водное стекло</p>
+          <label className="setting-range"><span>ЯРКОСТЬ</span><b>{Math.round(brightness*100)}%</b><input type="range" min=".55" max="1.4" step=".01" value={brightness} onChange={(e)=>setBrightness(Number(e.target.value))}/></label>
+          <label className="setting-range"><span>ЭФФЕКТЫ</span><b>{Math.round(effects*100)}%</b><input type="range" min="0" max="1.35" step=".01" value={effects} onChange={(e)=>setEffects(Number(e.target.value))}/></label>
+          <p>Качество 3D-сцены</p>
           <div className="quality-switch">
             {[
-              ["eco", "ТИХИЙ"],
-              ["balanced", "АВТО"],
-              ["max", "МАКСИМУМ"],
+              ["eco", "ЛЁГКОЕ"],
+              ["balanced", "БАЛАНС"],
+              ["max", "ПОЛНОЕ"],
             ].map(([id, label]) => (
               <button
                 className={quality === id ? "active" : ""}
-                onClick={() => {setQuality(id);backend?.setPerformanceMode?.(id);}}
+                onClick={() => setQuality(id)}
                 key={id}
               >
                 {label}
               </button>
             ))}
           </div>
+          <p>Нагрузка на железо</p>
+          <button className={`auto-hardware ${performanceMode==="balanced"?"active":""}`} onClick={()=>{setPerformanceMode("balanced");backend?.setPerformanceMode?.("balanced");}}><Cpu/><span><b>АВТОМАТИЧЕСКАЯ НАГРУЗКА</b><small>AUTO · {hardwareThreads||"—"} ПОТОКОВ</small></span></button>
+          <div className="quality-switch hardware-switch">
+            <button className={performanceMode==="eco"?"active":""} onClick={()=>{setPerformanceMode("eco");backend?.setPerformanceMode?.("eco");}}>ТИХИЙ</button>
+            <button className={performanceMode==="max"?"active":""} onClick={()=>{setPerformanceMode("max");backend?.setPerformanceMode?.("max");}}>МАКСИМУМ</button>
+          </div>
           <small className="settings-note">
-            Меняется нагрузка CPU/GPU и число потоков. Качество PNG не меняется.
+            Палитра меняет интерфейс, световые кромки и отражения металла. Производительность не меняет качество PNG.
           </small>
         </motion.aside>
       )}
@@ -1799,9 +1832,11 @@ function App() {
   const { backend, state } = useBackend(),
     appRoot = useRef(null),
     [route, setRoute] = useState("home"),
+    [shapeState,setShapeState]=useState("home"),
+    [transitionKind,setTransitionKind]=useState("home>home"),
+    [hold,setHold]=useState(0),
     [diving, setDiving] = useState(false),
     [contentReady, setContentReady] = useState(true),
-    [journey, setJourney] = useState({active:false,path:"npm",reverse:false,label:"ГЛАВНАЯ"}),
     [settings, setSettings] = useState(false),
     [theme, setTheme] = useState(() =>
       readPreference("agr-theme", Object.keys(THEME_COLORS), "rose"),
@@ -1809,7 +1844,11 @@ function App() {
     [quality, setQuality] = useState(() =>
       readPreference("agr-quality", QUALITY_LEVELS, "balanced"),
     ),
+    [brightness,setBrightness]=useState(()=>readNumberPreference("agr-brightness",1,.55,1.4)),
+    [effects,setEffects]=useState(()=>readNumberPreference("agr-effects",1,0,1.35)),
+    [performanceMode,setPerformanceMode]=useState(()=>readPreference("agr-performance",QUALITY_LEVELS,"balanced")),
     [secret, setSecret] = useState(false),
+    holdRef=useRef({value:0}),
     routeTimers = useRef([]),
     screen = route.startsWith("compare") ? "compare" : route,
     setScreen = useCallback(
@@ -1820,15 +1859,14 @@ function App() {
         if (HEADLESS_TEST) {
           setSettings(false);
           setRoute(next);
+          setShapeState(next.startsWith("compare")?"compare":next);
           setContentReady(true);
           return;
         }
         const nextScreen=next.startsWith("compare")?"compare":next;
         const internal=(screen==="batch"&&nextScreen==="compare")||(screen==="compare"&&nextScreen==="batch");
+        setTransitionKind(`${shapeState}>${nextScreen}`);setShapeState(nextScreen);
         if(internal){setSettings(false);setRoute(next);return;}
-        const path=nextScreen==="home"?(screen==="batch"?"batch":"npm"):(screen!=="home"&&screen!==nextScreen?"cross":nextScreen);
-        const reverse=nextScreen==="home";
-        setJourney({active:true,path,reverse,label:nextScreen==="home"?"ГЛАВНАЯ":nextScreen==="batch"?"ПАКЕТНАЯ ОБРАБОТКА":"НПМ · ДО 3 MB"});
         setDiving(true);
         setContentReady(false);
         setSettings(false);
@@ -1840,11 +1878,10 @@ function App() {
           setTimeout(() => {
             setDiving(false);
             setContentReady(true);
-            setJourney((value)=>({...value,active:false}));
           }, 1300),
         ];
       },
-      [route, screen],
+      [route, screen,shapeState],
     );
   useEffect(() => {
     const update = (e) => appRoot.current?.classList.toggle("is-dragging", Boolean(e.detail));
@@ -1859,7 +1896,22 @@ function App() {
   useEffect(() => () => routeTimers.current.forEach(clearTimeout), []);
   useEffect(() => writePreference("agr-theme", theme), [theme]);
   useEffect(() => writePreference("agr-quality", quality), [quality]);
-  useEffect(() => {backend?.setPerformanceMode?.(quality);}, [backend,quality]);
+  useEffect(() => writePreference("agr-brightness", brightness), [brightness]);
+  useEffect(() => writePreference("agr-effects", effects), [effects]);
+  useEffect(() => writePreference("agr-performance", performanceMode), [performanceMode]);
+  useEffect(() => {backend?.setPerformanceMode?.(performanceMode);}, [backend,performanceMode]);
+  useEffect(()=>{
+    const down=(event)=>{
+      if(screen!=="home"||event.button!==0||event.target.closest("button,input,[data-no-hold]"))return;
+      gsap.killTweensOf(holdRef.current);gsap.to(holdRef.current,{value:1,duration:1.65,ease:"power2.inOut",onUpdate:()=>setHold(holdRef.current.value)});
+    };
+    const up=()=>{gsap.killTweensOf(holdRef.current);gsap.to(holdRef.current,{value:0,duration:.78,ease:"power3.out",onUpdate:()=>setHold(holdRef.current.value)});};
+    addEventListener("pointerdown",down);addEventListener("pointerup",up);addEventListener("pointercancel",up);
+    return()=>{removeEventListener("pointerdown",down);removeEventListener("pointerup",up);removeEventListener("pointercancel",up);};
+  },[screen]);
+  const setSettingsOpen=useCallback((open)=>{const next=open?"settings":screen;setSettings(open);setTransitionKind(`${shapeState}>${next}`);setShapeState(next);},[screen,shapeState]);
+  const openSecret=useCallback(()=>{setSettings(false);setSecret(true);setTransitionKind(`${shapeState}>secret`);setShapeState("secret");},[shapeState]);
+  const closeSecret=useCallback(()=>{setSecret(false);setTransitionKind(`secret>${screen}`);setShapeState(screen);},[screen]);
   const page =
     screen === "home" ? (
       <Home setScreen={setScreen} />
@@ -1892,6 +1944,7 @@ function App() {
     <div
       ref={appRoot}
       className={`app theme-${theme} quality-${quality} scene-${screen} ${diving ? "is-diving" : ""}`}
+      style={{"--ui-brightness":brightness,"--effect-level":effects}}
     >
       <div className="webgl">
         {HEADLESS_TEST ? (
@@ -1901,22 +1954,27 @@ function App() {
             <Scene
               theme={theme}
               quality={quality}
+              screen={shapeState}
+              transitionKind={transitionKind}
+              brightness={brightness}
+              effects={effects}
+              hold={hold}
             />
           </SceneBoundary>
         )}
       </div>
+      <WaterGlassField />
       <TooltipLayer />
       <Header
         screen={screen}
         backend={backend}
-        onSettings={() => setSettings((v) => !v)}
+        onSettings={() => setSettingsOpen(!settings)}
       />
       <RightDock
         screen={screen}
         setScreen={setScreen}
         state={state}
       />
-      <JourneyTransition journey={journey} />
       <AnimatePresence initial={false} mode="wait">
         <motion.div
           className="route-stage"
@@ -1931,23 +1989,30 @@ function App() {
       </AnimatePresence>
       <SettingsPanel
         open={settings}
-        setOpen={setSettings}
+        setOpen={setSettingsOpen}
         theme={theme}
         setTheme={setTheme}
         quality={quality}
         setQuality={setQuality}
+        brightness={brightness}
+        setBrightness={setBrightness}
+        effects={effects}
+        setEffects={setEffects}
+        performanceMode={performanceMode}
+        setPerformanceMode={setPerformanceMode}
+        hardwareThreads={state.hardwareThreads}
         backend={backend}
       />
       <button
         className="signature"
         data-no-hold
-        onClick={() => setSecret(true)}
+        onClick={openSecret}
       >
         by issmaker
       </button>
       <SecretScene
         active={secret}
-        onDone={useCallback(() => setSecret(false), [])}
+        onDone={closeSecret}
       />
     </div>
   );

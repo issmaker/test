@@ -1,0 +1,54 @@
+/* v54 · v50 optical shell, one stateful metallic blade sculpture and water glass */
+.theme-emerald{--accent:#19e69b;--accent2:#28d9f7}
+.theme-cobalt{--accent:#2778ff;--accent2:#d6f6ff}
+.app,.app.scene-home,.app.scene-npm,.app.scene-batch,.app.scene-compare{
+  background:
+    radial-gradient(ellipse at 72% 42%,color-mix(in srgb,var(--accent) 16%,#071b2a),transparent 39%),
+    radial-gradient(ellipse at 30% 78%,color-mix(in srgb,var(--accent2) 9%,#09152a),transparent 45%),
+    linear-gradient(148deg,#02070e,#071522 52%,#02060c)!important;
+}
+.app:before,.scene-home:before{background:repeating-radial-gradient(ellipse at 68% 48%,transparent 0 72px,color-mix(in srgb,var(--accent) 7%,transparent) 73px 74px,transparent 75px 112px)!important;opacity:.4!important;mask-image:radial-gradient(ellipse at 68% 48%,#000 0 58%,transparent 90%)!important}
+.app:after,.scene-home:after{background-image:radial-gradient(color-mix(in srgb,var(--accent2) 24%,transparent) .55px,transparent .85px)!important;background-size:34px 34px!important;opacity:.18!important}
+.webgl,.scene-home .webgl{z-index:0;opacity:calc(.76 + var(--effect-level)*.18);filter:saturate(calc(.92 + var(--effect-level)*.22)) contrast(1.05);transform:none!important;transition:opacity .9s ease,filter .9s ease!important}
+.scene-npm .webgl,.scene-batch .webgl,.scene-compare .webgl{opacity:calc(.22 + var(--effect-level)*.1);filter:saturate(.8) brightness(.72)}
+.is-dragging .webgl{opacity:.1!important;filter:saturate(.45) brightness(.48)!important}
+.magnetic-cursor-field,.transition-portal,.journey,.vector-sculpture,.kinetic-architecture,.data-cathedral,.cursor-trail{display:none!important}
+
+/* Water is part of the glass material. Panels stay fixed; only refraction/light moves. */
+.hero-panel,.scene-home .hero-panel,.workspace-head,.telemetry,.bottom-process,.batch-list,.analysis-summary,.compare-card,.settings-panel,.right-dock,.topbar{
+  --water-x:50%;--water-y:50%;
+  background:
+    radial-gradient(circle 150px at var(--water-x) var(--water-y),color-mix(in srgb,var(--accent) 14%,#ffffff08),transparent 62%),
+    linear-gradient(128deg,#dffcff12 0%,#0a1723c5 38%,#06101bd9 68%,color-mix(in srgb,var(--accent2) 9%,#07111bc9))!important;
+  border-color:#d7f8ff28!important;
+  backdrop-filter:blur(25px) saturate(1.32) brightness(calc(.82 + var(--ui-brightness)*.16))!important;
+  box-shadow:inset 0 1px #ffffff3b,inset 1px 0 #ffffff17,inset 0 -18px 60px #00101a3d,0 24px 80px #0009,0 0 52px color-mix(in srgb,var(--accent) 7%,transparent)!important;
+  transition:filter .92s cubic-bezier(.18,.72,.2,1),opacity .92s cubic-bezier(.18,.72,.2,1),background .28s linear,border-color .45s!important;
+}
+.water-ripple-layer{position:fixed;z-index:90;inset:0;pointer-events:none;overflow:hidden}
+.water-ripple-layer i{position:absolute;width:22px;height:22px;border:1px solid color-mix(in srgb,var(--accent) 66%,#eaffff);border-radius:50%;translate:-50% -50%;opacity:0;box-shadow:inset 0 0 12px #dffcff22,0 0 9px color-mix(in srgb,var(--accent) 44%,transparent);animation:v54Water 1.2s cubic-bezier(.12,.68,.18,1) both}
+.water-ripple-layer i:after{content:"";position:absolute;inset:21%;border:1px solid #e9ffff65;border-radius:50%}
+@keyframes v54Water{0%{opacity:calc(.22 + var(--strength)*.45);transform:scale(.35);filter:blur(0)}65%{opacity:.18}100%{opacity:0;transform:scale(calc(3.4 + var(--strength)*2.2));filter:blur(1.5px)}}
+
+/* No panel displacement. Depth focus is deliberately slow and subtle. */
+.button:hover,.button:active,.right-dock button:hover,.hero-panel .button:hover,.preset-grid button:hover,.signature:hover{transform:none!important}
+.app:has(.button:hover) .webgl{transform:none!important;filter:saturate(.82) brightness(.72)!important}
+.app:has(.button:hover) .route-stage>*{filter:blur(2.2px) brightness(.82);transition:filter .92s cubic-bezier(.18,.72,.2,1)!important}
+.app:has(.button:hover) .route-stage>*:has(.button:hover){filter:none}
+.route-stage{z-index:3;transform:none!important}.is-diving .route-stage{opacity:.18;filter:blur(4px);transition:opacity .72s ease,filter .95s ease}
+
+/* Palette and performance controls. */
+.settings-panel{width:min(410px,calc(100vw - 28px));max-height:calc(100vh - 92px);overflow:auto;padding-bottom:18px}
+.preset-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.preset-grid button i{background:linear-gradient(135deg,var(--swatch),var(--swatch2))!important;box-shadow:inset 0 1px #fff9,0 0 18px color-mix(in srgb,var(--swatch) 42%,transparent)!important}
+.setting-range{display:grid;grid-template-columns:1fr auto;align-items:center;gap:6px 12px;margin:8px 0;padding:10px 11px;border:1px solid #ffffff18;border-radius:13px;background:#06121b83}
+.setting-range span{font:750 8px monospace;letter-spacing:1.3px;color:#c7dae1}.setting-range b{font:750 9px monospace;color:var(--accent)}.setting-range input{grid-column:1/-1;width:100%}
+.auto-hardware{display:flex;width:100%;align-items:center;gap:11px;padding:11px;border:1px solid #ffffff20;border-radius:14px;background:#07121db8;color:#eafcff;text-align:left;cursor:pointer}.auto-hardware svg{width:20px;color:var(--accent)}.auto-hardware span{display:grid;gap:3px}.auto-hardware b{font:750 9px monospace;letter-spacing:.6px}.auto-hardware small{font:7px monospace;color:#8ca7b2}.auto-hardware.active{border-color:color-mix(in srgb,var(--accent) 64%,#fff2);box-shadow:inset 0 0 24px color-mix(in srgb,var(--accent) 12%,transparent),0 0 22px color-mix(in srgb,var(--accent) 11%,transparent)}
+.hardware-switch{grid-template-columns:repeat(2,1fr);margin-top:7px}
+
+/* The ISS scene uses the same sculpture; only a quiet title remains above it. */
+.secret-scene{background:#020a10a6!important;backdrop-filter:blur(3px)!important}.secret-core,.secret-waves{display:none!important}.secret-scene p{font-size:11px!important;letter-spacing:4px!important;text-shadow:0 0 24px var(--accent)}
+.signature{color:#d8f8ff!important}
+
+@media(max-width:1920px),(max-height:1080px){.workspace{top:78px;bottom:12px;gap:8px;overflow:hidden}.workspace-head{min-height:68px;padding:8px 12px}.telemetry{min-height:78px;padding:7px}.batch-list{min-height:0;overflow:auto}.compare-card{min-height:250px}.right-dock{right:0}.settings-panel{top:74px;right:12px}}
+@media(prefers-reduced-motion:reduce){.water-ripple-layer{display:none}.webgl{opacity:.18!important}}

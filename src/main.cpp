@@ -241,7 +241,15 @@ int main(int argc,char**argv){
                     setTimeout(()=>{
                         const box=zoom.getBoundingClientRect();
                         for(let i=0;i<40;i++)zoom.dispatchEvent(new WheelEvent('wheel',{deltaY:-120,clientX:box.left+box.width*.75,clientY:box.top+box.height*.5,bubbles:true,cancelable:true}));
-                        const scaleButtons=zoom.querySelectorAll('.viewport-actions button');scaleButtons[1]?.click();scaleButtons[2]?.click();scaleButtons[3]?.click();
+                        const scaleButtons=zoom.querySelectorAll('.viewport-actions button');scaleButtons[1]?.click();scaleButtons[2]?.click();
+                        const fullDeadline=Date.now()+1400;
+                        const promoteTo1600=()=>{
+                            if(Number(window.__AGR_FULL_DETAIL_READY__||0)>0||Date.now()>=fullDeadline){
+                                window.__AGR_FULL_AT_800__=Number(window.__AGR_FULL_DETAIL_READY__||0)>0;
+                                scaleButtons[3]?.click();
+                            }else setTimeout(promoteTo1600,50);
+                        };
+                        promoteTo1600();
                         for(let step=0;step<120;step++)dispatchEvent(new CustomEvent('agr-test-drag',{detail:{x:(step%3)-1,y:9}}));
                         dispatchEvent(new CustomEvent('agr-test-drag',{detail:{x:999999,y:999999}}));
                         window.__AGR_STRESS_DONE__=true;
@@ -258,13 +266,13 @@ int main(int argc,char**argv){
                     const zoomed=Boolean(zoomLabel&& !zoomLabel.textContent.includes('ZOOM 100%'));
                     const canvasReady=Boolean(document.querySelector('.smooth-compare canvas'))&&Boolean(document.querySelector('.right-dock [data-route="game"]'));
                     const verticalSafe=Math.abs(Number(window.__AGR_TEST_VERTICAL_Y__||0))>.1;
-                    const stressSafe=Boolean(window.__AGR_STRESS_DONE__)&&Number(window.__AGR_WHEEL_COUNT__||0)>=40&&Number(window.__AGR_ZOOM_TARGET__||0)>=15.99&&Number(window.__AGR_ZOOM_BUTTON_SCALE__||0)===16&&Number(window.__AGR_FULL_DETAIL_READY__||0)>0;
+                    const stressSafe=Boolean(window.__AGR_STRESS_DONE__)&&Number(window.__AGR_WHEEL_COUNT__||0)>=40&&Number(window.__AGR_ZOOM_TARGET__||0)>=15.99&&Number(window.__AGR_ZOOM_BUTTON_SCALE__||0)===16&&Boolean(window.__AGR_FULL_AT_800__)&&Number(window.__AGR_FULL_DETAIL_SCALE__||0)>=15.99;
                     const anchorSafe=Number(window.__AGR_ZOOM_ANCHOR_ERROR__||0)<.001;
                     const honestLabels=document.querySelectorAll('.comparison-truth span').length===2;
                     const interactionBudget=Number(window.__AGR_INTERACTION_PAUSE_COUNT__||0)>0;
                     const panClamped=Boolean(window.__AGR_PAN_CLAMPED__);
                     const mask=(document.querySelector('.workspace')?1:0)|(document.querySelector('.settings-panel')?2:0)|(document.querySelector('.topbar')?4:0)|(zoomed?8:0)|(box&&box.left>10&&box.top>10?16:0)|(canvasReady?32:0)|(verticalSafe?64:0)|(stressSafe?128:0)|(anchorSafe?256:0)|(honestLabels?512:0)|(interactionBudget?1024:0)|(panClamped?2048:0);
-                    return `${mask}|${zoomLabel?.textContent}|${window.__AGR_WHEEL_COUNT__||0}|${window.__AGR_ZOOM_TARGET__||0}|${document.querySelectorAll('.smooth-compare').length}|${document.querySelectorAll('.smooth-compare canvas').length}|${window.__AGR_TEST_VERTICAL_Y__||0}|${window.__AGR_ZOOM_ANCHOR_ERROR__||0}|${window.__AGR_FULL_DETAIL_READY__||0}`;
+                    return `${mask}|${zoomLabel?.textContent}|${window.__AGR_WHEEL_COUNT__||0}|${window.__AGR_ZOOM_TARGET__||0}|${document.querySelectorAll('.smooth-compare').length}|${document.querySelectorAll('.smooth-compare canvas').length}|${window.__AGR_TEST_VERTICAL_Y__||0}|${window.__AGR_ZOOM_ANCHOR_ERROR__||0}|${window.__AGR_FULL_DETAIL_READY__||0}|${window.__AGR_FULL_AT_800__||false}|${window.__AGR_FULL_DETAIL_SCALE__||0}`;
                 })())JS"),[](const QVariant &result){
                     const QString details=result.toString();const int mask=details.section('|',0,0).toInt();
                     constexpr int shellMask=1|2|4|128|256|512|1024|2048;

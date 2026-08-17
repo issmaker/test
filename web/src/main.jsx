@@ -35,6 +35,7 @@ import "./v48.css";
 import "./v49.css";
 import "./v54.css";
 import "./v59.css";
+import "./v2.css";
 
 const EMPTY = {
   sourceUrl: "",
@@ -50,6 +51,8 @@ const EMPTY = {
   outputFileMb: 0,
   sourceWidth: 0,
   sourceHeight: 0,
+  workingWidth: 0,
+  workingHeight: 0,
   sourceIsLarge: false,
   busy: false,
   previewBusy: false,
@@ -903,7 +906,7 @@ function Header({ screen, backend, onSettings }) {
         </span>
         <div>
           <b>Оптимизатор текстур</b>
-          <small>ADAPTIVE RGB24 / v59</small>
+          <small>ADAPTIVE RGB24 / v2</small>
         </div>
       </div>
       <div className="route-status">
@@ -1406,15 +1409,52 @@ function WipeCompare({ before, after }) {
   );
 }
 
-const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before, after, previewBefore, previewAfter, mode, onZoom, contentReady=true, externalLoading=false }) {
+const SmoothCompareViewport = React.memo(function SmoothCompareViewport({
+  before,
+  after,
+  previewBefore,
+  previewAfter,
+  beforeWidth=0,
+  beforeHeight=0,
+  afterWidth=0,
+  afterHeight=0,
+  backend,
+  mode,
+  onZoom,
+  contentReady=true,
+  externalLoading=false,
+}) {
   const host = useRef(null), canvas = useRef(null), frame = useRef(0), drag = useRef(null);
   const [previewLoading,setPreviewLoading]=useState(false);
   const [detailState,setDetailState]=useState("preview");
   const images = useRef({ before: null, after: null, fullBefore:null, fullAfter:null });
   const interactionTimer=useRef(0),detailTimer=useRef(0),interaction=useRef(false),detailRequest=useRef(()=>{}),wakeRef=useRef(()=>{}),detailBlobs=useRef({});
+  const detailWaiters=useRef(new Map()),detailSerial=useRef(0);
   const target = useRef({ s: 1, x: 0, y: 0, split: 0.5 });
   const current = useRef({ s: 1, x: 0, y: 0, split: 0.5 });
   const alive = useRef(true), loaded = useRef(false), modeRef = useRef(mode);
+  useEffect(()=>{
+    const signal=backend?.detailTileReady;
+    if(!signal?.connect)return undefined;
+    const complete=(requestId,tile)=>{
+      const waiter=detailWaiters.current.get(requestId);if(!waiter)return;
+      detailWaiters.current.delete(requestId);clearTimeout(waiter.timeout);
+      if(tile?.error)waiter.reject(new Error(tile.error));else waiter.resolve(tile);
+    };
+    signal.connect(complete);
+    return()=>{
+      signal.disconnect?.(complete);
+      for(const waiter of detailWaiters.current.values()){clearTimeout(waiter.timeout);waiter.reject(new Error("detail request cancelled"));}
+      detailWaiters.current.clear();
+    };
+  },[backend]);
+  const requestNativeDetail=useCallback((src,crop)=>new Promise((resolve,reject)=>{
+    if(!backend?.requestDetailTile){reject(new Error("native detail unavailable"));return;}
+    const requestId=`detail-${Date.now()}-${++detailSerial.current}`;
+    const timeout=setTimeout(()=>{detailWaiters.current.delete(requestId);reject(new Error("detail timeout"));},45000);
+    detailWaiters.current.set(requestId,{resolve,reject,timeout});
+    backend.requestDetailTile(src,crop.x,crop.y,crop.width,crop.height,requestId);
+  }),[backend]);
   const setInteraction=useCallback((active,delay=0)=>{
     clearTimeout(interactionTimer.current);
     if(active){interaction.current=true;window.__AGR_INTERACTION_PAUSE_COUNT__=(window.__AGR_INTERACTION_PAUSE_COUNT__||0)+1;dispatchEvent(new CustomEvent("agr-drag",{detail:true}));}
@@ -1541,19 +1581,32 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before
       detailBusy=true;
       const fullBeforeSource=before||(HEADLESS_TEST?TEST_FULL_TEXTURE:"");
       const fullAfterSource=after||(HEADLESS_TEST?TEST_FULL_TEXTURE:"");
-      const pairs=[["fullBefore",fullBeforeSource,lowBefore],["fullAfter",fullAfterSource,lowAfter]];
+      const pairs=[
+        ["fullBefore",fullBeforeSource,lowBefore,beforeWidth,beforeHeight],
+        ["fullAfter",fullAfterSource,lowAfter,afterWidth,afterHeight],
+      ];
       let loadedDetail=0,failedDetail=0,expectedDetail=0;
-      for(const [key,src,low] of pairs){
+      for(const [key,src,low,nativeWidth,nativeHeight] of pairs){
         if(cancelled)break;
         if(!src)continue;
         expectedDetail++;
         if(src===low){loadedDetail++;continue;}
         try{
-          const meta=await detailSource(key,src),crop=cropFor(meta,key);if(!crop)continue;
+          const nativeAvailable=Boolean(backend?.requestDetailTile)&&src.startsWith("texture://")&&nativeWidth>0&&nativeHeight>0;
+          const meta=nativeAvailable?{src,width:nativeWidth,height:nativeHeight}:await detailSource(key,src),crop=cropFor(meta,key);if(!crop)continue;
           if(images.current[key]?.key===crop.key){loadedDetail++;continue;}
-          const bitmap=await createImageBitmap(meta.blob||meta.image,crop.x,crop.y,crop.width,crop.height,{colorSpaceConversion:"default",premultiplyAlpha:"default"});
-          if(cancelled||interaction.current){bitmap.close();continue;}
-          images.current[key]?.bitmap?.close?.();images.current[key]={bitmap,fullWidth:meta.width,fullHeight:meta.height,tileX:crop.x,tileY:crop.y,tileWidth:crop.width,tileHeight:crop.height,key:crop.key};wake();
+          let bitmap,tileX=crop.x,tileY=crop.y,tileWidth=crop.width,tileHeight=crop.height,fullWidth=meta.width,fullHeight=meta.height;
+          if(nativeAvailable){
+            const nativeTile=await requestNativeDetail(src,crop);
+            bitmap=await load(nativeTile.url);
+            if(!bitmap)throw new Error("native tile decode failed");
+            tileX=Number(nativeTile.x);tileY=Number(nativeTile.y);tileWidth=Number(nativeTile.width);tileHeight=Number(nativeTile.height);
+            fullWidth=Number(nativeTile.fullWidth);fullHeight=Number(nativeTile.fullHeight);
+          }else{
+            bitmap=await createImageBitmap(meta.blob||meta.image,crop.x,crop.y,crop.width,crop.height,{colorSpaceConversion:"default",premultiplyAlpha:"default"});
+          }
+          if(cancelled||interaction.current){bitmap.close?.();continue;}
+          images.current[key]?.bitmap?.close?.();images.current[key]={bitmap,fullWidth,fullHeight,tileX,tileY,tileWidth,tileHeight,key:crop.key};wake();
           loadedDetail++;
           // Only a visible source tile reaches the GPU. Two full 8K bitmaps
           // are never resident at the same time.
@@ -1565,7 +1618,7 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before
       if(detailPending&&!cancelled){detailPending=false;setTimeout(()=>detailRequest.current(),0);}
     };
     return () => { cancelled = true;controller.abort();alive.current = false; cancelAnimationFrame(frame.current); frame.current = 0;clearTimeout(interactionTimer.current);clearTimeout(detailTimer.current);interaction.current=false;dispatchEvent(new CustomEvent("agr-drag",{detail:false}));detailRequest.current=()=>{};release(); };
-  }, [before, after, previewBefore, previewAfter, contentReady, externalLoading, reset, wake]);
+  }, [before, after, previewBefore, previewAfter, beforeWidth, beforeHeight, afterWidth, afterHeight, backend, contentReady, externalLoading, requestNativeDetail, reset, wake]);
   useEffect(() => {
     const observer = new ResizeObserver(()=>{target.current=clampView(target.current);wake();}); if (host.current) observer.observe(host.current);
     return () => observer.disconnect();
@@ -1601,7 +1654,7 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before
     wake();
   }} onPointerUp={() => { drag.current=null;setInteraction(false); }} onPointerCancel={() => { drag.current=null;setInteraction(false); }}>
     <canvas ref={canvas} />
-    {previewLoading&&<div className="compare-loader"><i/><strong>{contentReady?"ЗАГРУЖАЕМ ИЗОБРАЖЕНИЕ":"ПЕРЕХОД"}</strong><span>Интерфейс продолжает работать</span></div>}
+    {previewLoading&&<div className="compare-loader"><i/><strong>{contentReady?"ЗАГРУЖАЕМ ИЗОБРАЖЕНИЕ":"ПЕРЕХОД"}</strong></div>}
     {!previewLoading&&detailState==="loading"&&<div className="detail-loader"><i/><span>FULL 1:1 · ПОДГРУЖАЕМ ВИДИМЫЙ ФРАГМЕНТ</span></div>}
     {before&&<span className="compare-label before">ОРИГИНАЛ {detailState==="ready"&&target.current.s>=DETAIL_ZOOM?"· FULL":""}</span>}{after&&<span className="compare-label after">РЕЗУЛЬТАТ {detailState==="ready"&&target.current.s>=DETAIL_ZOOM?"· FULL":""}</span>}
     <div className="viewport-actions" onPointerDown={(e)=>e.stopPropagation()}><button type="button" onClick={(e)=>{e.stopPropagation();reset(1)}}>ВПИСАТЬ</button><button type="button" onClick={(e)=>{e.stopPropagation();reset(4)}}>400%</button><button type="button" onClick={(e)=>{e.stopPropagation();reset(8)}}>800%</button></div>
@@ -1613,6 +1666,11 @@ const ComparisonSurface = React.memo(function ComparisonSurface({
   after,
   previewBefore,
   previewAfter,
+  beforeWidth = 0,
+  beforeHeight = 0,
+  afterWidth = 0,
+  afterHeight = 0,
+  backend,
   focus,
   onFocus,
   allowWipe = false,
@@ -1635,7 +1693,21 @@ const ComparisonSurface = React.memo(function ComparisonSurface({
           </button>
         </div>
       )}
-      <SmoothCompareViewport before={before} after={after} previewBefore={previewBefore} previewAfter={previewAfter} mode={mode} onZoom={updateZoomLabel} contentReady={contentReady} externalLoading={loading} />
+      <SmoothCompareViewport
+        before={before}
+        after={after}
+        previewBefore={previewBefore}
+        previewAfter={previewAfter}
+        beforeWidth={beforeWidth}
+        beforeHeight={beforeHeight}
+        afterWidth={afterWidth}
+        afterHeight={afterHeight}
+        backend={backend}
+        mode={mode}
+        onZoom={updateZoomLabel}
+        contentReady={contentReady}
+        externalLoading={loading}
+      />
       <div className="comparison-truth">
         <span>ОРИГИНАЛ · ПРЕВЬЮ 100–400% · FULL 1:1 НА 800%</span>
         <span>РЕЗУЛЬТАТ · ПРЕВЬЮ 100–400% · FULL 1:1 НА 800%</span>
@@ -1656,15 +1728,30 @@ function ImportWindow({ active, progress = 0, status, batch = false, onGame }) {
   return <AnimatePresence>
     {active&&<motion.section className="image-load-window" initial={{opacity:0,scale:.97}} animate={{opacity:1,scale:1}} exit={{opacity:0,scale:.985}} transition={{duration:.32,ease:[.18,.72,.2,1]}}>
       <div className="image-load-visual"><i/><i/><i/><b>{Math.round(value*100).toString().padStart(2,"0")}</b></div>
-      <div className="image-load-copy"><small>{batch?"BATCH IMAGE PIPELINE":"NPM IMAGE PIPELINE"}</small><h2>ЗАГРУЖАЕМ ИЗОБРАЖЕНИЕ</h2><p>{status||"Читаем PNG и создаём безопасное превью"}</p><FluidProgress value={value}/><span>Окно не зависло — декодирование выполняется отдельно от интерфейса</span></div>
+      <div className="image-load-copy"><small>{batch?"BATCH IMAGE PIPELINE":"NPM IMAGE PIPELINE"}</small><h2>ЗАГРУЖАЕМ ИЗОБРАЖЕНИЕ</h2><p>{status||"Подготовка PNG"}</p><FluidProgress value={value}/></div>
       <Button quiet onClick={onGame}><Gamepad2/> ОТКРЫТЬ BLADE GRID</Button>
     </motion.section>}
   </AnimatePresence>;
 }
 
+function DeleteEdgePulse(){
+  const [pulses,setPulses]=useState([]),serial=useRef(0);
+  useEffect(()=>{
+    const fire=(event)=>{
+      const id=++serial.current,pulse={id,x:Number(event.detail?.x||innerWidth/2),y:Number(event.detail?.y||innerHeight/2)};
+      setPulses((values)=>[...values.slice(-2),pulse]);
+      setTimeout(()=>setPulses((values)=>values.filter((value)=>value.id!==id)),880);
+    };
+    addEventListener("agr-delete-pulse",fire);return()=>removeEventListener("agr-delete-pulse",fire);
+  },[]);
+  return <div className="delete-edge-pulses" aria-hidden="true">{pulses.map((pulse)=><i key={pulse.id} style={{"--pulse-x":`${pulse.x}px`,"--pulse-y":`${pulse.y}px`}}><b/><b/><b/><b/></i>)}</div>;
+}
+
 const BATCH_ROW_HEIGHT=194;
 const VirtualBatchList=React.memo(function VirtualBatchList({items,state,backend,setScreen}){
-  const node=useRef(null),scrollFrame=useRef(0),[viewport,setViewport]=useState({top:0,height:720});
+  const node=useRef(null),scrollFrame=useRef(0),removeTimer=useRef(0),itemsRef=useRef(items),[viewport,setViewport]=useState({top:0,height:720}),[removingKey,setRemovingKey]=useState("");
+  useEffect(()=>{itemsRef.current=items;if(removingKey&&!items.some((item)=>(item.sourceUrl||item.name)===removingKey))setRemovingKey("");},[items,removingKey]);
+  useEffect(()=>()=>clearTimeout(removeTimer.current),[]);
   const measure=useCallback(()=>{scrollFrame.current=0;const target=node.current;if(target)setViewport({top:target.scrollTop,height:target.clientHeight||720});},[]);
   useEffect(()=>{const observer=new ResizeObserver(measure);if(node.current)observer.observe(node.current);measure();return()=>{observer.disconnect();cancelAnimationFrame(scrollFrame.current);};},[measure]);
   const onScroll=()=>{if(!scrollFrame.current)scrollFrame.current=requestAnimationFrame(measure);};
@@ -1672,8 +1759,12 @@ const VirtualBatchList=React.memo(function VirtualBatchList({items,state,backend
   return <section ref={node} className="batch-list virtual-batch-list" onScroll={onScroll}>
     {!items.length&&<div className="empty"><Plus/><h2>Добавьте PNG-файлы</h2><p>Здесь появятся лёгкие превью до и после.</p></div>}
     {!!items.length&&<div className="batch-virtual-spacer" style={{height:items.length*BATCH_ROW_HEIGHT}}>
-      {items.slice(start,end).map((item,offset)=>{const i=start+offset;return <article className={`batch-row virtualized ${item.importing?"is-importing":""} ${item.failed?"has-error":""}`} style={{top:i*BATCH_ROW_HEIGHT}} key={item.sourceUrl||i}>
-        <Button className="remove-file" quiet danger disabled={state.batchBusy||state.batchImportBusy} tip={`Удалить ${item.name} из очереди`} aria-label={`Удалить ${item.name}`} onClick={()=>backend?.removeBatchItem(i)}><X/></Button>
+      {items.slice(start,end).map((item,offset)=>{const i=start+offset,key=item.sourceUrl||item.name||String(i),isRemoving=removingKey===key;return <article className={`batch-row virtualized ${item.importing?"is-importing":""} ${item.failed?"has-error":""} ${isRemoving?"is-removing":""}`} style={{top:i*BATCH_ROW_HEIGHT}} key={key}>
+        <Button className="remove-file" quiet danger disabled={state.batchBusy||state.batchImportBusy||Boolean(removingKey)} tip={`Удалить ${item.name} из очереди`} aria-label={`Удалить ${item.name}`} onClick={(event)=>{
+          if(removingKey)return;const box=event.currentTarget.getBoundingClientRect();setRemovingKey(key);
+          dispatchEvent(new CustomEvent("agr-delete-pulse",{detail:{x:box.left+box.width/2,y:box.top+box.height/2}}));
+          removeTimer.current=setTimeout(()=>{const currentIndex=itemsRef.current.findIndex((value)=>(value.sourceUrl||value.name)===key);if(currentIndex>=0)backend?.removeBatchItem(currentIndex);},420);
+        }}><X/></Button>
         <div className="thumb">{item.importing?<div className="preview-loader"><i/><span>ПОДГОТОВКА</span></div>:<img loading="lazy" decoding="async" draggable="false" src={item.thumbnailSourceUrl||item.comparisonSourceUrl||item.sourceUrl}/>}<span>BEFORE</span></div>
         <div className="thumb">{item.resultUrl?<img loading="lazy" decoding="async" draggable="false" src={item.thumbnailResultUrl||item.comparisonResultUrl||item.resultUrl}/>:<p>AFTER<br/>ожидает</p>}<span>AFTER</span></div>
         <div className="file-data"><h3>{item.name}</h3><p>{item.width?`${item.width} × ${item.height} · `:""}{mb(item.sourceMb)} {item.done&&`→ ${mb(item.outputMb)}`}</p><FluidProgress value={item.progress||0}/><ProcessSignal compact progress={item.progress||(item.done?1:0)} status={item.status||item.report}/><div><Button disabled={!item.done} onClick={()=>setScreen(`compare:${i}`)}>СРАВНИТЕЛЬНЫЙ АНАЛИЗ</Button><Button quiet disabled={!item.done} onClick={()=>backend?.openBatchOutput(i)}>ПАПКА</Button></div></div>
@@ -1834,6 +1925,11 @@ function Workspace({ kind, state, backend, setScreen, contentReady = true }) {
             after={state.resultUrl}
             previewBefore={state.workingPreviewUrl}
             previewAfter={state.resultUrl}
+            beforeWidth={state.sourceWidth}
+            beforeHeight={state.sourceHeight}
+            afterWidth={state.workingWidth||state.sourceWidth}
+            afterHeight={state.workingHeight||state.sourceHeight}
+            backend={backend}
             focus={focus}
             onFocus={toggleFocus}
             contentReady={contentReady}
@@ -1899,6 +1995,11 @@ function Compare({ index, state, backend, setScreen, contentReady = true }) {
         after={item.resultUrl}
         previewBefore={item.comparisonSourceUrl}
         previewAfter={item.comparisonResultUrl}
+        beforeWidth={item.width}
+        beforeHeight={item.height}
+        afterWidth={item.width}
+        afterHeight={item.height}
+        backend={backend}
         focus={focus}
         onFocus={toggleFocus}
         allowWipe
@@ -1959,8 +2060,8 @@ function IntroSequence({active,onSkip}){
       <div className="intro-grid"/>
       <div className="intro-blades">{Array.from({length:34},(_,i)=><i key={i} style={{"--i":i}}/>)}</div>
       <div className="intro-iris"><i/><i/><i/></div>
-      <motion.div className="intro-copy" initial={{opacity:0,y:18}} animate={{opacity:1,y:0}} transition={{delay:.55,duration:.8}}><small>ADAPTIVE TEXTURE SYSTEM</small><strong>RGB24</strong><span>VISUAL CORE · v59</span></motion.div>
-      <div className="intro-progress"><i/><span>INITIALIZING OPTICAL PIPELINE</span></div>
+      <motion.div className="intro-copy" initial={{opacity:0,y:18}} animate={{opacity:1,y:0}} transition={{delay:.55,duration:.8}}><small>RGB24</small><strong>ОПТИМИЗАТОР ТЕКСТУР</strong><span>v2</span></motion.div>
+      <div className="intro-progress"><i/><span>ЗАПУСК v2</span></div>
       <button onClick={onSkip}>ПРОПУСТИТЬ</button>
     </motion.div>}
   </AnimatePresence>;
@@ -2142,6 +2243,7 @@ function App() {
       </div>
       <HoldSpace progress={hold} point={holdPoint}/>
       <CursorEffects effects={effects}/>
+      <DeleteEdgePulse/>
       <TooltipLayer />
       <Header
         screen={screen}

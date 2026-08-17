@@ -10,6 +10,10 @@
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QImageReader>
+#include <QMutex>
+#include <QMutexLocker>
+#include <QPointer>
+#include <QSaveFile>
 #include <QException>
 #include <QStandardPaths>
 #include <QThread>
@@ -134,6 +138,104 @@ QString browserTextureUrl(const QString &value){
     const QUrl url(value);const QString path=url.isLocalFile()?url.toLocalFile():value;
     const QByteArray encoded=path.toUtf8().toBase64(QByteArray::Base64UrlEncoding|QByteArray::OmitTrailingEquals);
     return QStringLiteral("texture://local/")+QString::fromLatin1(encoded);
+}
+
+QString textureLocalPath(const QString &value){
+    if(value.isEmpty())return {};
+    const QUrl url(value);
+    if(url.isLocalFile())return url.toLocalFile();
+    if(url.scheme()==QStringLiteral("texture")){
+        const QByteArray encoded=url.path().mid(1).toLatin1();
+        return QString::fromUtf8(QByteArray::fromBase64(encoded,QByteArray::Base64UrlEncoding));
+    }
+    return value;
+}
+
+QVariantMap prepareDetailTile(const QString &sourceValue,int x,int y,int width,int height){
+    QVariantMap result;
+    const QString path=textureLocalPath(sourceValue);
+    const QFileInfo source(path);
+    if(!source.exists()||source.suffix().compare(QStringLiteral("png"),Qt::CaseInsensitive)!=0){
+        result["error"]=QStringLiteral("Исходный PNG не найден");return result;
+    }
+
+    QImageReader metadata(path,"PNG");metadata.setAutoTransform(true);
+    const QSize native=metadata.size();
+    if(!native.isValid()){
+        result["error"]=QStringLiteral("Размер PNG не определён");return result;
+    }
+    const QRect requested(x,y,qMax(1,width),qMax(1,height));
+    const QRect clip=requested.intersected(QRect(QPoint(0,0),native));
+    if(clip.isEmpty()){
+        result["error"]=QStringLiteral("Фрагмент находится вне изображения");return result;
+    }
+
+    const QString canonical=source.canonicalFilePath().isEmpty()?source.absoluteFilePath():source.canonicalFilePath();
+    const QByteArray identity=QCryptographicHash::hash(
+        (canonical+QString::number(source.size())+QString::number(source.lastModified().toMSecsSinceEpoch())).toUtf8(),
+        QCryptographicHash::Sha256).toHex();
+    const QString cacheDirectory=QStandardPaths::writableLocation(QStandardPaths::CacheLocation)+QStringLiteral("/native-detail-v2");
+    QDir().mkpath(cacheDirectory);
+    const QString stem=QString::fromLatin1(identity);
+    const QString rawPath=cacheDirectory+QLatin1Char('/')+stem+QStringLiteral(".rgb24");
+    const QString tilePath=cacheDirectory+QLatin1Char('/')+stem+QString("_%1_%2_%3_%4.png").arg(clip.x()).arg(clip.y()).arg(clip.width()).arg(clip.height());
+
+    // Building the disk-backed RGB cache is intentionally serial. A first 8K
+    // request may decode hundreds of megabytes, while every following pan reads
+    // only the visible rows and never allocates another full-size browser bitmap.
+    static QMutex detailCacheMutex;
+    QMutexLocker cacheLock(&detailCacheMutex);
+    QImageReader cachedTile(tilePath,"PNG");
+    if(QFileInfo::exists(tilePath)&&cachedTile.size()==clip.size()){
+        result["url"]=browserTextureUrl(QUrl::fromLocalFile(tilePath).toString());
+        result["x"]=clip.x();result["y"]=clip.y();
+        result["width"]=clip.width();result["height"]=clip.height();
+        result["fullWidth"]=native.width();result["fullHeight"]=native.height();
+        return result;
+    }
+
+    const qint64 rowBytes=qint64(native.width())*3;
+    const qint64 expectedBytes=rowBytes*native.height();
+    if(QFileInfo(rawPath).size()!=expectedBytes){
+        QImageReader reader(path,"PNG");reader.setAutoTransform(true);
+        QImage decoded=reader.read().convertToFormat(QImage::Format_RGB888);
+        if(decoded.isNull()||decoded.size()!=native){
+            result["error"]=QStringLiteral("Полный PNG не удалось декодировать");return result;
+        }
+        QSaveFile rawOutput(rawPath);
+        if(!rawOutput.open(QIODevice::WriteOnly)){
+            result["error"]=QStringLiteral("Не удалось создать кэш детализации");return result;
+        }
+        for(int row=0;row<decoded.height();++row){
+            if(rawOutput.write(reinterpret_cast<const char*>(decoded.constScanLine(row)),rowBytes)!=rowBytes){
+                rawOutput.cancelWriting();result["error"]=QStringLiteral("Не удалось записать кэш детализации");return result;
+            }
+        }
+        if(!rawOutput.commit()){
+            result["error"]=QStringLiteral("Не удалось завершить кэш детализации");return result;
+        }
+    }
+
+    QFile rawInput(rawPath);
+    if(!rawInput.open(QIODevice::ReadOnly)){
+        result["error"]=QStringLiteral("Кэш детализации недоступен");return result;
+    }
+    QImage tile(clip.size(),QImage::Format_RGB888);
+    const qint64 tileRowBytes=qint64(clip.width())*3;
+    for(int row=0;row<clip.height();++row){
+        const qint64 offset=(qint64(clip.y()+row)*native.width()+clip.x())*3;
+        if(!rawInput.seek(offset)||rawInput.read(reinterpret_cast<char*>(tile.scanLine(row)),tileRowBytes)!=tileRowBytes){
+            result["error"]=QStringLiteral("Не удалось прочитать точный фрагмент");return result;
+        }
+    }
+    if(!tile.save(tilePath,"PNG",1)){
+        result["error"]=QStringLiteral("Не удалось сохранить точный фрагмент");return result;
+    }
+    result["url"]=browserTextureUrl(QUrl::fromLocalFile(tilePath).toString());
+    result["x"]=clip.x();result["y"]=clip.y();
+    result["width"]=clip.width();result["height"]=clip.height();
+    result["fullWidth"]=native.width();result["fullHeight"]=native.height();
+    return result;
 }
 }
 
@@ -287,6 +389,23 @@ void OptimizerEngine::setPerformanceMode(const QString &value){
     m_performanceMode=mode;m_workerLimit=limit;
     QThreadPool::globalInstance()->setMaxThreadCount(limit);
     if(changed)emit performanceModeChanged();
+}
+
+void OptimizerEngine::requestDetailTile(const QString &url,
+                                        int x,
+                                        int y,
+                                        int width,
+                                        int height,
+                                        const QString &requestId){
+    if(requestId.isEmpty())return;
+    QPointer<OptimizerEngine> guard(this);
+    (void)QtConcurrent::run([guard,url,x,y,width,height,requestId]{
+        const QVariantMap result=prepareDetailTile(url,x,y,width,height);
+        if(!guard)return;
+        QMetaObject::invokeMethod(guard.data(),[guard,requestId,result]{
+            if(guard)emit guard->detailTileReady(requestId,result);
+        },Qt::QueuedConnection);
+    });
 }
 
 void OptimizerEngine::appendTelemetry(double progressValue,double activityValue){

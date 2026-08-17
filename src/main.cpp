@@ -27,7 +27,7 @@
 #endif
 
 #ifndef AGR_APP_VERSION
-#define AGR_APP_VERSION "59"
+#define AGR_APP_VERSION "2"
 #endif
 
 namespace {
@@ -133,6 +133,17 @@ int runSelfTest() {
     QImageReader comparisonReader(QUrl(comparisonUrl).toLocalFile(),"PNG");
     const QSize comparisonSize=comparisonReader.size();
     if(!comparisonSize.isValid()||qMax(comparisonSize.width(),comparisonSize.height())!=2048||comparisonSize.width()<=comparisonSize.height())return 14;
+    QVariantMap detailResult;QEventLoop detailLoop;QTimer detailTimeout;detailTimeout.setSingleShot(true);
+    QObject::connect(&previewEngine,&OptimizerEngine::detailTileReady,&detailLoop,[&](const QString &requestId,const QVariantMap &tile){
+        if(requestId!=QStringLiteral("self-test-detail"))return;detailResult=tile;detailLoop.quit();
+    });
+    QObject::connect(&detailTimeout,&QTimer::timeout,&detailLoop,&QEventLoop::quit);
+    previewEngine.requestDetailTile(nativeSourceUrl,4096,32,160,96,QStringLiteral("self-test-detail"));detailTimeout.start(30000);detailLoop.exec();
+    if(detailResult.value("url").toString().isEmpty()||!detailResult.value("error").toString().isEmpty())return 27;
+    const QUrl detailUrl(detailResult.value("url").toString());
+    const QString detailPath=QString::fromUtf8(QByteArray::fromBase64(detailUrl.path().mid(1).toLatin1(),QByteArray::Base64UrlEncoding));
+    const QImage detailImage(detailPath);
+    if(detailImage.size()!=QSize(160,96)||detailImage.pixelColor(80,48)!=QColor(37,112,103))return 28;
     previewEngine.removeBatchItem(0);if(!previewEngine.batchItems().isEmpty())return 15;
 
     const QString copyPath=directory.filePath(QStringLiteral("self-test-copy.png"));
@@ -278,7 +289,7 @@ int main(int argc,char**argv){
             });
         }
     });
-    window.setWindowTitle(QStringLiteral("Оптимизатор текстур " AGR_APP_VERSION));window.setCentralWidget(view);
+    window.setWindowTitle(QStringLiteral("Оптимизатор текстур v" AGR_APP_VERSION));window.setCentralWidget(view);
     view->setUrl(QUrl(startupTest?QStringLiteral("qrc:/web/index.html?headless-test=1"):QStringLiteral("qrc:/web/index.html")));window.showFullScreen();
     if(argc>1)optimizer.load(QUrl::fromLocalFile(QString::fromLocal8Bit(argv[1])).toString());
     return app.exec();

@@ -163,6 +163,12 @@ public:
     Q_INVOKABLE void quitApp();
     Q_INVOKABLE void toggleFullscreen();
     Q_INVOKABLE void setPerformanceMode(const QString &mode);
+    Q_INVOKABLE void requestDetailTile(const QString &url,
+                                       int x,
+                                       int y,
+                                       int width,
+                                       int height,
+                                       const QString &requestId);
 
 signals:
     void sourceUrlChanged();
@@ -193,6 +199,7 @@ signals:
     void systemTelemetryChanged();
     void performanceModeChanged();
     void fullscreenRequested();
+    void detailTileReady(const QString &requestId, const QVariantMap &tile);
 
 private:
     QString localPath()const;

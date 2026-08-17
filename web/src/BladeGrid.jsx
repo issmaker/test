@@ -191,7 +191,6 @@ export default function BladeGrid({ backgroundBusy = false, backgroundProgress =
         <div className="blade-piece-tray">
           <div><small>ТРИ МОДУЛЯ НА ХОД</small><b>Перетащите фигуру на свободные клетки</b></div>
           <section>{pieces.map((piece, index) => <button key={piece?.id || `used-${index}`} className={`blade-piece ${piece ? "" : "used"}`} disabled={!piece || gameOver} onPointerDown={(event) => beginDrag(event, index)}>{piece ? <PieceShape piece={piece} /> : <span>РАЗМЕЩЕНО</span>}</button>)}</section>
-          <p>Заполненная строка или столбец превращается в световой импульс. Серия очисток увеличивает комбо.</p>
         </div>
       </div>
     </section>

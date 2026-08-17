@@ -149,12 +149,12 @@ TextureResult TextureProcessor::process(const QString &path,qint64 limit,const P
 TextureResult TextureProcessor::processAutomatic(const QString &path,const Progress &progress,const Cancel &cancel) {
     const qint64 inputBytes=QFileInfo(path).size();
     if(inputBytes<=0)throw std::runtime_error("Не удалось определить размер PNG");
-    // Batch uses the proven NPM adaptive search, but keeps native dimensions
-    // and derives its goal from the source itself instead of a fixed 3 MB cap.
-    // The 1%/1 KB margin ensures the output is a real optimization; the full
-    // 256→1 search guarantees a fitting RGB24 candidate exists.
-    const qint64 savingMargin=qMax<qint64>(1024,inputBytes/100);
-    const qint64 dynamicLimit=qMax<qint64>(1,inputBytes-savingMargin);
+    // The ordinary texture optimizer uses the same adaptive RGB24 search as
+    // NPM, preserves native dimensions, and derives a meaningful relative goal
+    // instead of imposing the NPM-specific 3 MB cap. Large source files receive
+    // a slightly stronger target; already compact files keep a gentler one.
+    const double targetRatio=inputBytes>=8'000'000?.68:(inputBytes>=2'000'000?.72:.80);
+    const qint64 dynamicLimit=qMax<qint64>(1,qint64(std::floor(inputBytes*targetRatio)));
     QElapsedTimer timer;timer.start();
     TextureResult best;
     try{

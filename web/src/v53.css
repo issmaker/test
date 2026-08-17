@@ -1,0 +1,63 @@
+/* v53 · v45 layout with reactive fluid forms and cinematic route travel */
+.app {
+  --accent: #56e7ff;
+  --accent2: #8876ff;
+  background:
+    radial-gradient(circle at 18% 14%, #163a4b 0, transparent 36%),
+    radial-gradient(circle at 82% 76%, #27204c 0, transparent 42%),
+    #06131b;
+}
+.webgl { z-index: 0; opacity: .92; filter: saturate(1.08) contrast(1.02); transition: opacity .8s ease,filter .8s ease; }
+.webgl canvas { filter: drop-shadow(0 30px 80px #0008); }
+.quality-eco .webgl { opacity: .58; }
+.quality-max .webgl { opacity: 1; filter: saturate(1.18) contrast(1.04); }
+.scene-npm .webgl,.scene-batch .webgl,.scene-compare .webgl { opacity: .30; filter: saturate(.78) brightness(.64); }
+.is-dragging .webgl { opacity: .16; filter: saturate(.55) brightness(.48); }
+
+.ambient-backdrop,.vector-sculpture,.kinetic-architecture,.data-cathedral,.transition-portal,.cursor-trail { display:none!important; }
+.route-stage { z-index:3; transform:none!important; }
+.is-diving .route-stage { opacity:.14; filter:blur(4px); transition:opacity .6s ease,filter .8s ease; }
+
+/* Calm optical panels, no hover displacement. */
+.hero-panel,.workspace-head,.telemetry,.bottom-process,.batch-list,.analysis-summary,.compare-card,.settings-panel,.right-dock {
+  background:linear-gradient(135deg,#dffcff13,#07151fc9 46%,#4f49a80c);
+  border-color:#d9faff24;
+  backdrop-filter:blur(22px) saturate(1.25);
+  box-shadow:inset 0 1px #ffffff2c,0 22px 70px #0008;
+}
+.button:hover,.button:active,.right-dock button:hover,.hero-panel .button:hover,.preset-grid button:hover,.signature:hover { transform:none!important; }
+.workspace>*,.home>*,.right-dock,.topbar { transition:filter .9s cubic-bezier(.18,.72,.2,1),opacity .9s cubic-bezier(.18,.72,.2,1),border-color .4s,box-shadow .4s!important; }
+.app:has(.button:hover) .workspace>*,.app:has(.button:hover) .home>* { filter:blur(1.6px) brightness(.86); transform:none!important; }
+.app:has(.button:hover) .workspace>*:has(.button:hover),.app:has(.button:hover) .home>*:has(.button:hover) { filter:none; transform:none!important; }
+.hero-copy:before { background:radial-gradient(ellipse at 35% 50%,#06131bed,#06131b9c 48%,transparent 74%); }
+.hero-copy h1 em { color:#70eaff; text-shadow:0 0 30px #4ccfff55; }
+.button:not(.quiet) { background:linear-gradient(105deg,#63e9ff,#7478ff);color:#031219; }
+
+/* Two branches in one spatial scene. */
+.journey { position:fixed;z-index:70;inset:0;pointer-events:none;background:radial-gradient(circle at 50% 52%,#0a2232c9,#02070ce8 72%);backdrop-filter:blur(5px); }
+.journey svg { position:absolute;inset:0;width:100%;height:100%;overflow:visible; }
+.journey-branch { fill:none;stroke-linecap:round; }
+.journey-branch.muted { stroke:#b9eeff18;stroke-width:2; }
+.journey-branch.selected { stroke:url(#none);stroke:#78efff;stroke-width:3;filter:drop-shadow(0 0 7px #63ddff) drop-shadow(0 0 20px #716cff); }
+.journey-node { fill:#fff;filter:drop-shadow(0 0 8px #fff) drop-shadow(0 0 22px #62edff); }
+.journey>div { position:absolute;left:50%;bottom:10%;translate:-50% 0;display:grid;gap:6px;text-align:center; }
+.journey small,.journey span { color:#8adff0;font:700 8px monospace;letter-spacing:2px; }
+.journey strong { color:#fff;font:760 16px "Segoe UI Variable Text",sans-serif;letter-spacing:1px; }
+
+.compare-loader { position:absolute;z-index:8;inset:0;display:grid;place-content:center;justify-items:center;gap:8px;background:#06131be8;backdrop-filter:blur(12px);pointer-events:none; }
+.compare-loader i { width:84px;height:4px;border-radius:99px;background:linear-gradient(90deg,#ffffff10,#63e9ff,#8174ff,#ffffff10);background-size:220% 100%;animation:v53load 1.1s linear infinite;box-shadow:0 0 18px #63e9ff66; }
+.compare-loader strong { color:#fff;font:750 10px monospace;letter-spacing:1.5px; }.compare-loader span{color:#8aa5af;font:8px monospace;}
+.comparison-truth { position:absolute;z-index:7;left:12px;right:12px;bottom:46px;display:flex;justify-content:space-between;gap:16px;pointer-events:none; }
+.comparison-truth span { color:#bad4dc;background:#031018b8;border:1px solid #d8fbff18;border-radius:8px;padding:5px 8px;font:650 7px monospace;letter-spacing:.6px;backdrop-filter:blur(8px); }
+@keyframes v53load{to{background-position:-220% 0}}
+
+/* Full-HD safety: fixed chrome never pushes the workspace outside 1920×1080. */
+@media (max-width:1920px), (max-height:1080px) {
+  .workspace { top:78px;bottom:12px;gap:8px;overflow:hidden; }
+  .workspace-head { min-height:68px;padding:8px 12px; }
+  .telemetry { min-height:78px;padding:7px; }
+  .batch-list { min-height:0;overflow:auto; }
+  .compare-card { min-height:250px; }
+  .right-dock { right:0; }
+}
+@media (prefers-reduced-motion:reduce){.compare-loader i{animation:none}.journey-branch.selected{filter:none}}

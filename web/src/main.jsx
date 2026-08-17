@@ -28,11 +28,7 @@ import {
 } from "lucide-react";
 import * as THREE from "three";
 import "./style.css";
-import "./v47.css";
-import "./v48.css";
-import "./v49.css";
-import "./v51.css";
-import "./v52.css";
+import "./v53.css";
 
 const EMPTY = {
   sourceUrl: "",
@@ -47,6 +43,7 @@ const EMPTY = {
   outputFileMb: 0,
   sourceWidth: 0,
   sourceHeight: 0,
+  sourceIsLarge: false,
   busy: false,
   previewBusy: false,
   progressHistory: [],
@@ -61,11 +58,6 @@ const EMPTY = {
   batchWorkers: 1,
   batchProgressHistory: [],
   batchActivityHistory: [],
-  cpuLoad: 0,
-  memoryMb: 0,
-  processingRate: 0,
-  performanceMode: "balanced",
-  hardwareThreads: 1,
 };
 const HEADLESS_TEST = new URLSearchParams(location.search).has("headless-test");
 const TEST_TEXTURE = "qrc:/icons/liquid.svg";
@@ -107,60 +99,6 @@ function writePreference(key, value) {
   }
 }
 
-let textureDecodeWorker = null;
-let textureDecodeSequence = 0;
-const textureDecodeRequests = new Map();
-
-function getTextureDecodeWorker() {
-  if (textureDecodeWorker || typeof Worker === "undefined") return textureDecodeWorker;
-  const source = `
-    let queue = Promise.resolve();
-    self.onmessage = ({ data }) => {
-      queue = queue.then(async () => {
-        const { id, url } = data;
-        try {
-          const response = await fetch(url);
-          if (!response.ok) throw new Error('HTTP ' + response.status);
-          const blob = await response.blob();
-          const bitmap = await createImageBitmap(blob, { colorSpaceConversion: 'default' });
-          self.postMessage({ id, bitmap, width: bitmap.width, height: bitmap.height }, [bitmap]);
-        } catch (error) {
-          self.postMessage({ id, error: String(error && error.message || error) });
-        }
-      });
-    };
-  `;
-  textureDecodeWorker = new Worker(URL.createObjectURL(new Blob([source], { type: "text/javascript" })));
-  textureDecodeWorker.onmessage = ({ data }) => {
-    const request = textureDecodeRequests.get(data.id);
-    if (!request) { data.bitmap?.close?.(); return; }
-    textureDecodeRequests.delete(data.id);
-    if (data.error) request.reject(new Error(data.error));
-    else request.resolve({ drawable: data.bitmap, width: data.width, height: data.height });
-  };
-  return textureDecodeWorker;
-}
-
-function decodeTextureOffMainThread(src) {
-  const fallback = () => new Promise((resolve) => {
-    const img = new Image();
-    img.decoding = "async";
-    img.onload = () => resolve({ drawable: img, width: img.naturalWidth, height: img.naturalHeight });
-    img.onerror = () => resolve(null);
-    img.src = src;
-  });
-  if (HEADLESS_TEST) return fallback();
-  const worker = getTextureDecodeWorker();
-  if (worker) {
-    const id = ++textureDecodeSequence;
-    return new Promise((resolve, reject) => {
-      textureDecodeRequests.set(id, { resolve, reject });
-      worker.postMessage({ id, url: src });
-    });
-  }
-  return fallback();
-}
-
 function useBackend() {
   const [backend, setBackend] = useState(null),
     [state, setState] = useState(EMPTY);
@@ -200,8 +138,6 @@ function useBackend() {
         "batchImportStatusChanged",
         "batchWorkersChanged",
         "batchTelemetryChanged",
-        "systemTelemetryChanged",
-        "performanceModeChanged",
       ].forEach((n) => api[n]?.connect(refresh));
       refresh();
     });
@@ -251,7 +187,7 @@ function TooltipLayer() {
     return () => removeEventListener("agr-hint", update);
   }, []);
   const x = Math.max(12, Math.min(innerWidth - 392, hint.x + 18));
-  const y = Math.max(76, Math.min(innerHeight - 64, hint.y - 68));
+  const y = hint.y > innerHeight - 90 ? hint.y - 48 : hint.y + 18;
   return (
     <AnimatePresence>
       {hint.open && (
@@ -269,12 +205,12 @@ function TooltipLayer() {
   );
 }
 
-function DecodeText({ children, trigger = 0, direction = 1 }) {
+function DecodeText({ children }) {
   const original = String(children),
     [value, setValue] = useState(original),
     frame = useRef(0),
     glyphs = "01<>/\\{}[]#%*+—";
-  const decode = useCallback(() => {
+  const decode = () => {
     cancelAnimationFrame(frame.current);
     const start = performance.now();
     const run = (now) => {
@@ -286,7 +222,7 @@ function DecodeText({ children, trigger = 0, direction = 1 }) {
           .map((c, i) =>
             c === " "
               ? c
-              : (direction < 0 ? i >= original.length - fixed : i < fixed)
+              : i < fixed
                 ? c
                 : glyphs[Math.floor(Math.random() * glyphs.length)],
           )
@@ -295,28 +231,18 @@ function DecodeText({ children, trigger = 0, direction = 1 }) {
       if (p < 1) frame.current = requestAnimationFrame(run);
     };
     frame.current = requestAnimationFrame(run);
-  }, [direction, original]);
-  useEffect(() => () => cancelAnimationFrame(frame.current), []);
-  useEffect(() => {
-    if (trigger) decode();
-  }, [decode, trigger]);
+  };
   return (
-    <span
-      className="decode-text"
-      style={{ "--decode-chars": original.length }}
-      onPointerEnter={decode}
-    >
+    <span className="decode-text" onPointerEnter={decode}>
       {value}
     </span>
   );
 }
 
-function MagneticCursorField({ active, fieldRef }) {
+function CursorTrail({ active }) {
   const dots = useRef([]),
-    root = useRef(null),
-    hive = useRef(null),
-    target = useRef({ x: innerWidth * .67, y: innerHeight * .49 }),
-    points = useRef(Array.from({ length: 18 }, () => ({ ...target.current })));
+    target = useRef({ x: innerWidth / 2, y: innerHeight / 2 }),
+    points = useRef(Array.from({ length: 12 }, () => ({ ...target.current })));
   useEffect(() => {
     if (!active) return undefined;
     const move = (e) => {
@@ -324,27 +250,17 @@ function MagneticCursorField({ active, fieldRef }) {
     };
     let raf;
     const tick = () => {
-      const influence = fieldRef?.current?.influence || 0;
       let lead = target.current;
       points.current.forEach((p, i) => {
-        const ease = Math.max(.08, .34 - i * .014);
+        const ease = 0.28 - i * 0.012;
         p.x += (lead.x - p.x) * ease;
         p.y += (lead.y - p.y) * ease;
         dots.current[i]?.style.setProperty(
           "transform",
-          `translate3d(${p.x}px,${p.y}px,0) translate(-50%,-50%) rotate(${i * 11}deg) scale(${Math.max(.28, 1 - i / 22)})`,
+          `translate3d(${p.x}px,${p.y}px,0) translate(-50%,-50%) scale(${1 - i / 15})`,
         );
-        dots.current[i]?.style.setProperty("opacity", influence * Math.max(.08, .72 - i * .032));
         lead = p;
       });
-      if (hive.current) {
-        root.current?.style.setProperty("--field-energy", influence);
-        hive.current.style.setProperty("--hive-energy", influence);
-        hive.current.style.setProperty(
-          "transform",
-          `translate3d(${target.current.x}px,${target.current.y}px,0) translate(-50%,-50%) scale(${.72 + influence * .3}) rotate(${(fieldRef?.current?.x || 0) * 4}deg)`,
-        );
-      }
       raf = requestAnimationFrame(tick);
     };
     addEventListener("pointermove", move);
@@ -356,13 +272,10 @@ function MagneticCursorField({ active, fieldRef }) {
   }, [active]);
   if (!active) return null;
   return (
-    <div className="magnetic-cursor-field" ref={root} aria-hidden="true">
+    <div className="cursor-trail">
       {points.current.map((_, i) => (
-        <i key={i} ref={(el) => (dots.current[i] = el)} style={{ "--trail-index": i }} />
+        <i key={i} ref={(el) => (dots.current[i] = el)} />
       ))}
-      <div className="magnetic-hive" ref={hive}>
-        {Array.from({ length: 7 }, (_, i) => <b key={i} style={{ "--cell": i }} />)}
-      </div>
     </div>
   );
 }
@@ -624,476 +537,110 @@ function NeuralLines({ active, motionValue, colors }) {
   );
 }
 
-function makeNestedBandGeometry(radius, width, gap, depth, quality) {
-  const segments = quality === "eco" ? 52 : quality === "max" ? 112 : 80;
-  const start = gap * .5;
-  const end = Math.PI * 2 - gap * .5;
-  const points = [];
-  for (let i = 0; i <= segments; i++) {
-    const angle = THREE.MathUtils.lerp(start, end, i / segments);
-    points.push(new THREE.Vector2(Math.cos(angle) * radius, Math.sin(angle) * radius));
-  }
-  for (let i = segments; i >= 0; i--) {
-    const angle = THREE.MathUtils.lerp(start, end, i / segments);
-    const inner = radius - width;
-    points.push(new THREE.Vector2(Math.cos(angle) * inner, Math.sin(angle) * inner));
-  }
-  const shape = new THREE.Shape(points);
-  const geometry = new THREE.ExtrudeGeometry(shape, {
-    depth,
-    steps: 1,
-    curveSegments: segments,
-    bevelEnabled: true,
-    bevelSegments: quality === "eco" ? 2 : 5,
-    bevelSize: Math.min(width * .16, .055),
-    bevelThickness: Math.min(depth * .22, .045),
-  });
-  geometry.translate(0, 0, -depth * .5);
-  geometry.computeVertexNormals();
-  return geometry;
-}
-
-function NestedBand({ radius, width, gap, depth, index, quality, register }) {
-  const geometry = useMemo(
-    () => makeNestedBandGeometry(radius, width, gap, depth, quality),
-    [radius, width, gap, depth, quality],
-  );
-  const edges = useMemo(() => new THREE.EdgesGeometry(geometry, 24), [geometry]);
-  useEffect(() => () => {
-    geometry.dispose();
-    edges.dispose();
-  }, [geometry, edges]);
-  return (
-    <mesh ref={register} geometry={geometry} castShadow={quality !== "eco"} receiveShadow>
-      <meshPhysicalMaterial
-        color={index % 2 ? "#45112f" : "#5b163d"}
-        emissive={index % 2 ? "#9f174f" : "#c21d69"}
-        emissiveIntensity={index === 0 ? .26 : .15}
-        metalness={.12}
-        roughness={.34}
-        clearcoat={1}
-        clearcoatRoughness={.13}
-        sheen={.7}
-        sheenColor="#ff4d9b"
-        sheenRoughness={.28}
-      />
-      <lineSegments geometry={edges} renderOrder={2}>
-        <lineBasicMaterial
-          color={index < 2 ? "#ff4b9e" : "#e72f83"}
-          transparent
-          opacity={index < 2 ? .58 : .42}
-          blending={THREE.AdditiveBlending}
-          depthWrite={false}
-        />
-      </lineSegments>
-    </mesh>
-  );
-}
-
-function BandSparks({ fieldRef, quality, screen }) {
-  const points = useRef(), material = useRef();
-  const count = quality === "eco" ? 18 : quality === "max" ? 54 : 34;
-  const seeds = useMemo(() => {
-    const data = [];
-    for (let i = 0; i < count; i++) {
-      const seed = (i * 12.9898) % 1;
-      data.push({
-        angle: seed * Math.PI * 2,
-        radius: .025 + ((i * 7) % 13) * .007,
-        lift: .22 + ((i * 11) % 17) * .025,
-        speed: .65 + ((i * 5) % 9) * .09,
-      });
-    }
-    return data;
-  }, [count]);
-  const positions = useMemo(() => new Float32Array(count * 3), [count]);
-  useFrame(({ clock }) => {
-    if (!points.current || !material.current) return;
-    const field = fieldRef?.current || { x: 0, y: 0, influence: 0 };
-    const energy = screen === "home" ? Math.max(0, field.influence || 0) : 0;
-    material.current.opacity = THREE.MathUtils.lerp(material.current.opacity, energy * .92, .18);
-    material.current.size = .035 + energy * .045;
-    const ox = (field.x - .34) * 2.65;
-    const oy = (field.y - .03) * 1.72;
-    const t = clock.elapsedTime;
-    seeds.forEach((seed, index) => {
-      const life = (t * seed.speed + index / count) % 1;
-      const spread = seed.radius + life * .22;
-      positions[index * 3] = ox + Math.cos(seed.angle + t * .8) * spread;
-      positions[index * 3 + 1] = oy + Math.sin(seed.angle + t * .65) * spread + life * seed.lift;
-      positions[index * 3 + 2] = .3 + Math.sin(seed.angle * 1.7 + t) * .13 + life * .16;
-    });
-    points.current.geometry.attributes.position.needsUpdate = true;
-  });
-  return (
-    <points ref={points} renderOrder={7} frustumCulled={false}>
-      <bufferGeometry>
-        <bufferAttribute attach="attributes-position" args={[positions, 3]} />
-      </bufferGeometry>
-      <pointsMaterial
-        ref={material}
-        color="#ffd8ea"
-        size={.04}
-        transparent
-        opacity={0}
-        depthWrite={false}
-        sizeAttenuation
-        blending={THREE.AdditiveBlending}
-      />
-    </points>
-  );
-}
-
-const SHELL_VERTEX = `
-  varying vec3 vNormal;
-  varying vec3 vView;
-  varying vec3 vWorld;
-  varying float vDent;
+const FLOW_VERTEX = `
+  varying vec2 vUv;
+  void main(){ vUv=uv; gl_Position=vec4(position.xy,0.0,1.0); }
+`;
+const FLOW_FRAGMENT = `
+  precision highp float;
+  varying vec2 vUv;
   uniform float uTime;
-  uniform float uEnergy;
-  uniform float uProgress;
   uniform vec2 uPointer;
-  void main() {
-    vec3 p = position;
-    float breath = sin(uTime * 1.12 + position.y * 3.4 + position.x * 1.7) * (.012 + uEnergy * .018);
-    float cursorDistance = length(position.xy - uPointer);
-    vDent = exp(-cursorDistance * cursorDistance * 7.5) * uEnergy;
-    p += normal * (breath - vDent * .12 + sin(uProgress * 3.14159) * .018);
-    vec4 world = modelMatrix * vec4(p, 1.0);
-    vWorld = world.xyz;
-    vNormal = normalize(mat3(modelMatrix) * normal);
-    vView = cameraPosition - world.xyz;
-    gl_Position = projectionMatrix * viewMatrix * world;
-  }
-`;
-const SHELL_FRAGMENT = `
-  varying vec3 vNormal;
-  varying vec3 vView;
-  varying vec3 vWorld;
-  varying float vDent;
-  uniform float uEnergy;
-  uniform float uTime;
-  uniform float uProgress;
-  void main() {
-    float facing = clamp(dot(normalize(vNormal), normalize(vView)), 0.0, 1.0);
-    float fresnel = pow(1.0 - facing, 2.35);
-    float topGlow = smoothstep(-1.5, 1.7, vWorld.y) * 0.075;
-    vec3 plum = vec3(0.34, 0.055, 0.22);
-    vec3 rose = vec3(1.0, 0.18, 0.53);
-    float wave = sin(vDent * 24.0 - uTime * 4.2) * vDent;
-    vec3 rgbSplit = vec3(.12, -.03, .15) * smoothstep(.58, .92, uProgress) * fresnel;
-    vec3 color = mix(plum, rose, fresnel * .78 + uEnergy * .13 + wave * .18) + rgbSplit;
-    float alpha = .035 + fresnel * (.31 + uEnergy * .13) + topGlow + abs(wave) * .11;
-    gl_FragColor = vec4(color, alpha);
+  uniform vec3 uAccent;
+  uniform vec3 uAccent2;
+  float hash(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
+  float noise(vec2 p){ vec2 i=floor(p),f=fract(p); f=f*f*(3.0-2.0*f); return mix(mix(hash(i),hash(i+vec2(1.,0.)),f.x),mix(hash(i+vec2(0.,1.)),hash(i+vec2(1.)),f.x),f.y); }
+  void main(){
+    vec2 p=(vUv-.5)*vec2(1.78,1.0);
+    vec2 mouse=uPointer*vec2(.34,.2);
+    float pull=exp(-dot(p-mouse,p-mouse)*2.8);
+    p+=(mouse-p)*pull*.16;
+    float t=uTime*.11;
+    float n=noise(p*2.2+vec2(t,-t*.62));
+    p.x+=sin(p.y*3.2+t*1.7)*.20+n*.11;
+    p.y+=sin(p.x*2.1-t)*.12;
+    float a=atan(p.y,p.x), r=length(p);
+    float spiral=abs(r-(.34+.105*sin(a*2.2-t*1.6)+.055*sin(a*5.0+t)));
+    float ribbon=exp(-spiral*13.0);
+    float core=exp(-spiral*34.0);
+    float sweep=exp(-abs(p.y-sin(p.x*2.4+t)*.23)*7.5)*.45;
+    vec3 cyan=vec3(.02,.75,1.0), hot=vec3(1.0,.08,.22), violet=vec3(.72,.02,1.0);
+    vec3 color=mix(uAccent2*.08,cyan,ribbon*.52+sweep*.18);
+    color+=mix(violet,uAccent,clamp(.5+.5*sin(a+t),0.0,1.0))*ribbon*.95;
+    color+=hot*core*(.9+pull*.65);
+    color+=cyan*sweep*.34;
+    float vignette=smoothstep(1.18,.28,length((vUv-.5)*vec2(1.1,1.0)));
+    float alpha=(.08+ribbon*.78+sweep*.28+n*.06)*vignette;
+    gl_FragColor=vec4(color,alpha);
   }
 `;
 
-function SurfaceWaves({ fieldRef, screen }) {
-  const rings = useRef([]);
-  useFrame(({ clock }) => {
-    const field = fieldRef?.current || { x: 0, y: 0, influence: 0 };
-    const energy = screen === "home" ? Math.max(0, field.influence || 0) : 0;
-    rings.current.forEach((ring, index) => {
-      if (!ring) return;
-      const phase = (clock.elapsedTime * (.44 + index * .035) + index / 3) % 1;
-      ring.position.set((field.x - .34) * 2.65, (field.y - .03) * 1.72, .55 + index * .025);
-      ring.scale.setScalar(.18 + phase * 1.35);
-      ring.material.opacity = energy * (1 - phase) * .68;
-      ring.rotation.z = field.x * .28 + index * .18;
-    });
+function NeonFlow({ theme }) {
+  const material=useRef();
+  const colors=THEME_COLORS[theme]||THEME_COLORS.rose;
+  const uniforms=useMemo(()=>({uTime:{value:0},uPointer:{value:new THREE.Vector2()},uAccent:{value:new THREE.Color(colors[0])},uAccent2:{value:new THREE.Color(colors[1])}}),[]);
+  useEffect(()=>{uniforms.uAccent.value.set(colors[0]);uniforms.uAccent2.value.set(colors[1]);},[colors,uniforms]);
+  useFrame(({clock,pointer})=>{
+    if(!material.current)return;
+    material.current.uniforms.uTime.value=clock.elapsedTime;
+    material.current.uniforms.uPointer.value.lerp(pointer,.035);
   });
-  return <group renderOrder={6}>
-    {Array.from({ length: 3 }, (_, index) => <mesh key={index} ref={(node) => { rings.current[index] = node; }}>
-      <ringGeometry args={[.2, .214, 72]} />
-      <meshBasicMaterial color={index === 1 ? "#ff76b3" : "#fff2f8"} transparent opacity={0} depthWrite={false} blending={THREE.AdditiveBlending} side={THREE.DoubleSide} />
-    </mesh>)}
+  return <mesh frustumCulled={false}>
+    <planeGeometry args={[2,2]} />
+    <shaderMaterial ref={material} uniforms={uniforms} vertexShader={FLOW_VERTEX} fragmentShader={FLOW_FRAGMENT} transparent depthWrite={false} blending={THREE.AdditiveBlending} />
+  </mesh>;
+}
+
+function InteractionFrameBudget(){
+  const setFrameloop=useThree((state)=>state.setFrameloop),invalidate=useThree((state)=>state.invalidate);
+  useEffect(()=>{const update=(event)=>{setFrameloop(event.detail?"never":"always");if(!event.detail)invalidate();};addEventListener("agr-drag",update);return()=>{removeEventListener("agr-drag",update);setFrameloop("always");};},[invalidate,setFrameloop]);
+  return null;
+}
+
+function FluidTube({ points, radius, color, index, quality }) {
+  const mesh=useRef();
+  const geometry=useMemo(()=>{
+    const curve=new THREE.CatmullRomCurve3(points.map((p)=>new THREE.Vector3(...p)),true,"catmullrom",.46);
+    return new THREE.TubeGeometry(curve,quality==="eco"?64:quality==="max"?128:88,radius,quality==="eco"?8:14,true);
+  },[points,radius,quality]);
+  useEffect(()=>()=>geometry.dispose(),[geometry]);
+  useFrame(({clock,pointer})=>{
+    if(!mesh.current)return;
+    const t=clock.elapsedTime;
+    mesh.current.rotation.x=THREE.MathUtils.lerp(mesh.current.rotation.x,pointer.y*.10+Math.sin(t*.16+index)*.035,.018);
+    mesh.current.rotation.y=THREE.MathUtils.lerp(mesh.current.rotation.y,pointer.x*.14+Math.sin(t*.12+index*.7)*.045,.018);
+    mesh.current.rotation.z=THREE.MathUtils.lerp(mesh.current.rotation.z,Math.sin(t*.1+index)*.055,.012);
+    mesh.current.position.x=THREE.MathUtils.lerp(mesh.current.position.x,pointer.x*(.16+index*.025),.018);
+    mesh.current.position.y=THREE.MathUtils.lerp(mesh.current.position.y,pointer.y*(.10+index*.018),.018);
+  });
+  return <mesh ref={mesh} geometry={geometry}>
+    <meshPhysicalMaterial color={color} roughness={.24} metalness={.03} clearcoat={1} clearcoatRoughness={.16} transmission={.08} thickness={1.1} emissive={color} emissiveIntensity={.075} />
+  </mesh>;
+}
+
+function FluidForms({ quality }) {
+  const forms=useMemo(()=>[
+    {radius:.34,color:"#39dff4",points:[[-6,-1.8,-1],[-4.2,1.5,-.4],[-1.5,1.9,-1.1],[.2,.1,-.2],[-1.8,-1.8,.1],[-4.5,-2.5,-.6]]},
+    {radius:.46,color:"#376cff",points:[[-1.2,-3,-1.4],[.2,-.2,-.5],[2.4,2.4,-1.1],[5.2,1.7,-.5],[5.8,-1.4,-1.4],[2.7,-2.2,-.2]]},
+    {radius:.27,color:"#8c72ff",points:[[-5.5,2.8,-2.2],[-2.4,2.1,-1.1],[.8,3,-2],[2.2,.6,-1],[.6,-1.2,-1.9],[-3.1,.1,-1]]},
+    {radius:.18,color:"#8bf6ff",points:[[-6,.1,-2.7],[-3.8,-.8,-1.8],[-.7,.7,-2.4],[2.1,-.2,-1.5],[5.6,.4,-2.5],[3.2,-1.7,-1.6]]},
+  ],[]);
+  return <group position={[0,0,-2.4]} scale={[1.05,1.05,1.05]}>
+    {forms.map((form,index)=><FluidTube key={index} {...form} index={index} quality={quality} />)}
   </group>;
 }
 
-function GlassFieldSphere({ screen, quality, fieldRef, progress, verified = false, loading = false }) {
-  const group = useRef(), core = useRef(), shell = useRef(), glass = useRef(), light = useRef();
-  const bands = useRef([]);
-  const sphereSegments = quality === "eco" ? 40 : quality === "max" ? 88 : 64;
-  const nested = [
-    [1.50, .33, 1.02, .24],
-    [1.25, .31, .92, .23],
-    [1.01, .29, .82, .22],
-    [.78, .26, .72, .21],
-    [.57, .22, .62, .19],
-  ];
-  useFrame(({ clock }) => {
-    if (!group.current || !core.current) return;
-    const t = clock.elapsedTime, field = fieldRef?.current || { x: 0, y: 0, influence: 0 };
-    const route = screen === "home"
-      ? [1.48, .02, -.78, 1.08]
-      : screen === "npm"
-        ? [3.75, -1.2, -1.55, .66]
-        : screen === "batch"
-          ? [-3.65, 1.25, -1.7, .58]
-          : [3.9, 1.72, -2.2, .48];
-    const magnetic = screen === "home" ? field.influence || 0 : .08;
-    const dive = screen === "home" ? progress : 0;
-    const breath = Math.sin(t * .92) * .012 + Math.sin(t * .41) * .007;
-    group.current.position.x = THREE.MathUtils.lerp(group.current.position.x, route[0], .055);
-    group.current.position.y = THREE.MathUtils.lerp(group.current.position.y, route[1], .055);
-    group.current.position.z = THREE.MathUtils.lerp(group.current.position.z, route[2] + dive * 3.25, .045);
-    const scale = route[3] * (1 + magnetic * .045 + dive * 1.72);
-    group.current.scale.setScalar(THREE.MathUtils.lerp(group.current.scale.x, scale, .05));
-    group.current.rotation.x = THREE.MathUtils.lerp(group.current.rotation.x, .13, .045);
-    group.current.rotation.y = THREE.MathUtils.lerp(group.current.rotation.y, -.18, .045);
-    group.current.rotation.z = THREE.MathUtils.lerp(group.current.rotation.z, -.48 + Math.sin(t * .16) * .025, .035);
-    core.current.rotation.x = THREE.MathUtils.lerp(core.current.rotation.x, .42 - field.y * magnetic * .19, .035);
-    core.current.rotation.y = THREE.MathUtils.lerp(core.current.rotation.y, -.62 + t * .12 + field.x * magnetic * .34, .035);
-    core.current.rotation.z = THREE.MathUtils.lerp(core.current.rotation.z, -.24 + Math.sin(t * .18) * .1, .035);
-    bands.current.forEach((band, index) => {
-      if (!band) return;
-      const direction = index - 2;
-      const distance = Math.hypot((field.x - .34) * .92, field.y - .03);
-      const hoveredBand = Math.max(0, Math.min(nested.length - 1, Math.round((distance / .72) * nested.length - .5)));
-      const selected = magnetic > .035 && index === hoveredBand ? magnetic : 0;
-      const sealed = loading ? .22 : 1;
-      const ritualOpen = verified ? direction * .18 : 0;
-      band.position.z = THREE.MathUtils.lerp(band.position.z, direction * .09 * sealed + magnetic * direction * .075 + ritualOpen, .08);
-      band.rotation.x = THREE.MathUtils.lerp(band.rotation.x, magnetic * direction * .025, .07);
-      band.rotation.y = THREE.MathUtils.lerp(band.rotation.y, magnetic * direction * -.055, .07);
-      band.rotation.z = THREE.MathUtils.lerp(band.rotation.z, index * -.055 + magnetic * direction * .045, .07);
-      band.material.emissiveIntensity = THREE.MathUtils.lerp(
-        band.material.emissiveIntensity,
-        (index === 0 ? .26 : .15) + selected * 2.8,
-        .16,
-      );
-      const edgeMaterial = band.children[0]?.material;
-      if (edgeMaterial) {
-        edgeMaterial.opacity = THREE.MathUtils.lerp(
-          edgeMaterial.opacity,
-          (index < 2 ? .58 : .42) + selected * .4,
-          .16,
-        );
-      }
-    });
-    if (shell.current) {
-      shell.current.material.opacity = .13 + magnetic * .055 + dive * .1;
-      shell.current.scale.setScalar(1.84 * (1 + breath + magnetic * .006));
-      shell.current.material.thickness = 1.62 + Math.sin(t * .7) * .12 + magnetic * .22;
-      shell.current.material.ior = 1.2 + magnetic * .08 + dive * .06;
-    }
-    if (glass.current) {
-      glass.current.uniforms.uEnergy.value = magnetic + dive * .45;
-      glass.current.uniforms.uTime.value = t;
-      glass.current.uniforms.uProgress.value = dive;
-      glass.current.uniforms.uPointer.value.set((field.x - .34) * 1.16, (field.y - .03) * .94);
-    }
-    if (light.current) {
-      light.current.position.x = THREE.MathUtils.lerp(light.current.position.x, field.x * 2.2, .09);
-      light.current.position.y = THREE.MathUtils.lerp(light.current.position.y, field.y * 1.7, .09);
-      light.current.intensity = (quality === "eco" ? 2.2 : 5.2) + magnetic * 5.5;
-    }
-  });
-  return (
-    <group ref={group} position={[1.48, .02, -.78]} rotation={[.13, -.18, -.48]}>
-      <group ref={core} rotation={[.42, -.62, -.24]}>
-        {nested.map(([radius, width, gap, depth], index) => (
-          <NestedBand
-            key={radius}
-            radius={radius}
-            width={width}
-            gap={gap}
-            depth={depth}
-            index={index}
-            quality={quality}
-            register={(node) => { bands.current[index] = node; }}
-          />
-        ))}
-      </group>
-      <BandSparks fieldRef={fieldRef} quality={quality} screen={screen} />
-      <SurfaceWaves fieldRef={fieldRef} screen={screen} />
-      <mesh ref={shell} scale={1.84} renderOrder={4}>
-        <sphereGeometry args={[1, sphereSegments, sphereSegments]} />
-        <meshPhysicalMaterial
-          color="#7c285c"
-          transparent
-          opacity={.13}
-          transmission={.91}
-          thickness={1.7}
-          roughness={.12}
-          metalness={0}
-          clearcoat={1}
-          clearcoatRoughness={.03}
-          ior={1.23}
-          attenuationColor="#d5277d"
-          attenuationDistance={1.15}
-          envMapIntensity={1.35}
-          depthWrite={false}
-        />
-      </mesh>
-      <mesh scale={1.875} renderOrder={5}>
-        <sphereGeometry args={[1, sphereSegments, sphereSegments]} />
-        <shaderMaterial
-          ref={glass}
-          vertexShader={SHELL_VERTEX}
-          fragmentShader={SHELL_FRAGMENT}
-          uniforms={{
-            uEnergy: { value: 0 },
-            uTime: { value: 0 },
-            uProgress: { value: 0 },
-            uPointer: { value: new THREE.Vector2(0, 0) },
-          }}
-          transparent
-          depthWrite={false}
-          side={THREE.FrontSide}
-          blending={THREE.AdditiveBlending}
-        />
-      </mesh>
-      <pointLight ref={light} color="#ff3e99" intensity={quality === "eco" ? 2.2 : 5.2} distance={6} position={[1.2, .8, 2.4]} />
-      <pointLight color="#ff9bc8" intensity={quality === "eco" ? 1.1 : 2.8} distance={5} position={[-1.4, 1.5, 1.4]} />
-    </group>
-  );
-}
-
-function InteractionFrameBudget() {
-  const setFrameloop = useThree((state) => state.setFrameloop);
-  const invalidate = useThree((state) => state.invalidate);
-  useEffect(() => {
-    const update = (event) => {
-      if (event.detail) {
-        setFrameloop("never");
-      }
-      else {
-        setFrameloop("always");
-        invalidate();
-      }
-    };
-    addEventListener("agr-drag", update);
-    return () => {
-      removeEventListener("agr-drag", update);
-      setFrameloop("always");
-    };
-  }, [invalidate, setFrameloop]);
-  return null;
-}
-
-const NEBULA_VERTEX = `
-  varying vec2 vUv;
-  varying vec3 vWorld;
-  void main() {
-    vUv = uv;
-    vec4 world = modelMatrix * vec4(position, 1.0);
-    vWorld = world.xyz;
-    gl_Position = projectionMatrix * viewMatrix * world;
-  }
-`;
-const NEBULA_FRAGMENT = `
-  varying vec2 vUv;
-  varying vec3 vWorld;
-  uniform float uTime;
-  uniform float uEnergy;
-  uniform vec2 uPointer;
-  uniform vec3 uColorA;
-  uniform vec3 uColorB;
-
-  float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123); }
-  float noise(vec2 p) {
-    vec2 i = floor(p), f = fract(p);
-    f = f * f * (3.0 - 2.0 * f);
-    return mix(mix(hash(i), hash(i + vec2(1.,0.)), f.x), mix(hash(i + vec2(0.,1.)), hash(i + vec2(1.)), f.x), f.y);
-  }
-  float fbm(vec2 p) {
-    float value = 0.0, amplitude = .54;
-    for (int i = 0; i < 4; i++) {
-      value += noise(p) * amplitude;
-      p = mat2(1.58, 1.18, -1.18, 1.58) * p + .19;
-      amplitude *= .47;
-    }
-    return value;
-  }
-  void main() {
-    vec2 p = vWorld.xy * .14;
-    float t = uTime * .035;
-    float base = fbm(p + vec2(t, -t * .62));
-    float folds = fbm(p * 1.9 - vec2(t * 1.7, t));
-    float filament = pow(max(0.0, 1.0 - abs(base - folds) * 2.75), 5.0);
-    float river = pow(max(0.0, 1.0 - abs(sin((vWorld.y + sin(vWorld.x * .18 + t * 8.0) * 2.2) * .42)) * 1.42), 7.0);
-    float cursor = exp(-length((vUv - .5) - uPointer * .08) * 3.4);
-    vec3 color = mix(uColorB * .12, uColorA, base * .68 + filament * .32);
-    color += mix(uColorA, vec3(1.0), .55) * filament * (1.1 + uEnergy * .55);
-    color += uColorB * river * .55;
-    color += mix(uColorA, uColorB, .5) * cursor * .06;
-    float alpha = .10 + base * .26 + filament * .42 + river * .12;
-    gl_FragColor = vec4(color, alpha);
-  }
-`;
-
-function EnergyNebula({ theme, quality, fieldRef }) {
-  const material = useRef();
+function Scene({ theme, quality }) {
   const colors = THEME_COLORS[theme] || THEME_COLORS.rose;
-  const uniforms = useMemo(() => ({
-    uTime: { value: 0 },
-    uEnergy: { value: 0 },
-    uPointer: { value: new THREE.Vector2() },
-    uColorA: { value: new THREE.Color(colors[0]) },
-    uColorB: { value: new THREE.Color(colors[1]) },
-  }), []);
-  useEffect(() => {
-    uniforms.uColorA.value.set(colors[0]);
-    uniforms.uColorB.value.set(colors[1]);
-  }, [colors, uniforms]);
-  useFrame(({ clock }) => {
-    if (!material.current) return;
-    const field = fieldRef?.current || { x: 0, y: 0, influence: 0 };
-    material.current.uniforms.uTime.value = clock.elapsedTime;
-    material.current.uniforms.uEnergy.value = THREE.MathUtils.lerp(material.current.uniforms.uEnergy.value, field.influence || 0, .035);
-    material.current.uniforms.uPointer.value.lerp(new THREE.Vector2(field.x, field.y), .025);
-  });
-  return (
-    <group>
-      <mesh position={[0, 0, -7.2]} scale={[1, 1, 1]}>
-        <planeGeometry args={[54, 24, quality === "max" ? 24 : 12, quality === "max" ? 12 : 6]} />
-        <shaderMaterial ref={material} vertexShader={NEBULA_VERTEX} fragmentShader={NEBULA_FRAGMENT} uniforms={uniforms} transparent depthWrite={false} blending={THREE.AdditiveBlending} />
-      </mesh>
-      <mesh position={[0, -2.3, -5.8]} rotation={[-.22, 0, -.08]}>
-        <planeGeometry args={[52, 8]} />
-        <meshBasicMaterial color={colors[0]} transparent opacity={quality === "eco" ? .025 : .055} blending={THREE.AdditiveBlending} depthWrite={false} />
-      </mesh>
-    </group>
-  );
-}
-
-function CameraRig({ fieldRef, screen }) {
-  const { camera } = useThree();
-  useFrame(({ clock }) => {
-    const field = fieldRef?.current || { x: 0, y: 0 };
-    const route = screen === "home" ? [0, 0, 7.1] : screen === "npm" ? [7.4, -.7, 7.5] : screen === "batch" ? [-7.8, .8, 7.7] : [13.8, .35, 7.65];
-    camera.position.x = THREE.MathUtils.lerp(
-      camera.position.x,
-      route[0] + field.x * .12,
-      0.018,
-    );
-    camera.position.y = THREE.MathUtils.lerp(
-      camera.position.y,
-      route[1] + field.y * .09 + Math.sin(clock.elapsedTime * .13) * .045,
-      0.018,
-    );
-    camera.position.z = THREE.MathUtils.lerp(
-      camera.position.z,
-      route[2],
-      0.018,
-    );
-    camera.lookAt(camera.position.x * .88, camera.position.y * .55, -6.8);
-  });
-  return null;
-}
-function Scene({ theme, quality, screen, fieldRef }) {
-  const colors = THEME_COLORS[theme] || THEME_COLORS.rose;
-  const density = quality === "eco" ? 24 : quality === "max" ? 92 : 54;
+  const density = quality === "eco" ? 18 : quality === "max" ? 58 : 34;
   return (
     <Canvas
-      shadows={quality !== "eco"}
       dpr={
         quality === "eco"
           ? [0.7, 0.9]
           : quality === "max"
-            ? [1, 1.35]
-            : [0.85, 1.15]
+            ? [0.9, 1.1]
+            : [0.8, 1]
       }
       camera={{ position: [0, 0, 7.1], fov: 48 }}
       gl={{
@@ -1102,14 +649,13 @@ function Scene({ theme, quality, screen, fieldRef }) {
         powerPreference: "high-performance",
         preserveDrawingBuffer: false,
       }}
-      onCreated={({ gl }) => {
-        gl.toneMapping = THREE.ACESFilmicToneMapping;
-        gl.toneMappingExposure = quality === "max" ? 1.34 : 1.18;
-        gl.outputColorSpace = THREE.SRGBColorSpace;
-      }}
     >
-      <ambientLight intensity={0.22} />
-      <EnergyNebula theme={theme} quality={quality} fieldRef={fieldRef} />
+      <color attach="background" args={["#06151e"]} />
+      <ambientLight intensity={1.05} color="#abcfff" />
+      <directionalLight position={[-4,5,5]} intensity={3.2} color="#c9ffff" />
+      <pointLight position={[5,2,3]} intensity={18} distance={15} color={colors[1]} />
+      <pointLight position={[-5,-2,2]} intensity={14} distance={13} color="#27e9ff" />
+      <FluidForms quality={quality} />
       <Sparkles
         count={density}
         scale={[12, 7, 4]}
@@ -1118,7 +664,6 @@ function Scene({ theme, quality, screen, fieldRef }) {
         color={colors[0]}
       />
       <InteractionFrameBudget />
-      <CameraRig fieldRef={fieldRef} screen={screen} />
     </Canvas>
   );
 }
@@ -1138,9 +683,7 @@ class SceneBoundary extends React.Component {
   }
 }
 
-function Button({ children, quiet = false, danger = false, tip, className = "", onPointerEnter, onPointerLeave, ...props }) {
-  const [decodeTick, setDecodeTick] = useState(0);
-  const [decodeDirection, setDecodeDirection] = useState(1);
+function Button({ children, quiet = false, danger = false, tip, className = "", ...props }) {
   const move = (e) => {
     const r = e.currentTarget.getBoundingClientRect();
     e.currentTarget.style.setProperty("--bx", `${e.clientX - r.left}px`);
@@ -1151,17 +694,10 @@ function Button({ children, quiet = false, danger = false, tip, className = "", 
       className={`button ${quiet ? "quiet" : ""} ${danger ? "danger" : ""} ${className}`.trim()}
       data-no-hold
       onPointerMove={move}
-      onPointerEnter={(e) => {
-        const rect = e.currentTarget.getBoundingClientRect();
-        setDecodeDirection(e.clientX >= rect.left + rect.width / 2 ? -1 : 1);
-        setDecodeTick((value) => value + 1);
-        onPointerEnter?.(e);
-      }}
-      onPointerLeave={onPointerLeave}
       {...props}
     >
       <i />
-      <span>{typeof children === "string" ? <DecodeText trigger={decodeTick} direction={decodeDirection}>{children}</DecodeText> : children}</span>
+      <span>{children}</span>
     </button>
   );
   return <Hint text={tip}>{node}</Hint>;
@@ -1246,43 +782,23 @@ function Sparkline({ values = [], label, color = "var(--accent)" }) {
     </Hint>
   );
 }
-function ProcessSignal({ progress = 0, status = "Ожидание", compact = false, activity = 0 }) {
+function ProcessSignal({ progress = 0, status = "Ожидание", compact = false }) {
   const p = Math.max(0, Math.min(1, Number(progress || 0)));
-  return <div className={`process-signal ${compact ? "compact" : ""}`} title={status} style={{ "--flow-rate": `${Math.max(.42, 1.8 - Math.max(0, Math.min(1, activity)) * 1.28)}s` }}>
+  return <div className={`process-signal ${compact ? "compact" : ""}`} title={status}>
     <div className="signal-copy"><small>{p >= 1 ? "RGB24 VERIFIED" : p > 0 ? "ADAPTIVE PIPELINE" : "READY CHANNEL"}</small><strong>{Math.round(p * 100)}%</strong></div>
-    <div className="signal-rail" style={{ "--signal-progress": p }}>
-      <i />
-      <b />
-      <span>{Array.from({ length: 9 }, (_, i) => <em key={i} style={{ "--i": i }} />)}</span>
-    </div>
+    <div className="signal-bars">{Array.from({length:18},(_,i)=><i key={i} style={{"--h":`${20 + ((i * 37 + Math.round(p*100)) % 75)}%`,"--on":i/17<=p?1:.12}} />)}</div>
     <span>{String(status).split("·")[0].slice(0,72)}</span>
   </div>;
 }
-function FluidProgress({ value = 0, activity = 0 }) {
+function FluidProgress({ value = 0 }) {
   return (
     <div
       className="fluid-progress"
-      style={{
-        "--value": Math.max(0, Math.min(1, value)),
-        "--flow-rate": `${Math.max(.42, 1.7 - Math.max(0, Math.min(1, activity)) * 1.18)}s`,
-      }}
+      style={{ "--value": Math.max(0, Math.min(1, value)) }}
     >
       <i />
       <b />
     </div>
-  );
-}
-
-function HardwareTelemetry({ state, batch = false }) {
-  const activity = batch ? state.batchActivityHistory : state.activityHistory;
-  const progress = batch ? state.batchProgressHistory : state.progressHistory;
-  return (
-    <section className="hardware-strip" aria-label="Аппаратная телеметрия">
-      <div><small>CPU</small><strong>{Math.round((state.cpuLoad || 0) * 100)}%</strong><Sparkline label="CPU LOAD" values={activity} /></div>
-      <div><small>MEMORY</small><strong>{state.memoryMb ? `${Math.round(state.memoryMb)} MB` : "—"}</strong><i className="memory-cell" /></div>
-      <div><small>THREADS</small><strong>{batch && state.batchBusy ? state.batchWorkers || 1 : state.hardwareThreads || 1}</strong><i className="thread-cell" style={{ "--threads": batch && state.batchBusy ? state.batchWorkers || 1 : state.hardwareThreads || 1 }} /></div>
-      <div><small>SPEED</small><strong>{Number(state.processingRate || 0).toFixed(1)} %/s</strong><Sparkline label="PIPELINE" values={progress} color="var(--accent2)" /></div>
-    </section>
   );
 }
 
@@ -1306,47 +822,12 @@ function DataCathedral({ items = [], activity = 0, quality = "balanced" }) {
     <div className="data-cathedral" style={{ "--activity": Math.max(.08, Number(activity || 0)) }} aria-hidden="true">
       <div className="cathedral-vault"><i /><i /><i /><i /></div>
       <div className="cathedral-floor" />
-      <div className="cathedral-links">{Array.from({ length: Math.max(6, Math.min(18, visible.length)) }, (_, i) => <i key={i} style={{ "--i": i, "--count": Math.max(6, visible.length) }} />)}</div>
       <div className="cathedral-modules">
-        <AnimatePresence initial={false}>
-          {visible.map((item, i) => {
-            const processing = !item.done && !item.importing && Number(item.progress || 0) > 0;
-            return <motion.div
-              layout
-              key={item.sourceUrl || item.name}
-              className="cathedral-slot"
-              style={{
-                "--orbit-x": `${Math.cos((i / Math.max(1, visible.length)) * Math.PI * 2) * (250 + (i % 3) * 42)}px`,
-                "--orbit-y": `${Math.sin((i / Math.max(1, visible.length)) * Math.PI * 2) * (112 + (i % 2) * 24)}px`,
-                "--orbit-z": `${(i % 5) * 28 - 56}px`,
-              }}
-              initial={{ opacity: 0, scale: .35, "--burst": 0 }}
-              animate={{ opacity: 1, scale: 1, "--burst": 0 }}
-              exit={{ opacity: 0, scale: .18, rotate: 28, filter: "blur(12px)", "--burst": 1 }}
-              transition={{ duration: .62, ease: [0.2, 0.75, 0.2, 1] }}
-            >
-              <div className={`cathedral-module ${item.done ? "done" : item.importing ? "loading" : processing ? "processing" : "queued"}`} style={{ "--i": i, "--count": visible.length }}>
-                <i /><em /><b>{String(i + 1).padStart(2,"0")}</b><span>{item.name}</span>
-                <div className="module-particles">{Array.from({ length: 9 }, (_, p) => <i key={p} style={{ "--p": p }} />)}</div>
-              </div>
-            </motion.div>;
-          })}
-        </AnimatePresence>
+        {visible.map((item, i) => <div key={`${item.sourceUrl || item.name}-${i}`} className={`cathedral-module ${item.done ? "done" : item.importing ? "loading" : "queued"}`} style={{ "--i": i, "--count": visible.length }}><i /><b>{String(i + 1).padStart(2,"0")}</b><span>{item.name}</span></div>)}
       </div>
       <div className="cathedral-core"><span>{items.length}</span><small>TEXTURE NODES</small></div>
     </div>
   );
-}
-
-function MorphingMonolith({ screen, quality }) {
-  const nodes = quality === "eco" ? 6 : quality === "max" ? 28 : 16;
-  return <div className="morphing-monolith" data-space={screen} aria-hidden="true">
-    <div className="monolith-aura" />
-    <div className="monolith-orb"><i /><i /><i /></div>
-    <div className="monolith-ribbons">{Array.from({length:5},(_,i)=><i key={i} style={{"--i":i}} />)}</div>
-    <div className="monolith-nodes">{Array.from({length:nodes},(_,i)=><i key={i} style={{"--i":i,"--x":`${(i*47)%101}%`,"--y":`${(i*71)%97}%`}} />)}</div>
-    <div className="monolith-grain" />
-  </div>;
 }
 
 function Header({ screen, backend, onSettings }) {
@@ -1359,7 +840,7 @@ function Header({ screen, backend, onSettings }) {
         </span>
         <div>
           <b>Оптимизатор текстур</b>
-          <small>ADAPTIVE RGB24</small>
+          <small>ADAPTIVE RGB24 / v53</small>
         </div>
       </div>
       <div className="route-status">
@@ -1444,11 +925,10 @@ function SettingsPanel({
         <motion.aside
           className="settings-panel"
           data-no-hold
-          style={{ transformOrigin: "92% 4%" }}
-          initial={{ opacity: 0, scale: .08, borderRadius: "50%", filter: "blur(18px) brightness(1.8)" }}
-          animate={{ opacity: 1, scale: 1, borderRadius: "25px 8px 25px 8px", filter: "blur(0px) brightness(1)" }}
-          exit={{ opacity: 0, scale: .12, borderRadius: "50%", filter: "blur(16px) brightness(1.7)" }}
-          transition={{ duration: .72, ease: [0.16, 0.82, 0.18, 1] }}
+          initial={{ opacity: 0, filter: "blur(18px)", scale: .985 }}
+          animate={{ opacity: 1, filter: "blur(0)", scale: 1 }}
+          exit={{ opacity: 0, filter: "blur(14px)", scale: .99 }}
+          transition={{ duration: .82, ease: [0.18, 0.72, 0.2, 1] }}
         >
           <div className="settings-head">
             <div>
@@ -1482,7 +962,7 @@ function SettingsPanel({
             ].map(([id, label]) => (
               <button
                 className={quality === id ? "active" : ""}
-                onClick={() => { setQuality(id); backend?.setPerformanceMode?.(id); }}
+                onClick={() => {setQuality(id);backend?.setPerformanceMode?.(id);}}
                 key={id}
               >
                 {label}
@@ -1490,7 +970,7 @@ function SettingsPanel({
             ))}
           </div>
           <small className="settings-note">
-            Меняется нагрузка GPU, CPU и число рабочих потоков. Качество PNG остаётся неизменным.
+            Меняется нагрузка CPU/GPU и число потоков. Качество PNG не меняется.
           </small>
         </motion.aside>
       )}
@@ -1516,26 +996,23 @@ function Home({ setScreen }) {
         </div>
       </section>
       <section className="hero-panel">
-        <div className="mode-console-head"><i /><span>SELECT OPERATION SPACE</span><b>LIVE</b></div>
         <div className="capability-grid">
           <div><small>RGB24</small><strong>TRUE COLOR</strong><b>01</b></div>
           <div><small>8K READY</small><strong>SAFE PREVIEW</strong><b>02</b></div>
-          <div><small>BATCH</small><strong>DATA CATHEDRAL</strong><b>03</b></div>
+          <div><small>BATCH</small><strong>PARALLEL QUEUE</strong><b>03</b></div>
         </div>
         <Button
-          className="mode-gate npm-gate"
           tip="Один PNG, результат строго меньше 3 MB"
           onClick={() => setScreen("npm")}
         >
-          <small>PRECISION CHANNEL · 01</small><b><DecodeText>НПМ · ДО 3 MB</DecodeText></b><em>ОДНА ТЕКСТУРА → ТОЧНЫЙ ЛИМИТ</em>
+          НПМ · ОПТИМИЗИРОВАТЬ ДО 3 MB
         </Button>
         <Button
-          className="mode-gate batch-gate"
           tip="Несколько PNG без лимита итогового размера"
           quiet
           onClick={() => setScreen("batch")}
         >
-          <small>DATA CATHEDRAL · 02</small><b><DecodeText>ОПТИМИЗАТОР ТЕКСТУР</DecodeText></b><em>МНОГО PNG → 8K PIPELINE</em>
+          ОТКРЫТЬ ОПТИМИЗАТОР ТЕКСТУР
         </Button>
       </section>
     </main>
@@ -1820,49 +1297,20 @@ function WipeCompare({ before, after }) {
   );
 }
 
-const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before, after, mode, onZoom, contentReady = true }) {
+const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before, after, mode, onZoom, contentReady=true, externalLoading=false }) {
   const host = useRef(null), canvas = useRef(null), frame = useRef(0), drag = useRef(null);
-  const [nativeLoading, setNativeLoading] = useState(false);
+  const [previewLoading,setPreviewLoading]=useState(false);
   const images = useRef({ before: null, after: null });
-  const target = useRef({ s: 1, x: 0, y: 0, split: 0.5, lensX: .5, lensY: .5, lensZoom: 2.4 });
-  const current = useRef({ s: 1, x: 0, y: 0, split: 0.5, lensX: .5, lensY: .5, lensZoom: 2.4 });
-  const alive = useRef(true), loaded = useRef(false), modeRef = useRef(mode), interactionTimer = useRef(0);
-
-  const sourceSize = useCallback((source) => ({
-    width: source?.width || source?.naturalWidth || 0,
-    height: source?.height || source?.naturalHeight || 0,
-  }), []);
-
-  const setInteraction = useCallback((active, releaseDelay = 0) => {
+  const interactionTimer=useRef(0);
+  const target = useRef({ s: 1, x: 0, y: 0, split: 0.5 });
+  const current = useRef({ s: 1, x: 0, y: 0, split: 0.5 });
+  const alive = useRef(true), loaded = useRef(false), modeRef = useRef(mode);
+  const setInteraction=useCallback((active,delay=0)=>{
     clearTimeout(interactionTimer.current);
-    if (active) {
-      window.__AGR_INTERACTION_PAUSE_COUNT__ = (window.__AGR_INTERACTION_PAUSE_COUNT__ || 0) + 1;
-      dispatchEvent(new CustomEvent("agr-drag", { detail: true }));
-    }
-    else if (releaseDelay) {
-      interactionTimer.current = setTimeout(
-        () => {
-          dispatchEvent(new CustomEvent("agr-drag", { detail: false }));
-          dispatchEvent(new CustomEvent("agr-material-memory"));
-        },
-        releaseDelay,
-      );
-    } else dispatchEvent(new CustomEvent("agr-drag", { detail: false }));
-  }, []);
-
-  const clampView = useCallback((view) => {
-    const node = host.current, img = images.current.before || images.current.after;
-    const size = sourceSize(img);
-    if (!node || !size.width) return { ...view, x: 0, y: 0 };
-    const rect = node.getBoundingClientRect(), viewWidth = modeRef.current === "pan" ? rect.width / 2 : rect.width;
-    const fit = Math.min(viewWidth / size.width, rect.height / size.height);
-    const renderedWidth = size.width * fit * view.s, renderedHeight = size.height * fit * view.s;
-    // Keep at least one full viewport edge covered: the image can be inspected,
-    // but it can never be thrown completely into an infinite empty field.
-    const maxX = Math.max(0, (renderedWidth - viewWidth) / 2);
-    const maxY = Math.max(0, (renderedHeight - rect.height) / 2);
-    return { ...view, x: Math.max(-maxX, Math.min(maxX, view.x)), y: Math.max(-maxY, Math.min(maxY, view.y)) };
-  }, [sourceSize]);
+    if(active)window.__AGR_INTERACTION_PAUSE_COUNT__=(window.__AGR_INTERACTION_PAUSE_COUNT__||0)+1;
+    if(!active&&delay)interactionTimer.current=setTimeout(()=>dispatchEvent(new CustomEvent("agr-drag",{detail:false})),delay);
+    else dispatchEvent(new CustomEvent("agr-drag",{detail:active}));
+  },[]);
 
   const render = useCallback(() => {
     frame.current = 0;
@@ -1871,178 +1319,85 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before
     const rect = node.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 1.5);
     const w = Math.max(1, Math.round(rect.width * dpr)), h = Math.max(1, Math.round(rect.height * dpr));
     if (out.width !== w || out.height !== h) { out.width = w; out.height = h; }
-    const ctx = out.getContext("2d", { alpha: true, desynchronized: true });
+    const ctx = out.getContext("2d", { alpha: false, desynchronized: true });
     if (!ctx) return;
-    target.current = clampView(target.current);
     const c = current.current, t = target.current;
     c.s += (t.s - c.s) * .19; c.x += (t.x - c.x) * .19; c.y += (t.y - c.y) * .19; c.split += (t.split - c.split) * .22;
-    c.lensX += (t.lensX - c.lensX) * .34; c.lensY += (t.lensY - c.lensY) * .34; c.lensZoom += (t.lensZoom - c.lensZoom) * .22;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, rect.width, rect.height);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.fillStyle = "#030205"; ctx.fillRect(0, 0, rect.width, rect.height);
     const draw = (img, x0, width) => {
-      const size = sourceSize(img);
-      if (!size.width || width <= 0) return;
+      if (!img?.naturalWidth || width <= 0) return;
       ctx.save(); ctx.beginPath(); ctx.rect(x0, 0, width, rect.height); ctx.clip();
       const fitW = modeRef.current === "pan" ? rect.width / 2 : rect.width;
-      const fit = Math.min(fitW / size.width, rect.height / size.height);
-      const scale = fit * c.s, dw = size.width * scale, dh = size.height * scale;
+      const fit = Math.min(fitW / img.naturalWidth, rect.height / img.naturalHeight);
+      const scale = fit * c.s, dw = img.naturalWidth * scale, dh = img.naturalHeight * scale;
       const cx = modeRef.current === "pan" ? x0 + width / 2 : rect.width / 2;
-      const dx = cx - dw / 2 + c.x, dy = rect.height / 2 - dh / 2 + c.y;
-      const sx = Math.max(0, Math.min(size.width, (x0 - dx) / scale));
-      const sy = Math.max(0, Math.min(size.height, -dy / scale));
-      const ex = Math.max(0, Math.min(size.width, (x0 + width - dx) / scale));
-      const ey = Math.max(0, Math.min(size.height, (rect.height - dy) / scale));
-      const sw = Math.max(0, ex - sx), sh = Math.max(0, ey - sy);
-      ctx.imageSmoothingEnabled = scale < 1; ctx.imageSmoothingQuality = "high";
-      if (sw > 0 && sh > 0) {
-        ctx.drawImage(img.drawable || img, sx, sy, sw, sh, dx + sx * scale, dy + sy * scale, sw * scale, sh * scale);
-      }
-      ctx.restore();
+      ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = c.s > 8 ? "medium" : "high";
+      ctx.drawImage(img, cx - dw / 2 + c.x, rect.height / 2 - dh / 2 + c.y, dw, dh); ctx.restore();
     };
     if (modeRef.current === "wipe") {
       const cut = rect.width * c.split; draw(images.current.before, 0, rect.width); draw(images.current.after, 0, cut);
       ctx.fillStyle = "rgba(255,255,255,.9)"; ctx.fillRect(cut - .5, 0, 1, rect.height);
-    } else if (modeRef.current === "lens") {
-      draw(images.current.before, 0, rect.width);
-      const img = images.current.after, size = sourceSize(img);
-      const lx = c.lensX * rect.width, ly = c.lensY * rect.height;
-      const radius = Math.max(72, Math.min(164, Math.min(rect.width, rect.height) * .18));
-      if (size.width) {
-        const fit = Math.min(rect.width / size.width, rect.height / size.height);
-        const baseScale = fit * c.s, lensScale = baseScale * c.lensZoom;
-        const baseDx = rect.width / 2 - size.width * baseScale / 2 + c.x;
-        const baseDy = rect.height / 2 - size.height * baseScale / 2 + c.y;
-        const imageX = (lx - baseDx) / baseScale, imageY = (ly - baseDy) / baseScale;
-        const lensDx = lx - imageX * lensScale, lensDy = ly - imageY * lensScale;
-        const sx = Math.max(0, Math.min(size.width, (lx - radius - lensDx) / lensScale));
-        const sy = Math.max(0, Math.min(size.height, (ly - radius - lensDy) / lensScale));
-        const ex = Math.max(0, Math.min(size.width, (lx + radius - lensDx) / lensScale));
-        const ey = Math.max(0, Math.min(size.height, (ly + radius - lensDy) / lensScale));
-        const sw = Math.max(0, ex - sx), sh = Math.max(0, ey - sy);
-        ctx.save(); ctx.beginPath(); ctx.arc(lx, ly, radius, 0, Math.PI * 2); ctx.clip();
-        ctx.fillStyle = "#030205"; ctx.fillRect(lx - radius, ly - radius, radius * 2, radius * 2);
-        ctx.imageSmoothingEnabled = lensScale < 1;
-        if (sw > 0 && sh > 0) ctx.drawImage(img.drawable || img, sx, sy, sw, sh, lensDx + sx * lensScale, lensDy + sy * lensScale, sw * lensScale, sh * lensScale);
-        const glare = ctx.createRadialGradient(lx - radius * .34, ly - radius * .38, 0, lx, ly, radius);
-        glare.addColorStop(0, "rgba(255,255,255,.15)"); glare.addColorStop(.42, "rgba(255,255,255,0)"); glare.addColorStop(1, "rgba(255,60,145,.12)");
-        ctx.fillStyle = glare; ctx.fillRect(lx - radius, ly - radius, radius * 2, radius * 2); ctx.restore();
-        ctx.beginPath(); ctx.arc(lx, ly, radius, 0, Math.PI * 2);
-        ctx.strokeStyle = "rgba(255,235,247,.92)"; ctx.lineWidth = 1.4; ctx.shadowBlur = 22; ctx.shadowColor = "rgba(255,55,148,.9)"; ctx.stroke(); ctx.shadowBlur = 0;
-      }
     } else {
       draw(images.current.before, 0, rect.width / 2); draw(images.current.after, rect.width / 2, rect.width / 2);
     }
-    const moving = Math.abs(t.s-c.s) > .001 || Math.abs(t.x-c.x) > .08 || Math.abs(t.y-c.y) > .08 || Math.abs(t.split-c.split) > .001 || Math.abs(t.lensX-c.lensX) > .0005 || Math.abs(t.lensY-c.lensY) > .0005 || Math.abs(t.lensZoom-c.lensZoom) > .002;
+    const moving = Math.abs(t.s-c.s) > .001 || Math.abs(t.x-c.x) > .08 || Math.abs(t.y-c.y) > .08 || Math.abs(t.split-c.split) > .001;
     if (moving && alive.current) frame.current = requestAnimationFrame(render);
-  }, [clampView, sourceSize]);
+  }, []);
   const wake = useCallback(() => { if (!frame.current) frame.current = requestAnimationFrame(render); }, [render]);
   const reset = useCallback((scale = 1) => {
     target.current = { ...target.current, s: scale, x: 0, y: 0 };
     onZoom?.(scale); wake();
   }, [onZoom, wake]);
-  useEffect(() => {
-    modeRef.current = mode;
-    onZoom?.(mode === "lens" ? target.current.lensZoom : target.current.s);
-    wake();
-  }, [mode, onZoom, wake]);
+  useEffect(() => { modeRef.current = mode; wake(); }, [mode, wake]);
   useEffect(() => {
     alive.current = true; loaded.current = false;
     let cancelled = false;
-    if (!contentReady) {
-      setNativeLoading(Boolean(before || after));
-      return () => { alive.current = false; };
-    }
-    const load = (src) => src ? decodeTextureOffMainThread(src).catch(() => null) : Promise.resolve(null);
-    setNativeLoading(Boolean(before || after));
-    Promise.all([load(before || (HEADLESS_TEST ? TEST_TEXTURE : "")), load(after || (HEADLESS_TEST ? TEST_TEXTURE : ""))]).then(([a,b]) => {
-      if (cancelled) {
-        a?.drawable?.close?.(); b?.drawable?.close?.();
-        return;
-      }
-      images.current = { before: a, after: b };
-      loaded.current = Boolean(a || b);
-      target.current = { ...target.current, s: 1, x: 0, y: 0 };
-      current.current = { ...target.current };
-      setNativeLoading(false);
-      reset();
+    if(!contentReady||externalLoading){setPreviewLoading(true);return()=>{alive.current=false;};}
+    setPreviewLoading(Boolean(before||after));
+    const load = (src) => new Promise((resolve) => {
+      if (!src) return resolve(null);
+      const img = new Image(); img.decoding = "async";
+      const done = () => resolve(img.naturalWidth ? img : null);
+      img.onload = done; img.onerror = () => resolve(null); img.src = src;
+      if (img.complete) done();
     });
-    return () => {
-      cancelled = true; alive.current = false; cancelAnimationFrame(frame.current); frame.current = 0;
-      Object.values(images.current).forEach((source) => source?.drawable?.close?.());
-      images.current = { before: null, after: null };
-      setInteraction(false);
-    };
-  }, [before, after, contentReady, reset, setInteraction]);
+    Promise.all([load(before || (HEADLESS_TEST ? TEST_TEXTURE : "")), load(after || (HEADLESS_TEST ? TEST_TEXTURE : ""))]).then(([a,b]) => {
+      if (cancelled) return; images.current = { before: a, after: b }; loaded.current = Boolean(a || b);setPreviewLoading(false);reset();
+    });
+    return () => { cancelled = true; alive.current = false; cancelAnimationFrame(frame.current); frame.current = 0;clearTimeout(interactionTimer.current);setInteraction(false); };
+  }, [before, after, contentReady, externalLoading, reset, setInteraction]);
   useEffect(() => {
     const observer = new ResizeObserver(wake); if (host.current) observer.observe(host.current);
     return () => observer.disconnect();
   }, [wake]);
   const zoom = useCallback((factor, ox = 0, oy = 0) => {
-    const t = target.current, c = current.current;
-    const s = Math.max(1, Math.min(MAX_ZOOM, t.s * factor));
-    const imageX = (ox - c.x) / Math.max(.0001, c.s);
-    const imageY = (oy - c.y) / Math.max(.0001, c.s);
-    target.current = clampView({ ...t, s, x: ox - imageX * s, y: oy - imageY * s });
-    window.__AGR_ZOOM_ANCHOR_ERROR__ = Math.max(
-      Math.abs((ox - target.current.x) / target.current.s - imageX),
-      Math.abs((oy - target.current.y) / target.current.s - imageY),
-    );
+    const t = target.current, s = Math.max(1, Math.min(MAX_ZOOM, t.s * factor)), ratio = s / t.s;
+    target.current = { ...t, s, x: ox - (ox - t.x) * ratio, y: oy - (oy - t.y) * ratio };
     onZoom?.(s); window.__AGR_ZOOM_TARGET__ = s; wake();
-  }, [clampView, onZoom, wake]);
+  }, [onZoom, wake]);
   useEffect(() => {
     const node = host.current; if (!node) return;
-    const wheel = (e) => {
-      e.preventDefault();
-      setInteraction(true);
-      setInteraction(false, 150);
-      window.__AGR_WHEEL_COUNT__ = (window.__AGR_WHEEL_COUNT__ || 0) + 1;
-      const r = node.getBoundingClientRect(), px = e.clientX - r.left;
-      if (modeRef.current === "lens") {
-        const factor = Math.exp(Math.max(-.16, Math.min(.16, -e.deltaY * .0013)));
-        target.current.lensZoom = Math.max(1, Math.min(8, target.current.lensZoom * factor));
-        target.current.lensX = Math.max(0, Math.min(1, px / r.width));
-        target.current.lensY = Math.max(0, Math.min(1, (e.clientY - r.top) / r.height));
-        onZoom?.(target.current.lensZoom); wake();
-        return;
-      }
-      const paneWidth = modeRef.current === "pan" ? r.width / 2 : r.width;
-      const paneLeft = modeRef.current === "pan" && px >= r.width / 2 ? r.width / 2 : 0;
-      window.__AGR_ZOOM_LOCAL_X__ = px - paneLeft - paneWidth / 2;
-      zoom(
-        Math.exp(Math.max(-.14, Math.min(.14, -e.deltaY * .0012))),
-        window.__AGR_ZOOM_LOCAL_X__,
-        e.clientY - r.top - r.height / 2,
-      );
-    };
+    const wheel = (e) => { e.preventDefault();setInteraction(true);setInteraction(false,140); window.__AGR_WHEEL_COUNT__ = (window.__AGR_WHEEL_COUNT__ || 0) + 1; const r=node.getBoundingClientRect(); zoom(Math.exp(Math.max(-.14, Math.min(.14, -e.deltaY*.0012))), e.clientX-r.left-r.width/2, e.clientY-r.top-r.height/2); };
     node.addEventListener("wheel", wheel, { passive: false }); return () => node.removeEventListener("wheel", wheel);
-  }, [setInteraction, zoom]);
+  }, [setInteraction,zoom]);
   useEffect(() => {
     if (!HEADLESS_TEST) return;
     const z = e => { window.__AGR_WHEEL_COUNT__ = (window.__AGR_WHEEL_COUNT__ || 0) + 1; zoom(Number(e.detail?.factor || 1.1)); };
-    const d = e => {
-      target.current.x += Number(e.detail?.x || 0); target.current.y += Number(e.detail?.y || 0);
-      window.__AGR_TEST_VERTICAL_Y__=target.current.y; setInteraction(true); setInteraction(false, 60); wake();
-    };
+    const d = e => { target.current.x += Number(e.detail?.x || 0); target.current.y += Number(e.detail?.y || 0); window.__AGR_TEST_VERTICAL_Y__=target.current.y; wake(); };
     addEventListener("agr-test-zoom", z); addEventListener("agr-test-drag", d); return () => { removeEventListener("agr-test-zoom", z); removeEventListener("agr-test-drag", d); };
-  }, [setInteraction, wake, zoom]);
-  return <div ref={host} className={`smooth-compare mode-${mode}`} onPointerDown={(e) => {
+  }, [wake, zoom]);
+  return <div ref={host} className="smooth-compare" onPointerDown={(e) => {
     const r=host.current.getBoundingClientRect(), near=mode==="wipe" && Math.abs(e.clientX-r.left-r.width*target.current.split)<34;
-    drag.current={ px:e.clientX, py:e.clientY, x:target.current.x, y:target.current.y, wipe:near }; e.currentTarget.setPointerCapture(e.pointerId); setInteraction(true);
+    drag.current={ px:e.clientX, py:e.clientY, x:target.current.x, y:target.current.y, wipe:near }; e.currentTarget.setPointerCapture(e.pointerId);setInteraction(true);
   }} onPointerMove={(e) => {
-    const r=host.current.getBoundingClientRect();
-    if (mode === "lens") {
-      target.current.lensX=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));
-      target.current.lensY=Math.max(0,Math.min(1,(e.clientY-r.top)/r.height));
-      setInteraction(true); setInteraction(false, 120); wake();
-      return;
-    }
-    if (!drag.current) return;
+    if (!drag.current) return; const r=host.current.getBoundingClientRect();
     if (drag.current.wipe) target.current.split=Math.max(.02,Math.min(.98,(e.clientX-r.left)/r.width));
-    else target.current=clampView({ ...target.current, x:drag.current.x+e.clientX-drag.current.px, y:drag.current.y+e.clientY-drag.current.py });
+    else { target.current.x=drag.current.x+e.clientX-drag.current.px; target.current.y=drag.current.y+e.clientY-drag.current.py; }
     wake();
-  }} onPointerUp={() => { drag.current=null; setInteraction(false); dispatchEvent(new CustomEvent("agr-material-memory")); }} onPointerCancel={() => { drag.current=null; setInteraction(false); }}>
+  }} onPointerUp={() => { drag.current=null;setInteraction(false); }} onPointerCancel={() => { drag.current=null;setInteraction(false); }}>
     <canvas ref={canvas} />
-    {nativeLoading && <div className="compare-native-loader"><i /><strong>{contentReady ? "ДЕКОДИРОВАНИЕ NATIVE PNG" : "ЗАВЕРШАЕМ ПЕРЕЛЁТ КАМЕРЫ"}</strong><span>Интерфейс остаётся активным</span></div>}
-    <span className="compare-label before">ORIGINAL FILE · NATIVE</span><span className="compare-label after">RESULT FILE · NATIVE</span>
+    {previewLoading&&<div className="compare-loader"><i/><strong>{contentReady?"ПОДГОТОВКА БЫСТРОГО ПРЕВЬЮ":"ДВИЖЕНИЕ ПО МАРШРУТУ"}</strong><span>Оригинал обрабатывается без снижения разрешения</span></div>}
+    <span className="compare-label before">SOURCE · RESPONSIVE PREVIEW</span><span className="compare-label after">RESULT · RESPONSIVE PREVIEW</span>
     <div className="viewport-actions"><button onClick={(e)=>{e.stopPropagation();reset(1)}}>ВПИСАТЬ</button><button onClick={(e)=>{e.stopPropagation();reset(4)}}>400%</button><button onClick={(e)=>{e.stopPropagation();reset(8)}}>800%</button></div>
   </div>;
 });
@@ -2055,22 +1410,14 @@ const ComparisonSurface = React.memo(function ComparisonSurface({
   allowWipe = false,
   onOpenFolder,
   contentReady = true,
+  loading = false,
 }) {
   const [mode, setMode] = useState("pan");
   const [zoomLabel, setZoomLabel] = useState(100);
-  const zoomFrame = useRef(0), pendingZoom = useRef(100);
-  const updateZoomLabel = useCallback((s) => {
-    pendingZoom.current = Math.round(s * 100);
-    if (zoomFrame.current) return;
-    zoomFrame.current = requestAnimationFrame(() => {
-      zoomFrame.current = 0;
-      setZoomLabel((value) => value === pendingZoom.current ? value : pendingZoom.current);
-    });
-  }, []);
-  useEffect(() => () => cancelAnimationFrame(zoomFrame.current), []);
+  const updateZoomLabel = useCallback((s) => setZoomLabel(Math.round(s * 100)), []);
   return (
     <section className="compare-card transparent">
-      {allowWipe && (after || HEADLESS_TEST) && (
+      {allowWipe && after && (
         <div className="comparison-modes">
           <button className={mode === "pan" ? "active" : ""} onClick={() => setMode("pan")}>
             СИНХРОННЫЙ ZOOM
@@ -2078,18 +1425,15 @@ const ComparisonSurface = React.memo(function ComparisonSurface({
           <button className={mode === "wipe" ? "active" : ""} onClick={() => setMode("wipe")}>
             ШТОРКА ДО / ПОСЛЕ
           </button>
-          <button className={mode === "lens" ? "active" : ""} onClick={() => setMode("lens")}>
-            СТЕКЛЯННАЯ ЛИНЗА
-          </button>
         </div>
       )}
-      <SmoothCompareViewport before={before} after={after} mode={mode} onZoom={updateZoomLabel} contentReady={contentReady} />
-      <div className="comparison-truth" aria-label="Источник данных сравнения">
-        <span><i />ОРИГИНАЛ ЧИТАЕТСЯ ИЗ ИСХОДНОГО PNG</span>
-        <span><i />РЕЗУЛЬТАТ ЧИТАЕТСЯ ИЗ СОХРАНЁННОГО PNG</span>
+      <SmoothCompareViewport before={before} after={after} mode={mode} onZoom={updateZoomLabel} contentReady={contentReady} externalLoading={loading} />
+      <div className="comparison-truth">
+        <span>Просмотр: адаптивная копия для плавного zoom и pan</span>
+        <span>Обработка и сохранение: исходное разрешение PNG</span>
       </div>
       <div className="compare-tools">
-        <span className="live-zoom">{mode === "lens" ? `LENS ×${(zoomLabel / 100).toFixed(1)} · WHEEL` : `ZOOM ${zoomLabel}% · MAX ${MAX_ZOOM * 100}%`}</span>
+        <span className="live-zoom">ZOOM {zoomLabel}% · MAX {MAX_ZOOM * 100}%</span>
         <Button quiet tip="Focus Comparison · клавиша F" onClick={onFocus}>
           <Focus /> {focus ? "ВЫЙТИ ИЗ FOCUS" : "FOCUS"}
         </Button>
@@ -2103,7 +1447,9 @@ function Workspace({ kind, state, backend, setScreen, contentReady = true }) {
   const batch = kind === "batch",
     [focus, setFocus] = useState(false),
     items = state.batchItems || [],
-    before = state.sourceUrl;
+    before = state.sourceIsLarge
+      ? (state.previewBusy ? "" : state.workingPreviewUrl)
+      : state.referenceUrl || state.workingPreviewUrl || state.sourceUrl;
   const toggleFocus = useCallback(() => setFocus((value) => !value), []);
   useEffect(() => {
     if (!batch) dispatchEvent(new CustomEvent("agr-focus", { detail: focus }));
@@ -2196,7 +1542,6 @@ function Workspace({ kind, state, backend, setScreen, contentReady = true }) {
               {state.batchBusy ? "ОСТАНОВИТЬ" : "ОПТИМИЗИРОВАТЬ ВСЕ"}
             </Button>
           </section>
-          <HardwareTelemetry state={state} batch />
           <section className={`batch-import-panel ${state.batchImportBusy ? "active" : ""}`}>
             <div className="import-copy">
               <Cpu />
@@ -2205,7 +1550,7 @@ function Workspace({ kind, state, backend, setScreen, contentReady = true }) {
                 <strong>{state.batchImportBusy ? state.batchImportStatus : state.batchStatus}</strong>
               </div>
             </div>
-            <FluidProgress value={state.batchImportBusy ? state.batchImportProgress : state.batchProgress} activity={state.cpuLoad} />
+            <FluidProgress value={state.batchImportBusy ? state.batchImportProgress : state.batchProgress} />
             <div className="import-names">
               {items.slice(-6).map((item) => (
                 <span key={item.sourceUrl} className={item.importing ? "loading" : item.failed ? "failed" : "ready"}>
@@ -2258,7 +1603,7 @@ function Workspace({ kind, state, backend, setScreen, contentReady = true }) {
                     {item.done && `→ ${mb(item.outputMb)}`}
                   </p>
                   <FluidProgress value={item.progress || 0} />
-                  <ProcessSignal compact progress={item.progress || (item.done ? 1 : 0)} status={item.status || item.report} activity={state.cpuLoad} />
+                  <ProcessSignal compact progress={item.progress || (item.done ? 1 : 0)} status={item.status || item.report} />
                   <div>
                     <Button
                       disabled={!item.done}
@@ -2305,14 +1650,6 @@ function Workspace({ kind, state, backend, setScreen, contentReady = true }) {
               color="var(--accent2)"
             />
           </section>
-          <HardwareTelemetry state={state} />
-          <section className="npm-command-deck">
-            <ProcessSignal progress={state.progress} status={state.status || state.report} activity={state.cpuLoad} />
-            <Button danger={state.busy} disabled={!state.sourceUrl && !state.busy} onClick={() => state.busy ? backend?.stopCurrent() : backend?.optimize(2.99)}>
-              {state.busy ? "ОСТАНОВИТЬ" : "ОПТИМИЗИРОВАТЬ ДО 3 MB"}
-            </Button>
-            <Button quiet disabled={!state.outputPath} onClick={() => backend?.openOutputFolder()}><FolderOpen /> ПАПКА РЕЗУЛЬТАТА</Button>
-          </section>
           <div className="compare-title">
             <h2>СРАВНИТЕЛЬНЫЙ АНАЛИЗ · СИНХРОННОЕ ПЕРЕМЕЩЕНИЕ</h2>
           </div>
@@ -2321,9 +1658,28 @@ function Workspace({ kind, state, backend, setScreen, contentReady = true }) {
             after={state.resultUrl}
             focus={focus}
             onFocus={toggleFocus}
-            allowWipe
             contentReady={contentReady}
+            loading={state.previewBusy && state.sourceIsLarge}
           />
+          <section className="bottom-process">
+            <ProcessSignal progress={state.progress} status={state.status || state.report} />
+            <Button
+              danger={state.busy}
+              disabled={!state.sourceUrl && !state.busy}
+              onClick={() =>
+                state.busy ? backend?.stopCurrent() : backend?.optimize(2.99)
+              }
+            >
+              {state.busy ? "ОСТАНОВИТЬ" : "ОПТИМИЗИРОВАТЬ ДО 3 MB"}
+            </Button>
+            <Button
+              quiet
+              disabled={!state.outputPath}
+              onClick={() => backend?.openOutputFolder()}
+            >
+              <FolderOpen /> ПАПКА РЕЗУЛЬТАТА
+            </Button>
+          </section>
         </>
       )}
     </main>
@@ -2372,8 +1728,8 @@ function Compare({ index, state, backend, setScreen, contentReady = true }) {
         <ProcessSignal compact progress={1} status={item.status || "Анализ завершён"} />
       </section>
       <ComparisonSurface
-        before={item.sourceUrl}
-        after={item.resultUrl}
+        before={item.comparisonSourceUrl || item.sourceUrl}
+        after={item.comparisonResultUrl || item.resultUrl}
         focus={focus}
         onFocus={toggleFocus}
         allowWipe
@@ -2384,69 +1740,23 @@ function Compare({ index, state, backend, setScreen, contentReady = true }) {
   );
 }
 
-function HoldRitual({ holding, progress, point }) {
-  return (
-    <AnimatePresence>
-      {holding && (
-        <motion.div
-          className="hold-ritual"
-          style={{ left: point.x, top: point.y }}
-          initial={{ opacity: 0, scale: 0.78 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 1.18 }}
-          transition={{ duration: 0.28, ease: [0.2, 0.8, 0.2, 1] }}
-        >
-          <i />
-          <i />
-          <i />
-          <span style={{ "--hold": progress }} />
-          <b>
-            {Math.round(progress * 100)
-              .toString()
-              .padStart(2, "0")}
-          </b>
-          <small>УДЕРЖИВАЙТЕ</small>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-}
-function ShellCrossing({ active, progress }) {
-  return (
-    <div
-      className={`shell-crossing ${active ? "active" : ""}`}
-      style={{ "--shell-progress": progress }}
-      aria-hidden="true"
-    >
-      <i /><i /><i />
-      <b />
-      <span />
-    </div>
-  );
-}
-function TransitionPortal({ active }) {
-  return (
-    <div className={`transition-portal ${active ? "active" : ""}`} aria-hidden="true">
-      <i /><i /><i /><b />
-    </div>
-  );
-}
-function LoadingShell({ active, label, progress = 0 }) {
-  return <div className={`loading-shell ${active ? "active" : ""}`} style={{ "--load-progress": Math.max(0, Math.min(1, progress)) }} aria-hidden="true">
-    <i /><i /><i />
-    <div><small>8K NATIVE SCAN</small><strong>{label || "PNG"}</strong><span>{Math.round(progress * 100)}%</span></div>
-  </div>;
-}
-function CompletionRitual({ active }) {
-  return <div className={`completion-ritual ${active ? "active" : ""}`} aria-hidden="true">
-    <div className="verified-shell"><i /><i /><i /><b>RGB24</b><strong>VERIFIED</strong></div>
-    <span />
-  </div>;
-}
-function MaterialMemory({ level = 0 }) {
-  return <div className="material-memory" style={{ "--memory-level": Math.min(1, level / 8) }} aria-hidden="true">
-    {Array.from({ length: 6 }, (_, i) => <i key={i} style={{ "--i": i }} />)}
-  </div>;
+function JourneyTransition({ journey }) {
+  const paths={
+    npm:"M 720 560 C 940 520 1110 390 1320 285 C 1510 190 1690 235 1840 180",
+    batch:"M 720 560 C 930 600 1090 735 1305 805 C 1510 870 1690 810 1840 900",
+    cross:"M 1840 180 C 1500 260 1220 440 720 560 C 1210 690 1510 820 1840 900",
+  };
+  const selected=paths[journey.path]||paths.npm;
+  return <AnimatePresence>
+    {journey.active&&<motion.div className={`journey path-${journey.path}`} initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} transition={{duration:.25}} aria-hidden="true">
+      <svg viewBox="0 0 1920 1080" preserveAspectRatio="none">
+        <path className="journey-branch muted" d={paths.npm}/><path className="journey-branch muted" d={paths.batch}/>
+        <motion.path className="journey-branch selected" d={selected} initial={{pathLength:0,opacity:.2}} animate={{pathLength:1,opacity:1}} transition={{duration:1.3,ease:[.2,.72,.18,1]}} />
+        <circle r="7" className="journey-node"><animateMotion dur="1.3s" fill="freeze" path={selected} keyPoints={journey.reverse?"1;0":"0;1"} keyTimes="0;1" calcMode="linear" /></circle>
+      </svg>
+      <div><small>ACTIVE ROUTE</small><strong>{journey.label}</strong><span>ПЕРЕМЕЩЕНИЕ ПО ПОТОКУ</span></div>
+    </motion.div>}
+  </AnimatePresence>;
 }
 function SecretScene({ active, onDone }) {
   useEffect(() => {
@@ -2488,12 +1798,10 @@ function SecretScene({ active, onDone }) {
 function App() {
   const { backend, state } = useBackend(),
     appRoot = useRef(null),
-    fieldRef = useRef({ x: 0, y: 0, influence: 0 }),
     [route, setRoute] = useState("home"),
     [diving, setDiving] = useState(false),
-    [sceneSettled, setSceneSettled] = useState(true),
-    [verified, setVerified] = useState(false),
-    [memoryLevel, setMemoryLevel] = useState(0),
+    [contentReady, setContentReady] = useState(true),
+    [journey, setJourney] = useState({active:false,path:"npm",reverse:false,label:"ГЛАВНАЯ"}),
     [settings, setSettings] = useState(false),
     [theme, setTheme] = useState(() =>
       readPreference("agr-theme", Object.keys(THEME_COLORS), "rose"),
@@ -2502,11 +1810,8 @@ function App() {
       readPreference("agr-quality", QUALITY_LEVELS, "balanced"),
     ),
     [secret, setSecret] = useState(false),
-    completionRef = useRef(""),
-    importRef = useRef(""),
     routeTimers = useRef([]),
     screen = route.startsWith("compare") ? "compare" : route,
-    doneCount = (state.batchItems || []).filter((item) => item.done).length,
     setScreen = useCallback(
       (next) => {
         if (next === route || (next === "compare" && screen === "compare"))
@@ -2515,46 +1820,32 @@ function App() {
         if (HEADLESS_TEST) {
           setSettings(false);
           setRoute(next);
-          setSceneSettled(true);
+          setContentReady(true);
           return;
         }
+        const nextScreen=next.startsWith("compare")?"compare":next;
+        const internal=(screen==="batch"&&nextScreen==="compare")||(screen==="compare"&&nextScreen==="batch");
+        if(internal){setSettings(false);setRoute(next);return;}
+        const path=nextScreen==="home"?(screen==="batch"?"batch":"npm"):(screen!=="home"&&screen!==nextScreen?"cross":nextScreen);
+        const reverse=nextScreen==="home";
+        setJourney({active:true,path,reverse,label:nextScreen==="home"?"ГЛАВНАЯ":nextScreen==="batch"?"ПАКЕТНАЯ ОБРАБОТКА":"НПМ · ДО 3 MB"});
         setDiving(true);
-        setSceneSettled(false);
+        setContentReady(false);
         setSettings(false);
         dispatchEvent(new CustomEvent("agr-hint", { detail: { open: false } }));
         routeTimers.current = [
           setTimeout(() => {
             setRoute(next);
-          }, 720),
+          }, 650),
           setTimeout(() => {
             setDiving(false);
-            setSceneSettled(true);
-          }, 1450),
+            setContentReady(true);
+            setJourney((value)=>({...value,active:false}));
+          }, 1300),
         ];
       },
       [route, screen],
     );
-  useEffect(() => {
-    const move = (e) => {
-      const cursorX = e.clientX / Math.max(1, innerWidth);
-      const cursorY = e.clientY / Math.max(1, innerHeight);
-      const x = (e.clientX / Math.max(1, innerWidth)) * 2 - 1;
-      const y = 1 - (e.clientY / Math.max(1, innerHeight)) * 2;
-      const distance = Math.hypot((x - .34) * .92, y - .03);
-      appRoot.current?.style.setProperty("--cursor-x", cursorX);
-      appRoot.current?.style.setProperty("--cursor-y", cursorY);
-      appRoot.current?.style.setProperty("--edge-angle", `${cursorX * 180 + cursorY * 90}deg`);
-      appRoot.current?.style.setProperty("--title-x", `${(cursorX - .5) * 5}px`);
-      appRoot.current?.style.setProperty("--title-y", `${(cursorY - .5) * 3}px`);
-      fieldRef.current = {
-        x,
-        y,
-        influence: Math.pow(Math.max(0, 1 - distance / .72), 1.7),
-      };
-    };
-    addEventListener("pointermove", move, { passive: true });
-    return () => removeEventListener("pointermove", move);
-  }, []);
   useEffect(() => {
     const update = (e) => appRoot.current?.classList.toggle("is-dragging", Boolean(e.detail));
     addEventListener("agr-drag", update);
@@ -2568,27 +1859,7 @@ function App() {
   useEffect(() => () => routeTimers.current.forEach(clearTimeout), []);
   useEffect(() => writePreference("agr-theme", theme), [theme]);
   useEffect(() => writePreference("agr-quality", quality), [quality]);
-  useEffect(() => { backend?.setPerformanceMode?.(quality); }, [backend, quality]);
-  useEffect(() => {
-    const remember = () => setMemoryLevel((value) => Math.min(8, value + 1));
-    addEventListener("agr-material-memory", remember);
-    return () => removeEventListener("agr-material-memory", remember);
-  }, []);
-  useEffect(() => {
-    const token = `${state.sourceUrl || ""}|${(state.batchItems || []).length}`;
-    if (token !== importRef.current && (state.sourceUrl || state.batchItems?.length)) {
-      importRef.current = token;
-      setMemoryLevel((value) => Math.min(8, value + 1));
-    }
-  }, [state.batchItems, state.sourceUrl]);
-  useEffect(() => {
-    const token = `${state.outputPath || ""}|${doneCount}`;
-    if (token === "|0" || token === completionRef.current) return undefined;
-    completionRef.current = token;
-    setVerified(true); setMemoryLevel((value) => Math.min(8, value + 2));
-    const timer = setTimeout(() => setVerified(false), 2100);
-    return () => clearTimeout(timer);
-  }, [doneCount, state.outputPath]);
+  useEffect(() => {backend?.setPerformanceMode?.(quality);}, [backend,quality]);
   const page =
     screen === "home" ? (
       <Home setScreen={setScreen} />
@@ -2598,7 +1869,7 @@ function App() {
         state={state}
         backend={backend}
         setScreen={setScreen}
-        contentReady={sceneSettled}
+        contentReady={contentReady}
       />
     ) : screen === "batch" ? (
       <Workspace
@@ -2606,7 +1877,7 @@ function App() {
         state={state}
         backend={backend}
         setScreen={setScreen}
-        contentReady={sceneSettled}
+        contentReady={contentReady}
       />
     ) : (
       <Compare
@@ -2614,15 +1885,14 @@ function App() {
         state={state}
         backend={backend}
         setScreen={setScreen}
-        contentReady={sceneSettled}
+        contentReady={contentReady}
       />
     );
   return (
     <div
       ref={appRoot}
-      className={`app theme-${theme} quality-${quality} scene-${screen} ${diving ? "is-diving" : ""} ${sceneSettled ? "scene-settled" : ""} ${verified ? "is-verified" : ""}`}
+      className={`app theme-${theme} quality-${quality} scene-${screen} ${diving ? "is-diving" : ""}`}
     >
-      {screen === "batch" && <DataCathedral items={state.batchItems} quality={quality} activity={state.batchActivityHistory?.at?.(-1)} />}
       <div className="webgl">
         {HEADLESS_TEST ? (
           <div className="headless-scene" />
@@ -2631,8 +1901,6 @@ function App() {
             <Scene
               theme={theme}
               quality={quality}
-              screen={screen}
-              fieldRef={fieldRef}
             />
           </SceneBoundary>
         )}
@@ -2648,17 +1916,15 @@ function App() {
         setScreen={setScreen}
         state={state}
       />
-      <TransitionPortal active={diving} />
-      <CompletionRitual active={verified} />
-      <MaterialMemory level={memoryLevel} />
+      <JourneyTransition journey={journey} />
       <AnimatePresence initial={false} mode="wait">
         <motion.div
           className="route-stage"
           key={route}
-          initial={{ opacity: 0, scale: 1.018, filter: "blur(7px)" }}
-          animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-          exit={{ opacity: 0, scale: 0.94, filter: "blur(10px)" }}
-          transition={{ duration: HEADLESS_TEST ? 0 : 0.72, ease: [0.2, 0.72, 0.18, 1] }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: HEADLESS_TEST ? 0 : .38, ease: [0.3, 0.72, 0.2, 1] }}
         >
           {page}
         </motion.div>
@@ -2677,8 +1943,7 @@ function App() {
         data-no-hold
         onClick={() => setSecret(true)}
       >
-        <span className="signature-wave">{[..."ISSMAKER"].map((letter,i)=><i key={i} style={{"--i":i}}>{letter}</i>)}</span>
-        <small>IMAGINED IN LIGHT</small>
+        by issmaker
       </button>
       <SecretScene
         active={secret}

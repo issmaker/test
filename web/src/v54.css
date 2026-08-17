@@ -169,3 +169,22 @@
 @keyframes signatureScan{0%{transform:translateY(-130px) scaleX(.1);opacity:0}28%{opacity:1}100%{transform:translateY(145px) scaleX(1.15);opacity:0}}
 
 @media(max-height:900px){.npm-command-top{min-height:50px;padding:4px 7px}.npm-command-top .process-signal,.npm-command-top .button{height:38px;min-height:38px}.scene-npm .telemetry{height:70px;min-height:70px!important}.scene-npm .compare-card,.scene-compare .compare-card{min-height:360px!important}}
+
+/* v58 · large-texture viewport and permanently focused optical glass. */
+.water-ripple-layer{display:none!important}
+.cursor-particle-field{position:fixed;z-index:1;inset:0;pointer-events:none;mix-blend-mode:screen;opacity:calc(.36 + var(--effect-level)*.3)}
+
+/* The calm glass focus is a workspace state, not a hover side effect. */
+.scene-npm:not(.is-diving) .webgl,.scene-batch:not(.is-diving) .webgl,.scene-compare:not(.is-diving) .webgl{opacity:calc(.31 + var(--effect-level)*.08)!important;filter:blur(2.35px) saturate(1.04) brightness(.74)!important;transform:scale(1.01)!important}
+.scene-npm .workspace-head,.scene-npm .telemetry,.scene-npm .npm-command-top,.scene-npm .compare-card,
+.scene-batch .workspace-head,.scene-batch .batch-import-panel,.scene-batch .batch-list,.scene-batch .telemetry,
+.scene-compare .workspace-head,.scene-compare .analysis-summary,.scene-compare .compare-card{background-color:#06131ac7!important;backdrop-filter:blur(25px) saturate(1.28)!important;-webkit-backdrop-filter:blur(25px) saturate(1.28)!important;border-color:#dffcff25!important;box-shadow:inset 0 1px #efffff30,inset 0 -24px 48px color-mix(in srgb,var(--accent) 4%,transparent),0 20px 64px #0008,0 0 30px color-mix(in srgb,var(--accent) 8%,transparent)!important}
+
+/* Route morphing belongs to the blades. UI fades cleanly without a blur wash. */
+.is-diving .topbar,.is-diving .right-dock,.is-diving .route-stage,.is-diving .signature,.is-diving .settings-panel{filter:none!important;transition:opacity .42s cubic-bezier(.18,.72,.2,1)!important}
+.is-diving .webgl{filter:saturate(1.22) brightness(1.04)!important;transform:scale(1.012)!important;transition:transform 1.3s cubic-bezier(.18,.72,.2,1),filter .55s ease,opacity .55s ease!important}
+
+/* Author credit is a deliberate focus target before its blade sequence. */
+.app:has(.signature:hover) .topbar,.app:has(.signature:hover) .right-dock,.app:has(.signature:hover) .route-stage,.app:has(.signature:hover) .webgl,.app:has(.signature:hover) .background-flow,.app:has(.signature:hover) .cursor-particle-field{filter:blur(9px) brightness(.38)!important;opacity:.24!important;transition:filter 1.05s cubic-bezier(.18,.72,.2,1),opacity 1.05s cubic-bezier(.18,.72,.2,1)!important}
+.app:has(.signature:hover) .signature{filter:brightness(1.35)!important;text-shadow:0 0 8px #fff,0 0 22px var(--accent)!important;transition:filter .75s ease,text-shadow .75s ease!important}
+.decode-text{font-variant-ligatures:none;cursor:default}

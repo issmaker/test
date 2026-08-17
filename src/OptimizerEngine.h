@@ -30,6 +30,7 @@ struct BatchEntry {
     QString name;
     QString status;
     QString report;
+    QString textureKind = "COLOR";
     QString accent = "#765cff";
     double sourceMb = 0;
     double outputMb = 0;
@@ -58,6 +59,7 @@ struct BatchRunItem {
     QString comparisonResultUrl;
     QString outputPath;
     QString report;
+    QString textureKind = "COLOR";
     QString error;
     double outputMb = 0;
 };

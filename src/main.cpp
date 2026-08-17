@@ -27,7 +27,7 @@
 #endif
 
 #ifndef AGR_APP_VERSION
-#define AGR_APP_VERSION "57"
+#define AGR_APP_VERSION "58"
 #endif
 
 namespace {
@@ -113,6 +113,16 @@ int runSelfTest() {
     if (!PngEncoder::verifyRgb24(automatic.png, automatic.output)) return 8;
     if (automatic.output.size() != input.size()) return 9;
     if (automatic.png.size() >= QFileInfo(inputPath).size()) return 26;
+    QImage normal(192,192,QImage::Format_RGB888),erm(192,192,QImage::Format_RGB888);
+    for(int y=0;y<192;++y){uchar *n=normal.scanLine(y),*m=erm.scanLine(y);for(int x=0;x<192;++x){n[x*3]=uchar(96+x%64);n[x*3+1]=uchar(96+y%64);n[x*3+2]=uchar(232+(x+y)%20);m[x*3]=uchar(((x/16+y/16)&1)?255:0);m[x*3+1]=uchar((x*5+y*3)&255);m[x*3+2]=uchar(x<96?24:232);}}
+    const QString normalPath=directory.filePath("self-test_normal.png"),ermPath=directory.filePath("self-test_erm.png");
+    if(!normal.save(normalPath,"PNG")||!erm.save(ermPath,"PNG"))return 27;
+    if(TextureProcessor::detectKind(normalPath)!="NORMAL"||TextureProcessor::detectKind(ermPath)!="ERM")return 28;
+    const TextureResult normalResult=TextureProcessor::processAutomatic(normalPath,[](double,const QString&){});
+    const TextureResult ermResult=TextureProcessor::processAutomatic(ermPath,[](double,const QString&){});
+    if(normalResult.textureKind!="NORMAL"||ermResult.textureKind!="ERM")return 29;
+    if(!PngEncoder::verifyRgb24(normalResult.png,normalResult.output)||!PngEncoder::verifyRgb24(ermResult.png,ermResult.output))return 30;
+    if(normalResult.output.size()!=normal.size()||ermResult.output.size()!=erm.size())return 31;
     bool cancellationObserved=false;
     try { TextureProcessor::processAutomatic(inputPath, [](double,const QString&){}, []{return true;}); }
     catch(...) { cancellationObserved=true; }

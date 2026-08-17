@@ -191,7 +191,7 @@ OptimizerEngine::OptimizerEngine(QObject *parent):QObject(parent) {
             BatchEntry &entry=m_batchEntries[item.index];entry.progress=1;
             if(item.error.isEmpty()){
                 entry.resultUrl=item.resultUrl;entry.comparisonResultUrl=item.comparisonResultUrl.isEmpty()?item.resultUrl:item.comparisonResultUrl;entry.outputPath=item.outputPath;
-                entry.outputMb=item.outputMb;entry.report=item.report;
+                entry.outputMb=item.outputMb;entry.report=item.report;entry.textureKind=item.textureKind;
                 entry.status="Готово";entry.done=true;entry.failed=false;++succeeded;
             }else if(run.cancelled&&item.error.contains("Остановлено",Qt::CaseInsensitive)){
                 entry.status="Остановлено";entry.report="Операция остановлена пользователем";
@@ -343,7 +343,7 @@ QVariantList OptimizerEngine::batchItems()const{
         item["sourceUrl"]=entry.sourceUrl;item["resultUrl"]=entry.resultUrl;
         item["comparisonSourceUrl"]=entry.comparisonSourceUrl;item["comparisonResultUrl"]=entry.comparisonResultUrl;
         item["outputPath"]=entry.outputPath;item["name"]=entry.name;
-        item["status"]=entry.status;item["report"]=entry.report;item["accent"]=entry.accent;
+        item["status"]=entry.status;item["report"]=entry.report;item["textureKind"]=entry.textureKind;item["accent"]=entry.accent;
         item["sourceMb"]=entry.sourceMb;item["outputMb"]=entry.outputMb;
         item["progress"]=entry.progress;item["width"]=entry.width;item["height"]=entry.height;
         item["done"]=entry.done;item["failed"]=entry.failed;item["importing"]=entry.importing;result.append(item);
@@ -377,7 +377,7 @@ void OptimizerEngine::addBatchFiles(const QVariantList &values){
             QImageReader meta(path,"PNG");meta.setAutoTransform(true);const QSize dimensions=meta.size();
             if(!dimensions.isValid())prepared.error="PNG повреждён или не поддерживается";
             else{
-                entry.width=dimensions.width();entry.height=dimensions.height();entry.status="Готов к обработке";
+                entry.width=dimensions.width();entry.height=dimensions.height();entry.textureKind=TextureProcessor::detectKind(path);entry.status=QString("Готов · %1").arg(entry.textureKind);
                 QImageReader accentReader(path,"PNG");accentReader.setAutoTransform(true);
                 const double scale=qMin(1.0,144.0/qMax(dimensions.width(),dimensions.height()));
                 accentReader.setScaledSize(QSize(qMax(1,int(dimensions.width()*scale)),qMax(1,int(dimensions.height()*scale))));
@@ -392,7 +392,7 @@ void OptimizerEngine::addBatchFiles(const QVariantList &values){
             QMetaObject::invokeMethod(this,[this,index,position,total,prepared,generation]{
                 if(generation!=m_batchImportGeneration||!m_batchImportBusy)return;
                 const QString name=(index>=0&&index<m_batchEntries.size())?m_batchEntries[index].name:QStringLiteral("PNG");
-                if(index>=0&&index<m_batchEntries.size())m_batchEntries[index].status=prepared.error.isEmpty()?"Превью готово":"Ошибка импорта";
+                if(index>=0&&index<m_batchEntries.size())m_batchEntries[index].status=prepared.error.isEmpty()?QString("Превью готово · %1").arg(prepared.entry.textureKind):"Ошибка импорта";
                 m_batchImportProgress=double(position+1)/qMax(1,total);
                 m_batchImportStatus=QString("Подготовка %1 из %2 PNG · %3").arg(position+1).arg(total).arg(prepared.entry.name.isEmpty()?name:prepared.entry.name);
                 m_batchStatus=m_batchImportStatus;emit batchItemsChanged();emit batchImportProgressChanged();emit batchImportStatusChanged();emit batchStatusChanged();
@@ -480,7 +480,7 @@ void OptimizerEngine::optimizeBatch(){
                 const QByteArray previewKey=QCryptographicHash::hash((path+QString::number(source.lastModified().toMSecsSinceEpoch())+"_result").toUtf8(),QCryptographicHash::Sha1).toHex();
                 summary.comparisonResultUrl=saveComparisonPreview(result.output,QString::fromLatin1(previewKey));
                 if(summary.comparisonResultUrl.isEmpty())summary.comparisonResultUrl=summary.resultUrl;
-                summary.outputMb=result.png.size()/1000000.0;summary.report=result.report;
+                summary.outputMb=result.png.size()/1000000.0;summary.report=result.report;summary.textureKind=result.textureKind;
             }catch(const std::exception &error){summary.error=QString::fromUtf8(error.what());}
             catch(...){summary.error="Неизвестный сбой обработки";}
                 completed.append(summary);if(m_batchCancelRequested.load())break;

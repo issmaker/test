@@ -220,9 +220,9 @@ function DecodeText({ children }) {
     [value, setValue] = useState(original),
     frame = useRef(0),
     glyphs = "01<>/\\{}[]#%*+—";
-  const decode = () => {
+  const decode = (event) => {
     cancelAnimationFrame(frame.current);
-    const start = performance.now();
+    const start = performance.now(),box=event.currentTarget.getBoundingClientRect(),fromLeft=event.clientX<box.left+box.width/2;
     const run = (now) => {
       const p = Math.min(1, (now - start) / 500),
         fixed = Math.floor(original.length * p);
@@ -232,7 +232,7 @@ function DecodeText({ children }) {
           .map((c, i) =>
             c === " "
               ? c
-              : i < fixed
+              : (fromLeft?i:original.length-1-i) < fixed
                 ? c
                 : glyphs[Math.floor(Math.random() * glyphs.length)],
           )
@@ -565,8 +565,13 @@ const bladePose=(state,u,time=0,out)=>{
   }else if(state==="settings"){
     x=Math.cos(a)*2.75;y=Math.sin(a)*1.72;z=.38*Math.sin(a*2);twist=a*.34;width=1.45+.22*Math.sin(a*3);
   }else if(state==="secret"){
-    const flower=2.35+.62*Math.cos(a*3);
-    x=Math.cos(a)*flower;y=Math.sin(a)*flower*.72;z=1.05*Math.sin(a*3);twist=a*1.42;width=1.35+.52*(.5+.5*Math.cos(a*3));
+    // Author sequence: the existing sculpture first collapses into a bright
+    // core, then opens as a three-ring metal iris. It is still the same set
+    // of blades, not a replacement object.
+    const reveal=THREE.MathUtils.smoothstep(time,.48,2.05),pulse=Math.exp(-Math.pow(time-2.18,2)/.075);
+    const flower=.16+reveal*(2.58+.54*Math.cos(a*3));
+    x=Math.cos(a)*flower*1.3;y=Math.sin(a)*flower*.73;z=reveal*(1.08*Math.sin(a*3+time*.34))+pulse*Math.cos(a*7)*.62;
+    twist=a*(.55+reveal*.92)+reveal*time*.16;width=.28+reveal*(1.22+.62*(.5+.5*Math.cos(a*3)));
   }else{
     // A spatial three-lobed flow: the spine travels in depth while every
     // blade rotates independently, matching the reference fan rather than
@@ -584,7 +589,7 @@ const bladePose=(state,u,time=0,out)=>{
 
 function BladeSculpture({ state, theme, quality, brightness=1, effects=1, transitionKind="home>home", hold=0, holdPoint, processing=false }){
   const count=quality==="eco"?104:quality==="max"?188:148;
-  const body=useRef(),edge=useRef(),edgeBack=useRef(),trail=useRef(),current=useRef([]),targets=useRef([]),hover=useRef(-1),holdU=useRef(.56),frameTick=useRef(0),lastPointer=useRef(new THREE.Vector2()),tmp=useMemo(()=>({matrix:new THREE.Matrix4(),q:new THREE.Quaternion(),p:new THREE.Vector3(),trailP:new THREE.Vector3(),s:new THREE.Vector3(),projected:new THREE.Vector3(),offset:new THREE.Vector3(),pointer:new THREE.Vector2(),color:new THREE.Color(),bodyColor:new THREE.Color(),dark:new THREE.Color("#12364a"),white:new THREE.Color("#ffffff")}),[]);
+  const body=useRef(),edge=useRef(),edgeBack=useRef(),trail=useRef(),current=useRef([]),targets=useRef([]),hover=useRef(-1),holdU=useRef(.56),frameTick=useRef(0),stateClock=useRef({name:state,start:0}),lastPointer=useRef(new THREE.Vector2()),tmp=useMemo(()=>({matrix:new THREE.Matrix4(),q:new THREE.Quaternion(),p:new THREE.Vector3(),trailP:new THREE.Vector3(),s:new THREE.Vector3(),projected:new THREE.Vector3(),offset:new THREE.Vector3(),pointer:new THREE.Vector2(),color:new THREE.Color(),bodyColor:new THREE.Color(),dark:new THREE.Color("#12364a"),white:new THREE.Color("#ffffff")}),[]);
   const colors=THEME_COLORS[theme]||THEME_COLORS.cyan;
   const accent=useMemo(()=>new THREE.Color(colors[0]),[colors]);
   const accent2=useMemo(()=>new THREE.Color(colors[1]),[colors]);
@@ -594,11 +599,11 @@ function BladeSculpture({ state, theme, quality, brightness=1, effects=1, transi
     if(processing&&hold<=0&&++frameTick.current%2)return;
     if(!body.current||!edge.current||!edgeBack.current||!trail.current)return;
     const activePointer=hold>0&&holdPoint?tmp.pointer.set(holdPoint.x/innerWidth*2-1,1-holdPoint.y/innerHeight*2):pointer;
-    const t=clock.elapsedTime, speed=activePointer.distanceTo(lastPointer.current);lastPointer.current.lerp(activePointer,.18);
+    const t=clock.elapsedTime;if(stateClock.current.name!==state){stateClock.current={name:state,start:t};}const poseTime=state==="secret"?t-stateClock.current.start:t, speed=activePointer.distanceTo(lastPointer.current);lastPointer.current.lerp(activePointer,.18);
     const holdCenter=holdU.current;
     let nearest=-1,nearestDistance=.29;
     for(let i=0;i<count;i++){
-      const u=i/count,target=bladePose(state,u,t,targets.current[i]),phase=transitionMode===0?i:transitionMode===1?count-i:transitionMode===2?Math.abs(i-count/2)*2:(i%2?i:count-i);targets.current[i]=target;
+      const u=i/count,target=bladePose(state,u,poseTime,targets.current[i]),phase=transitionMode===0?i:transitionMode===1?count-i:transitionMode===2?Math.abs(i-count/2)*2:(i%2?i:count-i);targets.current[i]=target;
       if(hold>0){const angle=u*Math.PI*2,circular=Math.min(Math.abs(u-holdCenter),1-Math.abs(u-holdCenter)),pull=Math.exp(-circular*circular*72)*hold,global=1+hold*.055;target.position.x*=global;target.position.y*=global;target.position.z+=pull*1.58+Math.sin(angle*4-t*4)*hold*.13;target.scale.x*=1+pull*.34;target.scale.z*=1+pull*.18;target.rotation.y+=pull*.72+Math.sin(angle*2-t)*hold*.08;}
       if(!current.current[i])current.current[i]={p:target.position.clone(),q:new THREE.Quaternion().setFromEuler(target.rotation),s:target.scale.clone()};
       const c=current.current[i],delay=.045+Math.min(.055,phase/count*.045);
@@ -878,7 +883,7 @@ function Header({ screen, backend, onSettings }) {
         </span>
         <div>
           <b>Оптимизатор текстур</b>
-          <small>ADAPTIVE RGB24 / v57</small>
+          <small>ADAPTIVE RGB24 / v58</small>
         </div>
       </div>
       <div className="route-status">
@@ -948,24 +953,6 @@ function RightDock({ screen, setScreen, state }) {
     </motion.aside>
   );
 }
-function WaterGlassField(){
-  const [ripples,setRipples]=useState([]),last=useRef({x:0,y:0,time:0,id:0});
-  useEffect(()=>{
-    const move=(event)=>{
-      const panel=event.target instanceof Element?event.target.closest(".hero-panel,.workspace-head,.telemetry,.bottom-process,.batch-list,.analysis-summary,.compare-card,.settings-panel,.right-dock,.route-status,.brand-mark,.top-actions .button"):null;
-      if(!panel)return;
-      const box=panel.getBoundingClientRect(),x=event.clientX-box.left,y=event.clientY-box.top;
-      panel.style.setProperty("--water-x",`${x}px`);panel.style.setProperty("--water-y",`${y}px`);
-      const now=performance.now(),distance=Math.hypot(event.clientX-last.current.x,event.clientY-last.current.y);
-      if(now-last.current.time<85||distance<14)return;
-      const angle=Math.atan2(event.clientY-last.current.y,event.clientX-last.current.x),id=++last.current.id;last.current={x:event.clientX,y:event.clientY,time:now,id};
-      setRipples((values)=>[...values.slice(-11),{id,x:event.clientX,y:event.clientY,strength:Math.min(1,distance/80),angle}]);
-      setTimeout(()=>setRipples((values)=>values.filter((r)=>r.id!==id)),1250);
-    };
-    addEventListener("pointermove",move,{passive:true});return()=>removeEventListener("pointermove",move);
-  },[]);
-  return <div className="water-ripple-layer" aria-hidden="true">{ripples.map((r)=><i key={r.id} style={{left:r.x,top:r.y,"--strength":r.strength,"--angle":`${r.angle}rad`}}><b/><em/></i>)}</div>;
-}
 function CursorEffects({effects}){
   const ref=useRef();
   useEffect(()=>{const move=(event)=>{if(!ref.current)return;ref.current.style.setProperty("--cursor-x",`${event.clientX}px`);ref.current.style.setProperty("--cursor-y",`${event.clientY}px`);ref.current.style.setProperty("--cursor-speed",String(Math.min(1,Math.hypot(event.movementX,event.movementY)/42)));};addEventListener("pointermove",move,{passive:true});return()=>removeEventListener("pointermove",move);},[]);
@@ -978,6 +965,19 @@ function BackgroundFlowLines(){
     {Array.from({length:18},(_,i)=><path key={`a${i}`} style={{"--i":i}} d={`M -120 ${160+i*22} C 280 ${20+i*11}, 510 ${390-i*7}, 820 ${245+i*8} S 1360 ${120+i*18}, 2040 ${280+i*16}`}/>)}
     {Array.from({length:14},(_,i)=><path key={`b${i}`} style={{"--i":i}} d={`M ${220+i*18} 1160 C ${260+i*8} 760, ${820-i*19} 920, ${930+i*11} 560 S ${1440+i*17} ${240+i*13}, 2040 ${70+i*9}`}/>)}
   </svg></div>;
+}
+function CursorParticleField({theme,effects}){
+  const canvas=useRef(null),frame=useRef(0),pointer=useRef({x:-9999,y:-9999}),points=useRef([]);
+  const colors=THEME_COLORS[theme]||THEME_COLORS.emerald;
+  useEffect(()=>{
+    const node=canvas.current;if(!node)return;
+    const rebuild=()=>{const w=innerWidth,h=innerHeight,dpr=Math.min(devicePixelRatio||1,1.25);node.width=Math.round(w*dpr);node.height=Math.round(h*dpr);node.style.width=`${w}px`;node.style.height=`${h}px`;const count=Math.max(54,Math.min(110,Math.round(w*h/21000)));let seed=0x51f15e;const random=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};points.current=Array.from({length:count},()=>({x:random()*w,y:random()*h,r:.45+random()*.85,phase:random()*6.28}));draw();};
+    const draw=()=>{frame.current=0;const ctx=node.getContext("2d",{alpha:true,desynchronized:true});if(!ctx)return;const dpr=node.width/Math.max(1,innerWidth);ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,innerWidth,innerHeight);const p=pointer.current;for(const dot of points.current){const dx=dot.x-p.x,dy=dot.y-p.y,d=Math.hypot(dx,dy),influence=Math.max(0,1-d/190),push=influence*influence*34,inv=d?1/d:0,x=dot.x+dx*inv*push,y=dot.y+dy*inv*push;ctx.globalAlpha=(.11+influence*.58)*Math.min(1,effects);ctx.fillStyle=influence>.35?colors[1]:colors[0];ctx.shadowColor=colors[0];ctx.shadowBlur=influence*9;ctx.beginPath();ctx.arc(x,y,dot.r+influence*1.25,0,Math.PI*2);ctx.fill();}ctx.shadowBlur=0;};
+    const queue=()=>{if(!frame.current)frame.current=requestAnimationFrame(draw);};
+    const move=(event)=>{pointer.current={x:event.clientX,y:event.clientY};queue();};
+    rebuild();addEventListener("resize",rebuild);addEventListener("pointermove",move,{passive:true});return()=>{cancelAnimationFrame(frame.current);removeEventListener("resize",rebuild);removeEventListener("pointermove",move);};
+  },[colors,effects]);
+  return <canvas ref={canvas} className="cursor-particle-field" aria-hidden="true"/>;
 }
 function HoldSpace({progress,point}){
   return <div className={`hold-space ${progress>.01?"active":""}`} style={{"--hold":progress,"--hold-x":`${point.x}px`,"--hold-y":`${point.y}px`}} aria-hidden="true">
@@ -1060,7 +1060,7 @@ function SettingsPanel({
             <button className={performanceMode==="eco"?"active":""} onClick={()=>{setPerformanceMode("eco");backend?.setPerformanceMode?.("eco");}}>ТИХИЙ</button>
             <button className={performanceMode==="max"?"active":""} onClick={()=>{setPerformanceMode("max");backend?.setPerformanceMode?.("max");}}>МАКСИМУМ</button>
           </div>
-          <small className="settings-note">Цвет управляет UI, металлом и отражениями. PNG всегда сохраняет исходное качество.</small>
+          <small className="settings-note">Цвет управляет UI, металлом и отражениями. Сравнение показывает реальные пиксели PNG.</small>
         </motion.aside>
       )}
     </AnimatePresence>
@@ -1386,19 +1386,19 @@ function WipeCompare({ before, after }) {
   );
 }
 
-const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before, after, mode, onZoom, contentReady=true, externalLoading=false }) {
+const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before, after, previewBefore, previewAfter, mode, onZoom, contentReady=true, externalLoading=false }) {
   const host = useRef(null), canvas = useRef(null), frame = useRef(0), drag = useRef(null);
   const [previewLoading,setPreviewLoading]=useState(false);
-  const images = useRef({ before: null, after: null });
-  const interactionTimer=useRef(0);
+  const images = useRef({ before: null, after: null, fullBefore:null, fullAfter:null });
+  const interactionTimer=useRef(0),detailTimer=useRef(0),interaction=useRef(false),detailRequest=useRef(()=>{}),wakeRef=useRef(()=>{}),detailBlobs=useRef({});
   const target = useRef({ s: 1, x: 0, y: 0, split: 0.5 });
   const current = useRef({ s: 1, x: 0, y: 0, split: 0.5 });
   const alive = useRef(true), loaded = useRef(false), modeRef = useRef(mode);
   const setInteraction=useCallback((active,delay=0)=>{
     clearTimeout(interactionTimer.current);
-    if(active)window.__AGR_INTERACTION_PAUSE_COUNT__=(window.__AGR_INTERACTION_PAUSE_COUNT__||0)+1;
-    if(!active&&delay)interactionTimer.current=setTimeout(()=>dispatchEvent(new CustomEvent("agr-drag",{detail:false})),delay);
-    else dispatchEvent(new CustomEvent("agr-drag",{detail:active}));
+    if(active){interaction.current=true;window.__AGR_INTERACTION_PAUSE_COUNT__=(window.__AGR_INTERACTION_PAUSE_COUNT__||0)+1;dispatchEvent(new CustomEvent("agr-drag",{detail:true}));}
+    else if(delay)interactionTimer.current=setTimeout(()=>{interaction.current=false;dispatchEvent(new CustomEvent("agr-drag",{detail:false}));wakeRef.current();detailRequest.current();},delay);
+    else{interaction.current=false;dispatchEvent(new CustomEvent("agr-drag",{detail:false}));wakeRef.current();detailRequest.current();}
   },[]);
   const clampView=useCallback((view)=>{
     const node=host.current,rect=node?.getBoundingClientRect();
@@ -1430,8 +1430,11 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before
     const c = current.current, t = clampView(target.current);target.current=t;
     c.s += (t.s - c.s) * .19; c.x += (t.x - c.x) * .19; c.y += (t.y - c.y) * .19; c.split += (t.split - c.split) * .22;
     ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,out.width,out.height);ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const detailed=!interaction.current&&c.s>=2.2;
+    const beforeImage=detailed&&images.current.fullBefore?images.current.fullBefore:images.current.before;
+    const afterImage=detailed&&images.current.fullAfter?images.current.fullAfter:images.current.after;
     const draw = (img, x0, width) => {
-      const iw=img?.naturalWidth||img?.width,ih=img?.naturalHeight||img?.height;
+      const iw=img?.fullWidth||img?.naturalWidth||img?.width,ih=img?.fullHeight||img?.naturalHeight||img?.height;
       if (!iw || !ih || width <= 0) return;
       ctx.save(); ctx.beginPath(); ctx.rect(x0, 0, width, rect.height); ctx.clip();
       const fitW = modeRef.current === "pan"&&images.current.before&&images.current.after ? rect.width / 2 : rect.width;
@@ -1439,29 +1442,35 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before
       const scale = fit * c.s, dw = iw * scale, dh = ih * scale;
       const cx = modeRef.current === "pan" ? x0 + width / 2 : rect.width / 2;
       ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = c.s > 8 ? "medium" : "high";
-      ctx.drawImage(img, cx - dw / 2 + c.x, rect.height / 2 - dh / 2 + c.y, dw, dh); ctx.restore();
+      const dx=cx-dw/2+c.x,dy=rect.height/2-dh/2+c.y;
+      if(img.bitmap)ctx.drawImage(img.bitmap,dx+img.tileX*scale,dy+img.tileY*scale,img.tileWidth*scale,img.tileHeight*scale);
+      else ctx.drawImage(img,dx,dy,dw,dh);ctx.restore();
     };
     if (modeRef.current === "wipe") {
-      const cut = rect.width * c.split; draw(images.current.before, 0, rect.width); draw(images.current.after, 0, cut);
+      const cut = rect.width * c.split; draw(beforeImage, 0, rect.width); draw(afterImage, 0, cut);
       ctx.fillStyle = "rgba(255,255,255,.9)"; ctx.fillRect(cut - .5, 0, 1, rect.height);
     } else if(images.current.before&&images.current.after){
-      draw(images.current.before, 0, rect.width / 2); draw(images.current.after, rect.width / 2, rect.width / 2);
+      draw(beforeImage, 0, rect.width / 2); draw(afterImage, rect.width / 2, rect.width / 2);
     }else{
-      draw(images.current.before||images.current.after,0,rect.width);
+      draw(beforeImage||afterImage,0,rect.width);
     }
     const moving = Math.abs(t.s-c.s) > .001 || Math.abs(t.x-c.x) > .08 || Math.abs(t.y-c.y) > .08 || Math.abs(t.split-c.split) > .001;
     if (moving && alive.current) frame.current = requestAnimationFrame(render);
   }, [clampView]);
   const wake = useCallback(() => { if (!frame.current) frame.current = requestAnimationFrame(render); }, [render]);
+  wakeRef.current=wake;
   const reset = useCallback((scale = 1) => {
     target.current = { ...target.current, s: scale, x: 0, y: 0 };
+    clearTimeout(detailTimer.current);
+    if(scale>=2.2)detailTimer.current=setTimeout(()=>detailRequest.current(),220);
+    else for(const key of ["fullBefore","fullAfter"]){images.current[key]?.bitmap?.close?.();images.current[key]?.close?.();images.current[key]=null;}
     onZoom?.(scale); wake();
   }, [onZoom, wake]);
-  useEffect(() => { modeRef.current = mode; target.current=clampView({...target.current,x:0,y:0}); wake(); }, [mode, wake,clampView]);
+  useEffect(() => { modeRef.current = mode; target.current=clampView({...target.current,x:0,y:0});clearTimeout(detailTimer.current);if(target.current.s>=2.2)detailTimer.current=setTimeout(()=>detailRequest.current(),220);wake(); }, [mode, wake,clampView]);
   useEffect(() => {
     alive.current = true; loaded.current = false;
     let cancelled = false;const controller=new AbortController();
-    const release=()=>{for(const image of [images.current.before,images.current.after])image?.close?.();images.current={before:null,after:null};loaded.current=false;if(canvas.current){canvas.current.width=1;canvas.current.height=1;}};
+    const release=()=>{const unique=new Set(Object.values(images.current));for(const image of unique){image?.bitmap?.close?.();image?.close?.();}images.current={before:null,after:null,fullBefore:null,fullAfter:null};detailBlobs.current={};loaded.current=false;if(canvas.current){canvas.current.width=1;canvas.current.height=1;}};
     release();
     if(!contentReady||externalLoading){setPreviewLoading(true);return()=>{alive.current=false;};}
     setPreviewLoading(Boolean(before||after));
@@ -1473,11 +1482,48 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before
       try{const response=await fetch(src,{signal:controller.signal});const blob=await response.blob();if(!blob.size)throw new Error("empty image");return await createImageBitmap(blob,{colorSpaceConversion:"default",premultiplyAlpha:"default"});}
       catch{if(cancelled)return null;return await new Promise((resolve)=>{const img=new Image();img.decoding="async";img.onload=()=>resolve(img.naturalWidth?img:null);img.onerror=()=>resolve(null);img.src=src;});}
     };
-    Promise.all([load(before || (HEADLESS_TEST ? TEST_TEXTURE : "")), load(after || (HEADLESS_TEST ? TEST_TEXTURE : ""))]).then(([a,b]) => {
+    const lowBefore=previewBefore||before||(HEADLESS_TEST?TEST_TEXTURE:"");
+    const lowAfter=previewAfter||after||(HEADLESS_TEST?TEST_TEXTURE:"");
+    Promise.all([load(lowBefore), load(lowAfter)]).then(([a,b]) => {
       if (cancelled){a?.close?.();b?.close?.();return;} images.current = { before: a, after: b }; loaded.current = Boolean(a || b);setPreviewLoading(false);reset();
     });
-    return () => { cancelled = true;controller.abort();alive.current = false; cancelAnimationFrame(frame.current); frame.current = 0;clearTimeout(interactionTimer.current);setInteraction(false);release(); };
-  }, [before, after, contentReady, externalLoading, reset, setInteraction]);
+    const detailSource=async(key,src)=>{
+      const cached=detailBlobs.current[key];if(cached?.src===src)return cached;
+      const response=await fetch(src,{signal:controller.signal});const blob=await response.blob();if(blob.size<24)throw new Error("invalid PNG");
+      const header=await blob.slice(16,24).arrayBuffer(),view=new DataView(header),meta={src,blob,width:view.getUint32(0),height:view.getUint32(4)};detailBlobs.current[key]=meta;return meta;
+    };
+    const cropFor=(meta,key)=>{
+      const rect=host.current?.getBoundingClientRect();if(!rect?.width||!rect?.height)return null;
+      const pan=modeRef.current==="pan"&&images.current.before&&images.current.after,paneWidth=pan?rect.width/2:rect.width,x0=pan&&key==="fullAfter"?rect.width/2:0;
+      const fit=Math.min(paneWidth/meta.width,rect.height/meta.height),scale=fit*target.current.s,cx=pan?x0+paneWidth/2:rect.width/2,dx=cx-meta.width*scale/2+target.current.x,dy=rect.height/2-meta.height*scale/2+target.current.y;
+      const margin=Math.max(96,Math.round(Math.max(paneWidth,rect.height)/Math.max(scale,.0001)*.12));
+      const sx=Math.max(0,Math.floor((x0-dx)/scale)-margin),sy=Math.max(0,Math.floor(-dy/scale)-margin),ex=Math.min(meta.width,Math.ceil((x0+paneWidth-dx)/scale)+margin),ey=Math.min(meta.height,Math.ceil((rect.height-dy)/scale)+margin);
+      return {x:sx,y:sy,width:Math.max(1,ex-sx),height:Math.max(1,ey-sy),key:`${sx}:${sy}:${ex}:${ey}:${target.current.s.toFixed(3)}`};
+    };
+    let detailBusy=false,detailPending=false;
+    detailRequest.current=async()=>{
+      if(detailBusy){detailPending=true;return;}
+      if(cancelled||interaction.current||target.current.s<2.2)return;
+      detailBusy=true;
+      const pairs=[["fullBefore",before,lowBefore],["fullAfter",after,lowAfter]];
+      for(const [key,src,low] of pairs){
+        if(cancelled)break;
+        if(!src||src===low)continue;
+        try{
+          const meta=await detailSource(key,src),crop=cropFor(meta,key);if(!crop)continue;
+          if(images.current[key]?.key===crop.key)continue;
+          const bitmap=await createImageBitmap(meta.blob,crop.x,crop.y,crop.width,crop.height,{colorSpaceConversion:"default",premultiplyAlpha:"default"});
+          if(cancelled||interaction.current){bitmap.close();continue;}
+          images.current[key]?.bitmap?.close?.();images.current[key]={bitmap,fullWidth:meta.width,fullHeight:meta.height,tileX:crop.x,tileY:crop.y,tileWidth:crop.width,tileHeight:crop.height,key:crop.key};wake();
+          // Only a visible source tile reaches the GPU. Two full 8K bitmaps
+          // are never resident at the same time.
+          await new Promise(resolve=>setTimeout(resolve,48));
+        }catch{if(cancelled)break;}
+      }
+      detailBusy=false;if(detailPending&&!cancelled){detailPending=false;setTimeout(()=>detailRequest.current(),0);}
+    };
+    return () => { cancelled = true;controller.abort();alive.current = false; cancelAnimationFrame(frame.current); frame.current = 0;clearTimeout(interactionTimer.current);clearTimeout(detailTimer.current);interaction.current=false;dispatchEvent(new CustomEvent("agr-drag",{detail:false}));detailRequest.current=()=>{};release(); };
+  }, [before, after, previewBefore, previewAfter, contentReady, externalLoading, reset, wake]);
   useEffect(() => {
     const observer = new ResizeObserver(()=>{target.current=clampView(target.current);wake();}); if (host.current) observer.observe(host.current);
     return () => observer.disconnect();
@@ -1486,7 +1532,9 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before
     const t = target.current, s = Math.max(1, Math.min(MAX_ZOOM, t.s * factor)), ratio = s / t.s;
     const raw={...t,s,x:ox-(ox-t.x)*ratio,y:oy-(oy-t.y)*ratio},next=clampView(raw);
     if(Math.abs(next.x-raw.x)<.001&&Math.abs(next.y-raw.y)<.001)window.__AGR_ZOOM_ANCHOR_ERROR__=Math.hypot((ox-next.x)/s-(ox-t.x)/t.s,(oy-next.y)/s-(oy-t.y)/t.s);
-    target.current=next;
+    target.current=next;clearTimeout(detailTimer.current);
+    if(s>=2.2)detailTimer.current=setTimeout(()=>detailRequest.current(),220);
+    else if(s<1.35){for(const key of ["fullBefore","fullAfter"]){images.current[key]?.bitmap?.close?.();images.current[key]?.close?.();images.current[key]=null;}detailBlobs.current={};}
     onZoom?.(s); window.__AGR_ZOOM_TARGET__ = s; wake();
   }, [onZoom, wake,clampView]);
   useEffect(() => {
@@ -1519,6 +1567,8 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before
 const ComparisonSurface = React.memo(function ComparisonSurface({
   before,
   after,
+  previewBefore,
+  previewAfter,
   focus,
   onFocus,
   allowWipe = false,
@@ -1541,10 +1591,10 @@ const ComparisonSurface = React.memo(function ComparisonSurface({
           </button>
         </div>
       )}
-      <SmoothCompareViewport before={before} after={after} mode={mode} onZoom={updateZoomLabel} contentReady={contentReady} externalLoading={loading} />
+      <SmoothCompareViewport before={before} after={after} previewBefore={previewBefore} previewAfter={previewAfter} mode={mode} onZoom={updateZoomLabel} contentReady={contentReady} externalLoading={loading} />
       <div className="comparison-truth">
-        <span>ОРИГИНАЛ · ПОЛНЫЙ PNG</span>
-        <span>РЕЗУЛЬТАТ · ПОЛНЫЙ PNG</span>
+        <span>ОРИГИНАЛ · FULL &gt;220%</span>
+        <span>РЕЗУЛЬТАТ · FULL &gt;220%</span>
       </div>
       <div className="compare-tools">
         <span className="live-zoom">ZOOM {zoomLabel}% · MAX {MAX_ZOOM * 100}%</span>
@@ -1716,7 +1766,7 @@ function Workspace({ kind, state, backend, setScreen, contentReady = true }) {
                 <div className="file-data">
                   <h3>{item.name}</h3>
                   <p>
-                    {item.width ? `${item.width} × ${item.height} · ` : ""}{mb(item.sourceMb)}{" "}
+                    {item.width ? `${item.width} × ${item.height} · ` : ""}{item.textureKind||"COLOR"} · {mb(item.sourceMb)}{" "}
                     {item.done && `→ ${mb(item.outputMb)}`}
                   </p>
                   <FluidProgress value={item.progress || 0} />
@@ -1770,10 +1820,12 @@ function Workspace({ kind, state, backend, setScreen, contentReady = true }) {
           <ComparisonSurface
             before={before}
             after={state.resultUrl}
+            previewBefore={state.workingPreviewUrl}
+            previewAfter={state.resultUrl}
             focus={focus}
             onFocus={toggleFocus}
             contentReady={contentReady}
-            loading={false}
+            loading={state.previewBusy}
             allowWipe
           />
         </>
@@ -1813,7 +1865,7 @@ function Compare({ index, state, backend, setScreen, contentReady = true }) {
           ← К СПИСКУ
         </Button>
         <div>
-          <small>DEEP ANALYSIS</small>
+          <small>DEEP ANALYSIS · {item.textureKind||"COLOR"}</small>
           <h1>{item.name}</h1>
         </div>
       </div>
@@ -1826,6 +1878,8 @@ function Compare({ index, state, backend, setScreen, contentReady = true }) {
       <ComparisonSurface
         before={item.sourceUrl}
         after={item.resultUrl}
+        previewBefore={item.comparisonSourceUrl}
+        previewAfter={item.comparisonResultUrl}
         focus={focus}
         onFocus={toggleFocus}
         allowWipe
@@ -2016,6 +2070,7 @@ function App() {
       style={{"--ui-brightness":brightness,"--effect-level":effects,"--hold":hold}}
     >
       <BackgroundFlowLines/>
+      <CursorParticleField theme={theme} effects={effects}/>
       <div className="webgl">
         {HEADLESS_TEST ? (
           <div className="headless-scene" />
@@ -2037,7 +2092,6 @@ function App() {
       </div>
       <HoldSpace progress={hold} point={holdPoint}/>
       <CursorEffects effects={effects}/>
-      <WaterGlassField />
       <TooltipLayer />
       <Header
         screen={screen}

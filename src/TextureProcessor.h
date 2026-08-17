@@ -21,7 +21,7 @@ class TextureProcessor final {
 public:
     using Progress = std::function<void(double, const QString &)>;
     using Cancel = std::function<bool()>;
-    static TextureResult process(const QString &path, qint64 limitBytes, const Progress &progress, const Cancel &cancel={});
+    static TextureResult process(const QString &path, qint64 limitBytes, const Progress &progress, const Cancel &cancel={}, bool preserveResolution=false);
     static TextureResult processAutomatic(const QString &path, const Progress &progress, const Cancel &cancel={});
 private:
     static QImage perceptualPaletteCandidate(const QImage &, int colors, int model, int orderedStrength, const Cancel &cancel={});

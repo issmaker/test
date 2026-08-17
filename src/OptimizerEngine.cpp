@@ -15,6 +15,7 @@
 #include <QThread>
 #include <QThreadPool>
 #include <QUrl>
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <future>
@@ -427,15 +428,24 @@ void OptimizerEngine::optimizeBatch(){
     for(const auto &job:jobs){const BatchEntry &entry=m_batchEntries[job.first];
         if(qMax(entry.width,entry.height)>4096||qint64(entry.width)*qint64(entry.height)>24000000){contains8K=true;break;}
     }
-    // The selected hardware policy controls safe parallelism. 8K jobs retain
-    // a memory guard unless the user explicitly selects maximum throughput.
-    const int requested=m_performanceMode=="eco"?1:(m_performanceMode=="max"?qMin(4,m_workerLimit):qMin(2,qMax(1,logicalCores/2)));
-    m_batchWorkers=contains8K?qMin(m_performanceMode=="max"?2:1,int(jobs.size())):qBound(1,requested,int(jobs.size()));
+    qint64 availableBytes=4ll*1024*1024*1024;
+#ifdef Q_OS_WIN
+    MEMORYSTATUSEX memory{};memory.dwLength=sizeof(memory);
+    if(GlobalMemoryStatusEx(&memory))availableBytes=qint64(memory.ullAvailPhys);
+#endif
+    qint64 largestPixels=1;
+    for(const auto &job:jobs){const BatchEntry &entry=m_batchEntries[job.first];largestPixels=qMax(largestPixels,qint64(entry.width)*entry.height);}
+    // Source, candidate, encoder rows and comparison metrics coexist. Keep a
+    // conservative per-job budget and reserve 35% of free RAM for Windows,
+    // Chromium/WebGL and responsive navigation.
+    const qint64 bytesPerJob=qMax<qint64>(320ll*1024*1024,largestPixels*18);
+    const int memorySafe=qMax(1,int((availableBytes*65/100)/bytesPerJob));
+    const int responsiveCpu=qMax(1,logicalCores-1);
+    const int requested=m_performanceMode=="eco"?1:(m_performanceMode=="max"?responsiveCpu:qMax(1,logicalCores/2));
+    m_batchWorkers=qBound(1,std::min({requested,memorySafe,int(jobs.size())}),int(jobs.size()));
     const int generation=++m_batchGeneration;
     m_batchCancelRequested=false;m_batchBusy=true;m_batchProgress=0;
-    m_batchStatus=contains8K
-        ? QString("8K MEMORY GUARD · 1 поток · %1 PNG").arg(jobs.size())
-        : QString("Запуск %1 параллельных потоков · %2 PNG").arg(m_batchWorkers).arg(jobs.size());
+    m_batchStatus=QString("Умная нагрузка · %1 потоков · %2 PNG%3").arg(m_batchWorkers).arg(jobs.size()).arg(contains8K?QStringLiteral(" · 8K RAM GUARD"):QString());
     m_batchProgressHistory={0.0};m_batchActivityHistory={0.0};m_lastTelemetryProgress=0;m_telemetryTimer.start();
     emit batchItemsChanged();emit batchBusyChanged();emit batchProgressChanged();emit batchStatusChanged();emit batchTelemetryChanged();emit batchWorkersChanged();
     const auto activeIndexes=std::make_shared<QVector<int>>();activeIndexes->reserve(jobs.size());

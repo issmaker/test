@@ -582,18 +582,20 @@ const bladePose=(state,u,time=0,out)=>{
   pose.position.set(x,y+breathe,z);pose.rotation.set(.34*Math.sin(a*2),twist,.5*Math.cos(a),"XYZ");pose.scale.set(width,1,1+.18*Math.sin(a*3));return pose;
 };
 
-function BladeSculpture({ state, theme, quality, brightness=1, effects=1, transitionKind="home>home", hold=0 }){
+function BladeSculpture({ state, theme, quality, brightness=1, effects=1, transitionKind="home>home", hold=0, holdPoint, processing=false }){
   const count=quality==="eco"?104:quality==="max"?188:148;
-  const body=useRef(),edge=useRef(),edgeBack=useRef(),trail=useRef(),current=useRef([]),targets=useRef([]),hover=useRef(-1),lastPointer=useRef(new THREE.Vector2()),tmp=useMemo(()=>({matrix:new THREE.Matrix4(),q:new THREE.Quaternion(),p:new THREE.Vector3(),trailP:new THREE.Vector3(),s:new THREE.Vector3(),projected:new THREE.Vector3(),offset:new THREE.Vector3(),color:new THREE.Color(),bodyColor:new THREE.Color(),dark:new THREE.Color("#12364a"),white:new THREE.Color("#ffffff")}),[]);
+  const body=useRef(),edge=useRef(),edgeBack=useRef(),trail=useRef(),current=useRef([]),targets=useRef([]),hover=useRef(-1),holdU=useRef(.56),frameTick=useRef(0),lastPointer=useRef(new THREE.Vector2()),tmp=useMemo(()=>({matrix:new THREE.Matrix4(),q:new THREE.Quaternion(),p:new THREE.Vector3(),trailP:new THREE.Vector3(),s:new THREE.Vector3(),projected:new THREE.Vector3(),offset:new THREE.Vector3(),pointer:new THREE.Vector2(),color:new THREE.Color(),bodyColor:new THREE.Color(),dark:new THREE.Color("#12364a"),white:new THREE.Color("#ffffff")}),[]);
   const colors=THEME_COLORS[theme]||THEME_COLORS.cyan;
   const accent=useMemo(()=>new THREE.Color(colors[0]),[colors]);
   const accent2=useMemo(()=>new THREE.Color(colors[1]),[colors]);
   const transitionMode=useMemo(()=>[...transitionKind].reduce((sum,char)=>sum+char.charCodeAt(0),0)%4,[transitionKind]);
   useEffect(()=>{current.current=[];targets.current=[];},[count]);
   useFrame(({clock,pointer,camera})=>{
+    if(processing&&hold<=0&&++frameTick.current%2)return;
     if(!body.current||!edge.current||!edgeBack.current||!trail.current)return;
-    const t=clock.elapsedTime, speed=pointer.distanceTo(lastPointer.current);lastPointer.current.lerp(pointer,.24);
-    const holdCenter=hover.current>=0?hover.current/count:.56;
+    const activePointer=hold>0&&holdPoint?tmp.pointer.set(holdPoint.x/innerWidth*2-1,1-holdPoint.y/innerHeight*2):pointer;
+    const t=clock.elapsedTime, speed=activePointer.distanceTo(lastPointer.current);lastPointer.current.lerp(activePointer,.18);
+    const holdCenter=holdU.current;
     let nearest=-1,nearestDistance=.29;
     for(let i=0;i<count;i++){
       const u=i/count,target=bladePose(state,u,t,targets.current[i]),phase=transitionMode===0?i:transitionMode===1?count-i:transitionMode===2?Math.abs(i-count/2)*2:(i%2?i:count-i);targets.current[i]=target;
@@ -605,10 +607,11 @@ function BladeSculpture({ state, theme, quality, brightness=1, effects=1, transi
       tmp.offset.set(0,.026,.363*c.s.z).applyQuaternion(c.q);tmp.p.copy(c.p).add(tmp.offset);tmp.s.set(c.s.x,1,1);tmp.matrix.compose(tmp.p,c.q,tmp.s);edge.current.setMatrixAt(i,tmp.matrix);
       tmp.offset.set(0,-.026,-.363*c.s.z).applyQuaternion(c.q);tmp.p.copy(c.p).add(tmp.offset);tmp.matrix.compose(tmp.p,c.q,tmp.s);edgeBack.current.setMatrixAt(i,tmp.matrix);
       tmp.trailP.copy(c.p).lerp(target.position,-.24);tmp.s.copy(c.s).multiplyScalar(1.015);tmp.matrix.compose(tmp.trailP,c.q,tmp.s);trail.current.setMatrixAt(i,tmp.matrix);
-      tmp.projected.copy(c.p);body.current.localToWorld(tmp.projected);tmp.projected.project(camera);const distance=Math.hypot(tmp.projected.x-pointer.x,tmp.projected.y-pointer.y);
+      tmp.projected.copy(c.p);body.current.localToWorld(tmp.projected);tmp.projected.project(camera);const distance=Math.hypot(tmp.projected.x-activePointer.x,tmp.projected.y-activePointer.y);
       if(distance<nearestDistance){nearestDistance=distance;nearest=i;}
     }
     hover.current=nearest;
+    if(nearest>=0){let delta=nearest/count-holdU.current;if(delta>.5)delta-=1;if(delta<-.5)delta+=1;holdU.current=(holdU.current+delta*(hold>0?.16:.28)+1)%1;}
     for(let i=0;i<count;i++){
       const delta=nearest<0?count:Math.min(Math.abs(i-nearest),count-Math.abs(i-nearest));
       const circular=Math.min(Math.abs(i/count-holdCenter),1-Math.abs(i/count-holdCenter)),holdLight=hold*Math.exp(-circular*circular*52)*1.55;
@@ -649,13 +652,13 @@ function MovingReflections({colors,brightness}){
   return <><pointLight ref={a} intensity={22*brightness} distance={13} color={colors[0]}/><pointLight ref={b} intensity={18*brightness} distance={12} color={colors[1]}/></>;
 }
 
-function Scene({ theme, quality, screen, settingsOpen, secret, transitionKind, brightness, effects, hold }) {
+function Scene({ theme, quality, screen, settingsOpen, secret, transitionKind, brightness, effects, hold, holdPoint, processing }) {
   const colors = THEME_COLORS[theme] || THEME_COLORS.rose;
   const density = quality === "eco" ? 10 : quality === "max" ? 42 : 24;
   const state=secret?"secret":screen;
   return (
     <Canvas
-      dpr={
+      dpr={processing?[0.62,0.78]:
         quality === "eco"
           ? [0.7, 0.9]
           : quality === "max"
@@ -671,7 +674,6 @@ function Scene({ theme, quality, screen, settingsOpen, secret, transitionKind, b
       }}
       onCreated={({gl})=>{gl.toneMapping=THREE.ACESFilmicToneMapping;gl.toneMappingExposure=1.56;gl.outputColorSpace=THREE.SRGBColorSpace;}}
     >
-      <color attach="background" args={["#030b13"]} />
       <ambientLight intensity={.74*brightness} color="#9cc7db" />
       <hemisphereLight intensity={1.35*brightness} color="#b9f9ff" groundColor="#082438"/>
       <directionalLight position={[-4,5,5]} intensity={4.1*brightness} color="#d8f9ff" />
@@ -683,9 +685,9 @@ function Scene({ theme, quality, screen, settingsOpen, secret, transitionKind, b
         <Lightformer form="ring" intensity={7*brightness} color={colors[1]} scale={[5,3,1]} position={[4,-1,1]} rotation-y={-Math.PI/2}/>
         <Lightformer form="circle" intensity={2.5*brightness} color="#dffcff" scale={2} position={[0,5,-2]} rotation-x={Math.PI/2}/>
       </Environment>
-      <BladeSculpture state={state} theme={theme} quality={quality} brightness={brightness} effects={effects} transitionKind={transitionKind} hold={hold}/>
+      <BladeSculpture state={state} theme={theme} quality={processing&&quality==="max"?"balanced":quality} brightness={brightness} effects={effects} transitionKind={transitionKind} hold={hold} holdPoint={holdPoint} processing={processing}/>
       <Sparkles
-        count={density}
+        count={processing?Math.max(6,Math.floor(density/2)):density}
         scale={[12, 7, 4]}
         size={1}
         speed={0.13}
@@ -711,7 +713,14 @@ class SceneBoundary extends React.Component {
   }
 }
 
-function Button({ children, quiet = false, danger = false, tip, className = "", ...props }) {
+function Button({ children, quiet = false, danger = false, tip, className = "", onPointerEnter, ...props }) {
+  const source=typeof children==="string"?children:null,[decoded,setDecoded]=useState(source),decodeTimer=useRef(0);
+  useEffect(()=>{setDecoded(source);return()=>clearInterval(decodeTimer.current);},[source]);
+  const decode=(event)=>{
+    onPointerEnter?.(event);if(!source||props.disabled)return;
+    clearInterval(decodeTimer.current);const chars=Array.from(source),fromLeft=event.clientX-event.currentTarget.getBoundingClientRect().left<event.currentTarget.offsetWidth/2,alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789АБВГДЕЖЗИКЛМНОПРСТУФХЦЧШ";let frame=0;
+    decodeTimer.current=setInterval(()=>{frame++;const resolved=Math.ceil(chars.length*Math.min(1,frame/11));setDecoded(chars.map((char,index)=>{if(char===" ")return char;const rank=fromLeft?index:chars.length-1-index;return rank<resolved?char:alphabet[Math.floor(Math.random()*alphabet.length)];}).join(""));if(frame>=11){clearInterval(decodeTimer.current);setDecoded(source);}},30);
+  };
   const move = (e) => {
     const r = e.currentTarget.getBoundingClientRect();
     e.currentTarget.style.setProperty("--bx", `${e.clientX - r.left}px`);
@@ -722,10 +731,11 @@ function Button({ children, quiet = false, danger = false, tip, className = "", 
       className={`button ${quiet ? "quiet" : ""} ${danger ? "danger" : ""} ${className}`.trim()}
       data-no-hold
       onPointerMove={move}
+      onPointerEnter={decode}
       {...props}
     >
       <i />
-      <span>{children}</span>
+      <span>{source?decoded:children}</span>
     </button>
   );
   return <Hint text={tip}>{node}</Hint>;
@@ -868,7 +878,7 @@ function Header({ screen, backend, onSettings }) {
         </span>
         <div>
           <b>Оптимизатор текстур</b>
-          <small>ADAPTIVE RGB24 / v56</small>
+          <small>ADAPTIVE RGB24 / v57</small>
         </div>
       </div>
       <div className="route-status">
@@ -960,6 +970,14 @@ function CursorEffects({effects}){
   const ref=useRef();
   useEffect(()=>{const move=(event)=>{if(!ref.current)return;ref.current.style.setProperty("--cursor-x",`${event.clientX}px`);ref.current.style.setProperty("--cursor-y",`${event.clientY}px`);ref.current.style.setProperty("--cursor-speed",String(Math.min(1,Math.hypot(event.movementX,event.movementY)/42)));};addEventListener("pointermove",move,{passive:true});return()=>removeEventListener("pointermove",move);},[]);
   return <div ref={ref} className="cursor-effects" style={{"--cursor-effects":effects}} aria-hidden="true"><i/><i/><i/></div>;
+}
+function BackgroundFlowLines(){
+  const ref=useRef();
+  useEffect(()=>{const move=(event)=>{if(!ref.current)return;ref.current.style.setProperty("--flow-x",`${(event.clientX/innerWidth-.5)*-16}px`);ref.current.style.setProperty("--flow-y",`${(event.clientY/innerHeight-.5)*-12}px`);};addEventListener("pointermove",move,{passive:true});return()=>removeEventListener("pointermove",move);},[]);
+  return <div ref={ref} className="background-flow" aria-hidden="true"><svg viewBox="0 0 1920 1080" preserveAspectRatio="none">
+    {Array.from({length:18},(_,i)=><path key={`a${i}`} style={{"--i":i}} d={`M -120 ${160+i*22} C 280 ${20+i*11}, 510 ${390-i*7}, 820 ${245+i*8} S 1360 ${120+i*18}, 2040 ${280+i*16}`}/>)}
+    {Array.from({length:14},(_,i)=><path key={`b${i}`} style={{"--i":i}} d={`M ${220+i*18} 1160 C ${260+i*8} 760, ${820-i*19} 920, ${930+i*11} 560 S ${1440+i*17} ${240+i*13}, 2040 ${70+i*9}`}/>)}
+  </svg></div>;
 }
 function HoldSpace({progress,point}){
   return <div className={`hold-space ${progress>.01?"active":""}`} style={{"--hold":progress,"--hold-x":`${point.x}px`,"--hold-y":`${point.y}px`}} aria-hidden="true">
@@ -1385,13 +1403,14 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before
   const clampView=useCallback((view)=>{
     const node=host.current,rect=node?.getBoundingClientRect();
     if(!rect?.width||!rect?.height)return {...view,x:0,y:0};
-    const paneWidth=modeRef.current==="pan"?rect.width/2:rect.width;
+    const paneWidth=modeRef.current==="pan"&&images.current.before&&images.current.after?rect.width/2:rect.width;
     let maxX=Infinity,maxY=Infinity,found=false;
     for(const img of [images.current.before,images.current.after]){
-      if(!img?.naturalWidth)continue;found=true;
-      const fit=Math.min(paneWidth/img.naturalWidth,rect.height/img.naturalHeight);
-      maxX=Math.min(maxX,Math.max(0,(img.naturalWidth*fit*view.s-paneWidth)/2));
-      maxY=Math.min(maxY,Math.max(0,(img.naturalHeight*fit*view.s-rect.height)/2));
+      const iw=img?.naturalWidth||img?.width,ih=img?.naturalHeight||img?.height;
+      if(!iw||!ih)continue;found=true;
+      const fit=Math.min(paneWidth/iw,rect.height/ih);
+      maxX=Math.min(maxX,Math.max(0,(iw*fit*view.s-paneWidth)/2));
+      maxY=Math.min(maxY,Math.max(0,(ih*fit*view.s-rect.height)/2));
     }
     if(!found){maxX=0;maxY=0;}
     const x=Math.max(-maxX,Math.min(maxX,view.x)),y=Math.max(-maxY,Math.min(maxY,view.y));
@@ -1412,11 +1431,12 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before
     c.s += (t.s - c.s) * .19; c.x += (t.x - c.x) * .19; c.y += (t.y - c.y) * .19; c.split += (t.split - c.split) * .22;
     ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,out.width,out.height);ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const draw = (img, x0, width) => {
-      if (!img?.naturalWidth || width <= 0) return;
+      const iw=img?.naturalWidth||img?.width,ih=img?.naturalHeight||img?.height;
+      if (!iw || !ih || width <= 0) return;
       ctx.save(); ctx.beginPath(); ctx.rect(x0, 0, width, rect.height); ctx.clip();
-      const fitW = modeRef.current === "pan" ? rect.width / 2 : rect.width;
-      const fit = Math.min(fitW / img.naturalWidth, rect.height / img.naturalHeight);
-      const scale = fit * c.s, dw = img.naturalWidth * scale, dh = img.naturalHeight * scale;
+      const fitW = modeRef.current === "pan"&&images.current.before&&images.current.after ? rect.width / 2 : rect.width;
+      const fit = Math.min(fitW / iw, rect.height / ih);
+      const scale = fit * c.s, dw = iw * scale, dh = ih * scale;
       const cx = modeRef.current === "pan" ? x0 + width / 2 : rect.width / 2;
       ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = c.s > 8 ? "medium" : "high";
       ctx.drawImage(img, cx - dw / 2 + c.x, rect.height / 2 - dh / 2 + c.y, dw, dh); ctx.restore();
@@ -1424,8 +1444,10 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before
     if (modeRef.current === "wipe") {
       const cut = rect.width * c.split; draw(images.current.before, 0, rect.width); draw(images.current.after, 0, cut);
       ctx.fillStyle = "rgba(255,255,255,.9)"; ctx.fillRect(cut - .5, 0, 1, rect.height);
-    } else {
+    } else if(images.current.before&&images.current.after){
       draw(images.current.before, 0, rect.width / 2); draw(images.current.after, rect.width / 2, rect.width / 2);
+    }else{
+      draw(images.current.before||images.current.after,0,rect.width);
     }
     const moving = Math.abs(t.s-c.s) > .001 || Math.abs(t.x-c.x) > .08 || Math.abs(t.y-c.y) > .08 || Math.abs(t.split-c.split) > .001;
     if (moving && alive.current) frame.current = requestAnimationFrame(render);
@@ -1438,20 +1460,20 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before
   useEffect(() => { modeRef.current = mode; target.current=clampView({...target.current,x:0,y:0}); wake(); }, [mode, wake,clampView]);
   useEffect(() => {
     alive.current = true; loaded.current = false;
-    let cancelled = false;
+    let cancelled = false;const controller=new AbortController();
+    const release=()=>{for(const image of [images.current.before,images.current.after])image?.close?.();images.current={before:null,after:null};loaded.current=false;if(canvas.current){canvas.current.width=1;canvas.current.height=1;}};
+    release();
     if(!contentReady||externalLoading){setPreviewLoading(true);return()=>{alive.current=false;};}
     setPreviewLoading(Boolean(before||after));
-    const load = (src) => new Promise((resolve) => {
-      if (!src) return resolve(null);
-      const img = new Image(); img.decoding = "async";
-      const done = () => resolve(img.naturalWidth ? img : null);
-      img.onload = done; img.onerror = () => resolve(null); img.src = src;
-      if (img.complete) done();
-    });
+    const load = async(src)=>{
+      if(!src)return null;
+      try{const response=await fetch(src,{signal:controller.signal});const blob=await response.blob();if(!blob.size)throw new Error("empty image");return await createImageBitmap(blob,{colorSpaceConversion:"default",premultiplyAlpha:"default"});}
+      catch{if(cancelled)return null;return await new Promise((resolve)=>{const img=new Image();img.decoding="async";img.onload=()=>resolve(img.naturalWidth?img:null);img.onerror=()=>resolve(null);img.src=src;});}
+    };
     Promise.all([load(before || (HEADLESS_TEST ? TEST_TEXTURE : "")), load(after || (HEADLESS_TEST ? TEST_TEXTURE : ""))]).then(([a,b]) => {
-      if (cancelled) return; images.current = { before: a, after: b }; loaded.current = Boolean(a || b);setPreviewLoading(false);reset();
+      if (cancelled){a?.close?.();b?.close?.();return;} images.current = { before: a, after: b }; loaded.current = Boolean(a || b);setPreviewLoading(false);reset();
     });
-    return () => { cancelled = true; alive.current = false; cancelAnimationFrame(frame.current); frame.current = 0;clearTimeout(interactionTimer.current);setInteraction(false); };
+    return () => { cancelled = true;controller.abort();alive.current = false; cancelAnimationFrame(frame.current); frame.current = 0;clearTimeout(interactionTimer.current);setInteraction(false);release(); };
   }, [before, after, contentReady, externalLoading, reset, setInteraction]);
   useEffect(() => {
     const observer = new ResizeObserver(()=>{target.current=clampView(target.current);wake();}); if (host.current) observer.observe(host.current);
@@ -1486,7 +1508,7 @@ const SmoothCompareViewport = React.memo(function SmoothCompareViewport({ before
   }} onPointerUp={() => { drag.current=null;setInteraction(false); }} onPointerCancel={() => { drag.current=null;setInteraction(false); }}>
     <canvas ref={canvas} />
     {previewLoading&&<div className="compare-loader"><i/><strong>{contentReady?"ГОТОВИМ ПРЕВЬЮ":"ПЕРЕХОД"}</strong><span>PNG остаётся в исходном качестве</span></div>}
-    <span className="compare-label before">ОРИГИНАЛ</span><span className="compare-label after">РЕЗУЛЬТАТ</span>
+    {before&&<span className="compare-label before">ОРИГИНАЛ</span>}{after&&<span className="compare-label after">РЕЗУЛЬТАТ</span>}
     <div className="viewport-actions"><button onClick={(e)=>{e.stopPropagation();reset(1)}}>ВПИСАТЬ</button><button onClick={(e)=>{e.stopPropagation();reset(4)}}>400%</button><button onClick={(e)=>{e.stopPropagation();reset(8)}}>800%</button></div>
   </div>;
 });
@@ -1518,8 +1540,8 @@ const ComparisonSurface = React.memo(function ComparisonSurface({
       )}
       <SmoothCompareViewport before={before} after={after} mode={mode} onZoom={updateZoomLabel} contentReady={contentReady} externalLoading={loading} />
       <div className="comparison-truth">
-        <span>ПРЕВЬЮ · ПЛАВНАЯ НАВИГАЦИЯ</span>
-        <span>ЭКСПОРТ · ИСХОДНОЕ PNG</span>
+        <span>ОРИГИНАЛ · ПОЛНЫЙ PNG</span>
+        <span>РЕЗУЛЬТАТ · ПОЛНЫЙ PNG</span>
       </div>
       <div className="compare-tools">
         <span className="live-zoom">ZOOM {zoomLabel}% · MAX {MAX_ZOOM * 100}%</span>
@@ -1536,9 +1558,7 @@ function Workspace({ kind, state, backend, setScreen, contentReady = true }) {
   const batch = kind === "batch",
     [focus, setFocus] = useState(false),
     items = state.batchItems || [],
-    before = state.sourceIsLarge
-      ? (state.previewBusy ? "" : state.workingPreviewUrl)
-      : state.referenceUrl || state.workingPreviewUrl || state.sourceUrl;
+    before = state.sourceUrl;
   const toggleFocus = useCallback(() => setFocus((value) => !value), []);
   useEffect(() => {
     if (!batch) dispatchEvent(new CustomEvent("agr-focus", { detail: focus }));
@@ -1567,7 +1587,7 @@ function Workspace({ kind, state, backend, setScreen, contentReady = true }) {
         </Button>
         <div>
           <small>
-            {batch ? "BATCH / AUTO QUALITY" : "НПМ / TARGET ≤ 3 MB"}
+            {batch ? "BATCH / ADAPTIVE NATIVE" : "НПМ / TARGET ≤ 3 MB"}
           </small>
           <h1>Оптимизатор текстур</h1>
         </div>
@@ -1593,6 +1613,11 @@ function Workspace({ kind, state, backend, setScreen, contentReady = true }) {
           </Button>
         </div>
       </div>
+      {!batch&&<section className="npm-command-top">
+        <ProcessSignal progress={state.progress} status={state.status || state.report} />
+        <Button danger={state.busy} disabled={!state.sourceUrl&&!state.busy} onClick={()=>state.busy?backend?.stopCurrent():backend?.optimize(2.99)}>{state.busy?"ОСТАНОВИТЬ":"ОПТИМИЗИРОВАТЬ ДО 3 MB"}</Button>
+        <Button quiet disabled={!state.outputPath} onClick={()=>backend?.openOutputFolder()}><FolderOpen/> ПАПКА</Button>
+      </section>}
       {batch ? (
         <>
           <section className="telemetry">
@@ -1670,12 +1695,12 @@ function Workspace({ kind, state, backend, setScreen, contentReady = true }) {
                   <X />
                 </Button>
                 <div className="thumb">
-                  {item.importing ? <div className="preview-loader"><i /><span>ПОДГОТОВКА</span></div> : <img src={item.comparisonSourceUrl || item.sourceUrl} />}
+                  {item.importing ? <div className="preview-loader"><i /><span>ПОДГОТОВКА</span></div> : <img loading="lazy" decoding="async" src={item.comparisonSourceUrl || item.sourceUrl} />}
                   <span>BEFORE</span>
                 </div>
                 <div className="thumb">
                   {item.resultUrl ? (
-                    <img src={item.comparisonResultUrl || item.resultUrl} />
+                    <img loading="lazy" decoding="async" src={item.comparisonResultUrl || item.resultUrl} />
                   ) : (
                     <p>
                       AFTER
@@ -1739,36 +1764,15 @@ function Workspace({ kind, state, backend, setScreen, contentReady = true }) {
               color="var(--accent2)"
             />
           </section>
-          <div className="compare-title">
-            <h2>СРАВНИТЕЛЬНЫЙ АНАЛИЗ · СИНХРОННОЕ ПЕРЕМЕЩЕНИЕ</h2>
-          </div>
           <ComparisonSurface
             before={before}
             after={state.resultUrl}
             focus={focus}
             onFocus={toggleFocus}
             contentReady={contentReady}
-            loading={state.previewBusy && state.sourceIsLarge}
+            loading={false}
+            allowWipe
           />
-          <section className="bottom-process">
-            <ProcessSignal progress={state.progress} status={state.status || state.report} />
-            <Button
-              danger={state.busy}
-              disabled={!state.sourceUrl && !state.busy}
-              onClick={() =>
-                state.busy ? backend?.stopCurrent() : backend?.optimize(2.99)
-              }
-            >
-              {state.busy ? "ОСТАНОВИТЬ" : "ОПТИМИЗИРОВАТЬ ДО 3 MB"}
-            </Button>
-            <Button
-              quiet
-              disabled={!state.outputPath}
-              onClick={() => backend?.openOutputFolder()}
-            >
-              <FolderOpen /> ПАПКА РЕЗУЛЬТАТА
-            </Button>
-          </section>
         </>
       )}
     </main>
@@ -1817,8 +1821,8 @@ function Compare({ index, state, backend, setScreen, contentReady = true }) {
         <ProcessSignal compact progress={1} status={item.status || "Анализ завершён"} />
       </section>
       <ComparisonSurface
-        before={item.comparisonSourceUrl || item.sourceUrl}
-        after={item.comparisonResultUrl || item.resultUrl}
+        before={item.sourceUrl}
+        after={item.resultUrl}
         focus={focus}
         onFocus={toggleFocus}
         allowWipe
@@ -1848,11 +1852,13 @@ function JourneyTransition({ journey }) {
   </AnimatePresence>;
 }
 function SecretScene({ active, onDone }) {
+  const [title,setTitle]=useState("ISSMAKER");
   useEffect(() => {
     if (!active) return;
     const t = setTimeout(onDone, 6800);
     return () => clearTimeout(t);
   }, [active, onDone]);
+  useEffect(()=>{if(!active){setTitle("ISSMAKER");return;}const source="ISSMAKER",alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",start=performance.now();const timer=setInterval(()=>{const elapsed=performance.now()-start,resolved=Math.floor(Math.max(0,elapsed-420)/105);setTitle(Array.from(source).map((char,index)=>index<resolved?char:alphabet[Math.floor(Math.random()*alphabet.length)]).join(""));if(resolved>=source.length){clearInterval(timer);setTitle(source);}},42);return()=>clearInterval(timer);},[active]);
   return (
     <AnimatePresence>
       {active && (
@@ -1864,7 +1870,7 @@ function SecretScene({ active, onDone }) {
         >
           <div className="secret-veil"/>
           <div className="secret-waves">{Array.from({length:14},(_,i)=><i key={i} style={{"--size":`${130+i*52}px`,"--rotation":`${19+i*4}deg`,"--delay":`${i*-.16}s`}}/>)}</div>
-          <div className="secret-title"><small>AUTHOR SEQUENCE</small><b>ISSMAKER</b><span>RGB24 · SIGNATURE VERIFIED</span></div>
+          <div className="secret-title"><small>AUTHOR SEQUENCE</small><b>{title}</b><span>RGB24 · SIGNATURE VERIFIED</span></div>
         </motion.div>
       )}
     </AnimatePresence>
@@ -2003,9 +2009,10 @@ function App() {
   return (
     <div
       ref={appRoot}
-      className={`app theme-${theme} quality-${quality} scene-${screen} ${diving ? "is-diving" : ""} ${hold>.01?"is-holding":""} ${secret?"has-secret":""}`}
+      className={`app theme-${theme} quality-${quality} scene-${screen} ${diving ? "is-diving" : ""} ${hold>.01?"is-holding":""} ${secret?"has-secret":""} ${state.busy||state.batchBusy||state.batchImportBusy?"is-processing":""}`}
       style={{"--ui-brightness":brightness,"--effect-level":effects,"--hold":hold}}
     >
+      <BackgroundFlowLines/>
       <div className="webgl">
         {HEADLESS_TEST ? (
           <div className="headless-scene" />
@@ -2019,6 +2026,8 @@ function App() {
               brightness={brightness}
               effects={effects}
               hold={hold}
+              holdPoint={holdPoint}
+              processing={state.busy||state.batchBusy||state.batchImportBusy}
             />
           </SceneBoundary>
         )}

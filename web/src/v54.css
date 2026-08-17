@@ -127,3 +127,45 @@
 .secret-title small{font:700 8px monospace;letter-spacing:5px;color:#a8cfc5}.secret-title b{font:300 clamp(52px,9vw,144px)/.8 sans-serif;letter-spacing:.13em;color:#eafff8}.secret-title span{font:750 8px monospace;letter-spacing:3px;color:var(--accent)}
 @keyframes secretOrbit{to{transform:rotate(360deg) scale(1.08)}}
 @keyframes secretWave{to{transform:rotate(var(--rotation)) scale(1.06);opacity:.28}}
+
+/* v57 · native viewer, persistent workspace focus and procedural flow field. */
+.background-flow{position:fixed;z-index:0;inset:-3%;pointer-events:none;overflow:hidden;opacity:calc(.2 + var(--effect-level)*.16);filter:brightness(var(--ui-gain))}
+.background-flow svg{width:106%;height:106%;transform:translate(var(--flow-x,0px),var(--flow-y,0px));transition:transform .42s cubic-bezier(.18,.72,.2,1)}
+.background-flow path{fill:none;stroke:color-mix(in srgb,var(--accent2) 27%,#8ab7c9);stroke-width:1;vector-effect:non-scaling-stroke;opacity:.18;filter:drop-shadow(0 0 3px color-mix(in srgb,var(--accent) 12%,transparent))}
+.background-flow path:nth-child(3n){stroke:var(--accent);opacity:.22}.background-flow path:nth-child(4n){stroke-width:1.5;opacity:.13}
+.webgl{z-index:1!important}
+
+/* Workspaces stay optically focused even when the pointer is over empty space. */
+.scene-npm:not(.is-diving) .webgl,.scene-batch:not(.is-diving) .webgl,.scene-compare:not(.is-diving) .webgl{opacity:calc(.38 + var(--effect-level)*.08)!important;filter:blur(1.15px) saturate(1.08) brightness(.82)!important;transform:scale(1.008)!important;transition:filter 1.05s ease,opacity 1.05s ease,transform 1.05s ease!important}
+.scene-npm .workspace:before,.scene-batch .workspace:before,.scene-compare .workspace:before{content:"";position:absolute;z-index:-1;inset:-14px -4px;background:radial-gradient(ellipse at 54% 40%,#0718233d,transparent 68%);backdrop-filter:blur(2px);pointer-events:none}
+.scene-npm .workspace-head,.scene-npm .telemetry,.scene-npm .npm-command-top,.scene-batch .workspace-head,.scene-batch .telemetry,.scene-batch .batch-import-panel,.scene-compare .workspace-head,.scene-compare .analysis-summary{box-shadow:inset 0 1px #eaffff2b,0 18px 58px #0007,0 0 34px color-mix(in srgb,var(--accent) 8%,transparent)!important}
+
+/* Command channel moved above the analysis, leaving more height for pixels. */
+.npm-command-top{min-height:58px;display:grid;grid-template-columns:minmax(280px,1fr) auto auto;align-items:center;gap:9px;padding:7px 9px;border:1px solid #ffffff1c;border-radius:16px;background:linear-gradient(125deg,#0a1a22d9,#061018bd);backdrop-filter:blur(23px) saturate(1.25)}
+.npm-command-top .process-signal{height:42px}.npm-command-top .button{height:42px;min-height:42px}
+.scene-npm .telemetry{min-height:82px!important;height:82px}.scene-npm .ring-metric{width:68px!important;min-width:68px!important}.scene-npm .ring-metric svg{inset:5px;width:calc(100% - 10px);height:calc(100% - 10px)}.scene-npm .ring-metric strong{font-size:13px}.scene-npm .metric{padding:9px;min-width:104px}.scene-npm .metric strong{margin-top:8px;font-size:15px}
+.scene-npm .compare-card,.scene-compare .compare-card{min-height:430px!important}
+
+/* Native files are decoded asynchronously and displayed directly. */
+.comparison-truth span{color:#c8fff0!important;border-color:color-mix(in srgb,var(--accent) 24%,#ffffff18)!important;background:#041019c7!important}
+.comparison-modes{position:absolute;z-index:8;top:10px;left:50%;translate:-50% 0;height:34px!important}.comparison-modes button{height:32px;border-radius:14px!important;background:#041019d9!important;backdrop-filter:blur(14px)}
+.compare-card{position:relative}.smooth-compare{min-height:0!important}
+
+/* Decode changes glyphs only. Monospace metrics keep every trigger stable. */
+.button>span,.right-dock button span{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-variant-ligatures:none}
+
+/* Remove every rectangular halo below circular pipeline metrics. */
+.ring-metric{isolation:isolate;overflow:visible!important;background:radial-gradient(circle,color-mix(in srgb,var(--accent) 9%,#07131a),#061018 66%,transparent 68%)!important;box-shadow:0 0 0 1px #ffffff13,0 0 24px color-mix(in srgb,var(--accent) 12%,transparent)!important}
+.ring-metric:before,.ring-metric:after{content:none!important;display:none!important;box-shadow:none!important;background:none!important}
+.ring-metric svg{filter:drop-shadow(0 0 6px color-mix(in srgb,var(--accent) 45%,transparent));border-radius:50%!important;overflow:visible}
+
+/* The WebGL layer yields resources while CPU/RAM intensive PNG work runs. */
+.is-processing .webgl{opacity:.28!important;filter:blur(1.6px) saturate(.82) brightness(.66)!important;transition:filter 1.2s ease,opacity 1.2s ease!important}
+.is-processing .background-flow{opacity:.12!important}
+
+/* ISS sequence gains a crisp scan instead of a large unfocused glow. */
+.secret-title b{position:relative;text-shadow:0 0 7px #eaffff,0 0 22px color-mix(in srgb,var(--accent) 58%,transparent)!important;filter:none!important}
+.secret-title:after{content:"";position:absolute;left:-12%;right:-12%;top:50%;height:2px;background:linear-gradient(90deg,transparent,var(--accent),#fff,var(--accent),transparent);box-shadow:0 0 22px var(--accent);animation:signatureScan 2.4s cubic-bezier(.18,.72,.2,1) both}
+@keyframes signatureScan{0%{transform:translateY(-130px) scaleX(.1);opacity:0}28%{opacity:1}100%{transform:translateY(145px) scaleX(1.15);opacity:0}}
+
+@media(max-height:900px){.npm-command-top{min-height:50px;padding:4px 7px}.npm-command-top .process-signal,.npm-command-top .button{height:38px;min-height:38px}.scene-npm .telemetry{height:70px;min-height:70px!important}.scene-npm .compare-card,.scene-compare .compare-card{min-height:360px!important}}

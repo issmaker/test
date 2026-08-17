@@ -27,7 +27,7 @@
 #endif
 
 #ifndef AGR_APP_VERSION
-#define AGR_APP_VERSION "56"
+#define AGR_APP_VERSION "57"
 #endif
 
 namespace {
@@ -112,6 +112,7 @@ int runSelfTest() {
     if (automatic.png.isEmpty()) return 7;
     if (!PngEncoder::verifyRgb24(automatic.png, automatic.output)) return 8;
     if (automatic.output.size() != input.size()) return 9;
+    if (automatic.png.size() >= QFileInfo(inputPath).size()) return 26;
     bool cancellationObserved=false;
     try { TextureProcessor::processAutomatic(inputPath, [](double,const QString&){}, []{return true;}); }
     catch(...) { cancellationObserved=true; }

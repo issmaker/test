@@ -231,9 +231,9 @@ int main(int argc,char**argv){
                     if(!target)return;
                     clearInterval(timer);target.click();
                 },100);
-                setTimeout(()=>clearInterval(timer),3000);
+                setTimeout(()=>clearInterval(timer),5000);
             })())JS"));});
-            QTimer::singleShot(1200,view,[view]{view->page()->runJavaScript(QStringLiteral(R"JS((()=>{
+            QTimer::singleShot(1400,view,[view]{view->page()->runJavaScript(QStringLiteral(R"JS((()=>{
                 const timer=setInterval(()=>{
                     const zoom=document.querySelector('.smooth-compare');
                     if(!zoom)return;
@@ -256,10 +256,10 @@ int main(int argc,char**argv){
                         dispatchEvent(new CustomEvent('agr-hint',{detail:{open:true,text:'TOOLTIP TEST',x:720,y:42}}));
                     },80);
                 },100);
-                setTimeout(()=>clearInterval(timer),3200);
+                setTimeout(()=>clearInterval(timer),5200);
             })())JS"));});
-            QTimer::singleShot(3500,view,[view]{view->page()->runJavaScript(QStringLiteral("document.querySelector('.top-actions [data-action=\"settings\"]')?.click()"));});
-            QTimer::singleShot(4800,view,[view]{
+            QTimer::singleShot(6200,view,[view]{view->page()->runJavaScript(QStringLiteral("document.querySelector('.top-actions [data-action=\"settings\"]')?.click()"));});
+            QTimer::singleShot(7600,view,[view]{
                 view->page()->runJavaScript(QStringLiteral(R"JS((()=>{
                     const hint=document.querySelector('.floating-hint'),box=hint?.getBoundingClientRect();
                     const zoomLabel=document.querySelector('.live-zoom');
@@ -282,8 +282,8 @@ int main(int argc,char**argv){
                         qWarning("Offscreen interaction diagnostics incomplete: %s",qPrintable(details));
                 });
             });
-            QTimer::singleShot(5550,view,[view]{view->page()->runJavaScript(QStringLiteral("document.querySelector('.right-dock [data-route=\"game\"]')?.click()"));});
-            QTimer::singleShot(6800,view,[view]{
+            QTimer::singleShot(8200,view,[view]{view->page()->runJavaScript(QStringLiteral("document.querySelector('.right-dock [data-route=\"game\"]')?.click()"));});
+            QTimer::singleShot(9800,view,[view]{
                 view->page()->runJavaScript(QStringLiteral(R"JS((()=>{
                     const board=document.querySelector('.blade-board');
                     const cells=document.querySelectorAll('.blade-board>i').length;
